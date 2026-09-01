@@ -46,63 +46,63 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
 
-  static const _clientTabs = <AppTab>[
+  static final _clientTabs = <AppTab>[
     AppTab(
       label: 'Accueil',
       icon: 'home',
       activeIcon: 'home',
-      builder: HomeScreen.new,
+      builder: (_) => const HomeScreen(),
     ),
     AppTab(
       label: 'Quartier',
       icon: 'groups',
       activeIcon: 'groups',
-      builder: QuartierScreen.new,
+      builder: (_) => const QuartierScreen(),
     ),
     AppTab(
       label: 'Demandes',
       icon: 'receipt_long',
       activeIcon: 'receipt_long',
-      builder: RequestsScreen.new,
+      builder: (_) => const RequestsScreen(),
     ),
     AppTab(
       label: 'Messages',
       icon: 'campaign',
       activeIcon: 'campaign',
-      builder: MessagesScreen.new,
+      builder: (_) => const MessagesScreen(),
     ),
     AppTab(
       label: 'Profil',
       icon: 'person',
       activeIcon: 'person',
-      builder: ProfileScreen.new,
+      builder: (_) => const ProfileScreen(),
     ),
   ];
 
-  static const _providerTabs = <AppTab>[
+  static final _providerTabs = <AppTab>[
     AppTab(
       label: 'Demandes',
       icon: 'receipt_long',
       activeIcon: 'receipt_long',
-      builder: ProviderInboxScreen.new,
+      builder: (_) => const ProviderInboxScreen(),
     ),
     AppTab(
       label: 'Feed',
       icon: 'photo_library',
       activeIcon: 'photo_library',
-      builder: FeedScreen.new,
+      builder: (_) => const FeedScreen(),
     ),
     AppTab(
       label: 'Messages',
       icon: 'campaign',
       activeIcon: 'campaign',
-      builder: MessagesScreen.new,
+      builder: (_) => const MessagesScreen(),
     ),
     AppTab(
       label: 'Profil',
       icon: 'person',
       activeIcon: 'person',
-      builder: ProfileScreen.new,
+      builder: (_) => const ProfileScreen(),
     ),
   ];
 

@@ -1,0 +1,225 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/providers.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/palette.dart';
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/common.dart';
+import '../../core/widgets/confirm_sheet.dart';
+import '../../core/widgets/material_symbol.dart';
+import '../client/requests_screen.dart';
+import '../deals/deals_screen.dart';
+
+/// Profil — account, shortcuts and sign-out.
+class ProfileScreen extends ConsumerWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+    final brand = context.brand;
+    final type = context.type;
+
+    // The requests count comes from the same source as the list itself, so the
+    // two can never disagree (§4.5).
+    final requests = ref.watch(myRequestsProvider).value;
+    final activeCount = requests
+        ?.where((r) => r.status.name == 'open' || r.status.name == 'offerSelected')
+        .length;
+
+    return FadeUp(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(
+            Space.gutterTight, Space.s12, Space.gutterTight, Space.gutter),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(Space.gutterTight),
+            decoration: BoxDecoration(
+              color: brand.fill,
+              borderRadius: Radii.brCardLarge,
+            ),
+            child: Row(
+              children: [
+                InitialsAvatar(
+                    name: user?.name ?? '', size: 56, radius: null),
+                const SizedBox(width: Space.gutterTight),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        user?.name ?? '',
+                        style: type.h3.copyWith(color: Colors.white),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        user?.neighborhood.isNotEmpty == true
+                            ? user!.neighborhood
+                            : 'Quartier non renseigné',
+                        style: type.metaSmall
+                            .copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: Space.gutter),
+          _MenuRow(
+            icon: 'receipt_long',
+            label: 'Mes demandes',
+            detail: activeCount == null ? null : '$activeCount en cours',
+          ),
+          _MenuRow(
+            icon: 'local_offer',
+            label: 'Deals',
+            detail: 'Offres partenaires',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const DealsScreen()),
+            ),
+          ),
+          const _MenuRow(icon: 'help', label: 'Aide & support'),
+          const _MenuRow(
+              icon: 'settings',
+              label: 'Paramètres',
+              detail: 'Compte, langue, notifications'),
+          const SizedBox(height: Space.gutter),
+          if (user?.isProvider != true)
+            _BecomeProviderCard(
+              onTap: () => _showProviderNote(context),
+            ),
+          const SizedBox(height: Space.gutter),
+          TextButton(
+            onPressed: () => _signOut(context, ref),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const MaterialSymbol('logout',
+                    size: 18, color: PanergoColors.danger),
+                const SizedBox(width: Space.s8),
+                Text('Se déconnecter',
+                    style: type.label.copyWith(color: PanergoColors.danger)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await ConfirmSheet.show(
+      context,
+      title: 'Se déconnecter ?',
+      body: 'Vous devrez saisir un nouveau code pour revenir.',
+      confirmLabel: 'Se déconnecter',
+      destructive: true,
+    );
+    if (confirmed == true) {
+      await ref.read(authProvider.notifier).signOut();
+    }
+  }
+
+  /// Becoming a provider forces a re-login, because the role lives in the JWT.
+  /// Better to say so than to leave the user staring at a permission error.
+  Future<void> _showProviderNote(BuildContext context) {
+    return ConfirmSheet.showInfo(
+      context,
+      title: 'Devenir prestataire',
+      body: Text(
+        'L’inscription en tant que prestataire vous demandera de vous '
+        'reconnecter pour activer votre nouveau rôle.',
+        style: context.type.bodySmall.copyWith(height: 1.5),
+      ),
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
+    required this.icon,
+    required this.label,
+    this.detail,
+    this.onTap,
+  });
+
+  final String icon;
+  final String label;
+  final String? detail;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.s10),
+      child: PanergoCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(13),
+        radius: Radii.card,
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: PanergoColors.fillAlt,
+                borderRadius: Radii.brTile,
+              ),
+              child: MaterialSymbol(icon, size: 20, color: PanergoColors.body),
+            ),
+            const SizedBox(width: Space.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label, style: context.type.cardTitleSmall),
+                  if (detail != null) ...[
+                    const SizedBox(height: 2),
+                    Text(detail!, style: context.type.metaSmall),
+                  ],
+                ],
+              ),
+            ),
+            const MaterialSymbol('chevron_right',
+                size: 20, color: PanergoColors.disabled),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BecomeProviderCard extends StatelessWidget {
+  const _BecomeProviderCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: Radii.brCard,
+      child: Container(
+        padding: const EdgeInsets.all(Space.gutterTight),
+        decoration: BoxDecoration(
+          borderRadius: Radii.brCard,
+          border: Border.all(color: brand.fill),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            MaterialSymbol('add_circle', size: 20, color: brand.link),
+            const SizedBox(width: Space.s8),
+            Text('Devenir prestataire',
+                style: context.type.label.copyWith(color: brand.link)),
+          ],
+        ),
+      ),
+    );
+  }
+}

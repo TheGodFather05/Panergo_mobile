@@ -1,0 +1,487 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/format/formats.dart';
+import '../../core/models/enums.dart';
+import '../../core/network/api_exception.dart';
+import '../../core/providers.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/theme/palette.dart';
+import '../../core/theme/tokens.dart';
+import '../../core/widgets/common.dart';
+import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/panergo_button.dart';
+import 'confirmation_screen.dart';
+import 'direct_dispatch_screen.dart';
+
+/// Demander — the tender form.
+///
+/// Two rules from the design shape this screen: the send button is inert and
+/// visually muted until a description of at least 10 characters and an urgency
+/// are present (RM-07), and picking "Tout de suite" routes to direct dispatch
+/// rather than opening a tender (ADR-02).
+class NewRequestScreen extends ConsumerStatefulWidget {
+  const NewRequestScreen({super.key, this.initialCategory});
+
+  final ServiceCategory? initialCategory;
+
+  @override
+  ConsumerState<NewRequestScreen> createState() => _NewRequestScreenState();
+}
+
+class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
+  static const _descriptionLimit = 280;
+  static const _minDescription = 10;
+
+  final _descriptionController = TextEditingController();
+
+  late ServiceCategory _category =
+      widget.initialCategory ?? ServiceCategory.plomberie;
+  Urgency? _urgency;
+  BudgetBracket? _budget;
+
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  String get _description => _descriptionController.text.trim();
+
+  bool get _valid =>
+      _description.length >= _minDescription && _urgency != null;
+
+  Future<void> _submit() async {
+    if (!_valid) return;
+
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+
+    final api = ref.read(apiProvider);
+    final user = ref.read(currentUserProvider);
+    final neighborhood =
+        user?.neighborhood.isNotEmpty == true ? user!.neighborhood : 'Douala';
+
+    try {
+      if (_urgency == Urgency.now) {
+        // Urgent: straight to one provider, with an estimate.
+        final match = await api.createDirectRequest(
+          category: _category,
+          neighborhood: neighborhood,
+          description: _description,
+          budget: _budget,
+        );
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+          builder: (_) => DirectDispatchScreen(match: match),
+        ));
+      } else {
+        final requestId = await api.createRequest(
+          category: _category,
+          neighborhood: neighborhood,
+          description: _description,
+          urgency: _urgency!,
+          budget: _budget,
+        );
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(MaterialPageRoute(
+          builder: (_) => ConfirmationScreen(
+            requestId: requestId,
+            category: _category,
+            neighborhood: neighborhood,
+          ),
+        ));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _busy = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final type = context.type;
+
+    return Scaffold(
+      backgroundColor: PanergoColors.page,
+      body: SafeArea(
+        child: FadeUp(
+          child: Column(
+            children: [
+              ScreenHeader(
+                title: 'Nouvelle demande',
+                onBack: () => Navigator.of(context).pop(),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                      Space.gutter, Space.xs, Space.gutter, Space.s22),
+                  children: [
+                    Text('Catégorie', style: type.label),
+                    const SizedBox(height: Space.s10),
+                    _CategoryChips(
+                      selected: _category,
+                      onSelected: (value) => setState(() => _category = value),
+                    ),
+                    const SizedBox(height: Space.s22),
+                    _RequiredLabel(
+                      label: 'Décrivez votre besoin',
+                      trailing: Formats.counter(
+                          _descriptionController.text.length, _descriptionLimit),
+                    ),
+                    const SizedBox(height: Space.s10),
+                    _DescriptionField(
+                      controller: _descriptionController,
+                      limit: _descriptionLimit,
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: Space.s22),
+                    _RequiredLabel(label: 'Quand ?'),
+                    const SizedBox(height: Space.xs),
+                    Text(
+                      '« Tout de suite » envoie la demande au prestataire '
+                      'disponible le plus proche, sans attendre les offres.',
+                      style: type.metaSmall.copyWith(height: 1.4),
+                    ),
+                    const SizedBox(height: Space.s10),
+                    _UrgencyPills(
+                      selected: _urgency,
+                      onSelected: (value) => setState(() => _urgency = value),
+                    ),
+                    const SizedBox(height: Space.s22),
+                    Text('Votre budget', style: type.label),
+                    const SizedBox(height: Space.xs),
+                    Text(
+                      'Facultatif, mais les offres reçues restent comparables.',
+                      style: type.metaSmall.copyWith(height: 1.4),
+                    ),
+                    const SizedBox(height: Space.s10),
+                    _BudgetPills(
+                      selected: _budget,
+                      onSelected: (value) => setState(
+                          () => _budget = _budget == value ? null : value),
+                    ),
+                    if (_error != null) ...[
+                      const SizedBox(height: Space.s16),
+                      Text(_error!,
+                          style: type.bodySmall
+                              .copyWith(color: PanergoColors.danger)),
+                    ],
+                  ],
+                ),
+              ),
+              _StickyFooter(
+                valid: _valid,
+                busy: _busy,
+                onSubmit: _submit,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A field label with the red asterisk that marks it required.
+class _RequiredLabel extends StatelessWidget {
+  const _RequiredLabel({required this.label, this.trailing});
+
+  final String label;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        RichText(
+          text: TextSpan(
+            style: context.type.label,
+            children: [
+              TextSpan(text: '$label '),
+              const TextSpan(
+                text: '*',
+                style: TextStyle(color: Color(0xFFC2451F)),
+              ),
+            ],
+          ),
+        ),
+        if (trailing != null)
+          Text(trailing!,
+              style: context.type.metaSmall.copyWith(color: PanergoColors.faint)),
+      ],
+    );
+  }
+}
+
+class _CategoryChips extends StatelessWidget {
+  const _CategoryChips({required this.selected, required this.onSelected});
+
+  final ServiceCategory selected;
+  final ValueChanged<ServiceCategory> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+
+    return SizedBox(
+      height: 42,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: ServiceCategory.values.length,
+        separatorBuilder: (_, __) => const SizedBox(width: Space.s8),
+        itemBuilder: (context, index) {
+          final category = ServiceCategory.values[index];
+          final isSelected = category == selected;
+          final tint = CategoryTints.at(category.tintIndex);
+
+          return InkWell(
+            borderRadius: Radii.brChip,
+            onTap: () => onSelected(category),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: Space.s14),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: isSelected ? brand.fill : PanergoColors.surface,
+                borderRadius: Radii.brChip,
+                border: Border.all(
+                  color: isSelected ? brand.fill : PanergoColors.borderStrong,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MaterialSymbol(
+                    category.iconName,
+                    size: 18,
+                    color: isSelected ? Colors.white : tint.foreground,
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    category.label,
+                    style: context.type.labelSmall.copyWith(
+                      fontSize: 13,
+                      fontWeight:
+                          isSelected ? FontWeight.w700 : FontWeight.w600,
+                      color: isSelected ? Colors.white : PanergoColors.body,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DescriptionField extends StatelessWidget {
+  const _DescriptionField({
+    required this.controller,
+    required this.limit,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final int limit;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: PanergoColors.surface,
+        borderRadius: Radii.brCard,
+        border: Border.all(color: PanergoColors.borderStrong),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        maxLines: null,
+        maxLength: limit,
+        minLines: 4,
+        style: context.type.bodyLarge
+            .copyWith(color: PanergoColors.ink, fontWeight: FontWeight.w500),
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          isDense: true,
+          // The design shows its own counter above the field.
+          counterText: '',
+          hintText: 'Décrivez le problème, le lieu et depuis quand',
+          hintStyle: context.type.bodyLarge
+              .copyWith(color: PanergoColors.placeholder),
+        ),
+      ),
+    );
+  }
+}
+
+class _UrgencyPills extends StatelessWidget {
+  const _UrgencyPills({required this.selected, required this.onSelected});
+
+  final Urgency? selected;
+  final ValueChanged<Urgency> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+
+    return Wrap(
+      spacing: Space.s8,
+      runSpacing: Space.s8,
+      children: [
+        for (final urgency in Urgency.values)
+          _Pill(
+            label: urgency.label,
+            selected: urgency == selected,
+            selectedColor: brand.fill,
+            onTap: () => onSelected(urgency),
+          ),
+      ],
+    );
+  }
+}
+
+class _BudgetPills extends StatelessWidget {
+  const _BudgetPills({required this.selected, required this.onSelected});
+
+  final BudgetBracket? selected;
+  final ValueChanged<BudgetBracket> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+
+    return Wrap(
+      spacing: Space.s8,
+      runSpacing: Space.s8,
+      children: [
+        for (final bracket in BudgetBracket.values)
+          _Pill(
+            label: bracket.label,
+            suffix: 'FCFA',
+            selected: bracket == selected,
+            // Budget is a softer selection than urgency: tinted, not solid.
+            selectedColor: brand.soft,
+            selectedTextColor: brand.link,
+            onTap: () => onSelected(bracket),
+          ),
+      ],
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  const _Pill({
+    required this.label,
+    required this.selected,
+    required this.selectedColor,
+    required this.onTap,
+    this.suffix,
+    this.selectedTextColor = Colors.white,
+  });
+
+  final String label;
+  final String? suffix;
+  final bool selected;
+  final Color selectedColor;
+  final Color selectedTextColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        borderRadius: Radii.brChip,
+        onTap: onTap,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? selectedColor : PanergoColors.surface,
+            borderRadius: Radii.brChip,
+            border: Border.all(
+              color: selected ? brand.fill : PanergoColors.borderInput,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: context.type.labelSmall.copyWith(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  color: selected ? selectedTextColor : PanergoColors.body,
+                ),
+              ),
+              if (suffix != null) ...[
+                const SizedBox(width: Space.xs),
+                Text(suffix!,
+                    style: context.type.currency
+                        .copyWith(color: PanergoColors.faint)),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The pinned footer: an inline hint while invalid, then the send button.
+class _StickyFooter extends StatelessWidget {
+  const _StickyFooter({
+    required this.valid,
+    required this.busy,
+    required this.onSubmit,
+  });
+
+  final bool valid;
+  final bool busy;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+          Space.gutter, Space.s12, Space.gutter, Space.s18),
+      decoration: const BoxDecoration(
+        color: PanergoColors.page,
+        border: Border(top: BorderSide(color: PanergoColors.border)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (!valid)
+            const ValidationHint(
+                'Description et délai sont nécessaires pour envoyer.'),
+          PanergoButton(
+            label: 'Envoyer ma demande',
+            icon: 'send',
+            enabled: valid,
+            loading: busy,
+            onPressed: onSubmit,
+          ),
+        ],
+      ),
+    );
+  }
+}

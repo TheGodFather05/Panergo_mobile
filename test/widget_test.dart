@@ -1,30 +1,71 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:panergo_mobile/main.dart';
+import 'package:panergo_mobile/core/theme/app_theme.dart';
+import 'package:panergo_mobile/core/theme/palette.dart';
+import 'package:panergo_mobile/core/widgets/panergo_button.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  Widget wrap(Widget child, {BrandDirection direction = BrandDirection.braise}) {
+    return MaterialApp(
+      theme: AppTheme.build(direction),
+      home: Scaffold(body: child),
+    );
+  }
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  group('PanergoButton', () {
+    testWidgets('an enabled button fires its callback', (tester) async {
+      var taps = 0;
+      await tester.pumpWidget(wrap(PanergoButton(
+        label: 'Envoyer ma demande',
+        onPressed: () => taps++,
+      )));
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      await tester.tap(find.text('Envoyer ma demande'));
+      expect(taps, 1);
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    testWidgets('a disabled button stays visible but inert (RM-07)',
+        (tester) async {
+      var taps = 0;
+      await tester.pumpWidget(wrap(PanergoButton(
+        label: 'Envoyer ma demande',
+        enabled: false,
+        onPressed: () => taps++,
+      )));
+
+      // Muted, not hidden: the user can still see what they are working toward.
+      expect(find.text('Envoyer ma demande'), findsOneWidget);
+
+      await tester.tap(find.text('Envoyer ma demande'));
+      expect(taps, 0, reason: 'a disabled button must not act');
+    });
+  });
+
+  group('theme', () {
+    testWidgets('the provider flow runs on its own teal identity',
+        (tester) async {
+      late BuildContext captured;
+      await tester.pumpWidget(wrap(
+        Builder(builder: (context) {
+          captured = context;
+          return const SizedBox.shrink();
+        }),
+        direction: BrandDirection.provider,
+      ));
+
+      expect(captured.brand.fill, BrandPalette.provider.fill);
+    });
+
+    test('links use a darker ink than the brand fill (RM-15/16)', () {
+      // Small text and links must never be painted in the vivid fill colour.
+      for (final direction in BrandDirection.values) {
+        final palette = BrandPalette.of(direction);
+        expect(
+          palette.link.computeLuminance(),
+          lessThan(palette.fill.computeLuminance()),
+          reason: '${direction.name}: link ink should be darker than the fill',
+        );
+      }
+    });
   });
 }
