@@ -7,16 +7,22 @@ plugins {
 
 android {
     namespace = "cm.panergo.panergo_mobile"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    // Pinned rather than inherited from the Flutter SDK: flutter_secure_storage
+    // needs compileSdk 36, and leaving it on the default fails the AAR metadata
+    // check.
+    compileSdk = 36
+    // The plugins ask for NDK 27, but none of them actually ship native code we
+    // build here, and 27 is not installed locally. 26.3 is what is on the
+    // machine and links fine; install 27 and bump this if a plugin ever needs it.
+    ndkVersion = "26.3.11579264"
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
+        jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
     defaultConfig {
