@@ -11,6 +11,9 @@ android {
     // needs compileSdk 36, and leaving it on the default fails the AAR metadata
     // check.
     compileSdk = 36
+    // Pinned to the build-tools that ship with compileSdk 36. Without this AGP
+    // picks 35.0.0, which is a broken install on this machine.
+    buildToolsVersion = "36.0.0"
     // The plugins ask for NDK 27, but none of them actually ship native code we
     // build here, and 27 is not installed locally. 26.3 is what is on the
     // machine and links fine; install 27 and bump this if a plugin ever needs it.
@@ -30,7 +33,10 @@ android {
         applicationId = "cm.panergo.panergo_mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // flutter_secure_storage needs 23; the Flutter default of 21 fails the
+        // manifest merge. Android 6 and up still covers the phones Panergo
+        // targets in Douala.
+        minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
