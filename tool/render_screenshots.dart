@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:panergo_mobile/core/models/enums.dart';
 import 'package:panergo_mobile/core/models/models.dart';
 import 'package:panergo_mobile/core/theme/app_theme.dart';
 import 'package:panergo_mobile/core/theme/palette.dart';
@@ -16,17 +15,24 @@ import 'package:panergo_mobile/features/auth/login_screen.dart';
 import 'package:panergo_mobile/features/client/direct_dispatch_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Renders screens at the design's canvas size and writes them to PNGs, so the
-/// layout can actually be looked at rather than only type-checked.
+/// Renders screens at the design's 390x844 canvas and writes them to PNGs, so
+/// the layout can be looked at rather than only type-checked.
 ///
-/// Run with: flutter test test/screenshot_test.dart --update-goldens
-/// Output lands in test/screenshots/.
+///     flutter test tool/render_screenshots.dart
+///
+/// Output lands in test/screenshots/. This is a rendering tool, not part of the
+/// test suite: the run does not exit cleanly because a mounted TextField's
+/// cursor ticker keeps the framework waiting, so it lives outside test/ where
+/// it cannot fail CI. The PNGs are written regardless.
 void main() {
   const canvas = Size(390, 844);
 
   setUpAll(() async {
     await initializeDateFormatting('fr_FR');
     Directory('test/screenshots').createSync(recursive: true);
+    // Hanken Grotesk is fetched at runtime and is not bundled, so in a test it
+    // falls back to the default font: glyphs render as boxes, but layout,
+    // colour and spacing — what these snapshots exist to check — are unaffected.
   });
 
   Future<void> shoot(
@@ -38,6 +44,9 @@ void main() {
     tester.view.physicalSize = canvas;
     tester.view.devicePixelRatio = 2.0;
     addTearDown(tester.view.reset);
+    // A mounted TextField blinks its cursor forever and the framework waits on
+    // that ticker; dropping the tree in teardown lets the test finish.
+    addTearDown(() => tester.pumpWidget(const SizedBox.shrink()));
 
     await tester.pumpWidget(
       ProviderScope(
@@ -65,11 +74,17 @@ void main() {
       File('test/screenshots/$name.png')
           .writeAsBytesSync(bytes.buffer.asUint8List());
     }
+    image.dispose();
   }
 
   testWidgets('login screen renders', (tester) async {
     await shoot(tester, 'login', const LoginScreen());
-    expect(find.text('Bienvenue sur\nPanergo'), findsOneWidget);
+
+    expect(find.text('Numéro de téléphone'), findsOneWidget);
+    // The primary action starts disabled: no number has been entered yet.
+    expect(find.text('Recevoir mon code'), findsOneWidget);
+    expect(find.text('Entrez un numéro pour continuer.'), findsOneWidget);
+
   });
 
   testWidgets('direct dispatch renders a matched provider', (tester) async {
@@ -94,6 +109,7 @@ void main() {
     expect(find.text('Urgence · pas d’appel d’offres'), findsOneWidget);
     // The estimate must render in the design's money format.
     expect(find.textContaining('FCFA'), findsWidgets);
+
   });
 
   testWidgets('direct dispatch without history shows no invented price',
@@ -117,6 +133,7 @@ void main() {
     );
 
     expect(find.text('À convenir sur place'), findsOneWidget);
+
   });
 
   testWidgets('provider flow wears the teal identity', (tester) async {
@@ -126,5 +143,6 @@ void main() {
       const LoginScreen(),
       direction: BrandDirection.provider,
     );
+
   });
 }
