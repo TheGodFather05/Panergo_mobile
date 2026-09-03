@@ -12,6 +12,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
+import '../booking/booking_tracking_screen.dart';
 import 'reviews_screen.dart';
 
 /// Détail de l'offre — the provider's profile behind an offer.
@@ -70,9 +71,13 @@ class _OfferDetailScreenState extends ConsumerState<OfferDetailScreen> {
     });
 
     try {
-      await ref.read(apiProvider).selectOffer(offer.id);
+      final booking = await ref.read(apiProvider).selectOffer(offer.id);
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      // Straight into the mission: the client's next real act is confirming
+      // this provider's arrival.
+      Navigator.of(context).pushReplacement(MaterialPageRoute(
+        builder: (_) => BookingTrackingScreen(bookingId: booking.bookingId),
+      ));
     } on ApiException catch (e) {
       if (mounted) {
         setState(() {

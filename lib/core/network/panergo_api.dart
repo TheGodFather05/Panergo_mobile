@@ -161,6 +161,14 @@ class PanergoApi {
     );
   }
 
+  /// Reissues an arrival code after the 24 h one expired. The provider has
+  /// nothing to redo — they present whatever this screen now shows.
+  Future<String> regenerateQrToken(String bookingId) async {
+    final data =
+        await _client.post<Map<String, dynamic>>('/api/bookings/$bookingId/qr');
+    return Json.str(data['qr_token']);
+  }
+
   Future<void> completeBooking(String bookingId) async {
     await _client.post<dynamic>('/api/bookings/$bookingId/complete');
   }

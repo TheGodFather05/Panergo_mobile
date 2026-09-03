@@ -117,6 +117,7 @@ class ServiceRequest {
     required this.budget,
     required this.createdAt,
     required this.offers,
+    required this.bookingId,
   });
 
   final String id;
@@ -129,6 +130,9 @@ class ServiceRequest {
   final BudgetBracket? budget;
   final DateTime createdAt;
   final List<Offer> offers;
+
+  /// Null until an offer is accepted; the way back into a live mission.
+  final String? bookingId;
 
   bool get isOpen => status == RequestStatus.open;
   bool get hasOffers => offers.isNotEmpty;
@@ -145,6 +149,7 @@ class ServiceRequest {
         budget: Json.enumOrNull(json['budget_bracket'], BudgetBracket.values),
         createdAt: Json.dateTime(json['created_at']),
         offers: Json.list(json['offers']).map(Offer.fromJson).toList(),
+        bookingId: Json.strOrNull(json['booking_id']),
       );
 }
 

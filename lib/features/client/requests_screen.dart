@@ -11,6 +11,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../booking/booking_tracking_screen.dart';
 import 'new_request_screen.dart';
 import 'request_status_screen.dart';
 
@@ -144,8 +145,11 @@ class _RequestCard extends StatelessWidget {
     final status = _statusStyle(request);
 
     return PanergoCard(
+      // A booked request opens its mission; an open one opens its offers.
       onTap: () => Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => RequestStatusScreen(requestId: request.id),
+        builder: (_) => request.bookingId != null
+            ? BookingTrackingScreen(bookingId: request.bookingId!)
+            : RequestStatusScreen(requestId: request.id),
       )),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
