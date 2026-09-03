@@ -14,11 +14,11 @@ import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
 import 'booking_providers.dart';
 
-/// Confirmer l'arrivée — the client scans a code the provider shows.
+/// Confirmer l'arrivée — the provider scans the code the client is showing.
 ///
-/// That direction is deliberate: the provider may have a flat battery or no
-/// signal, and a printed sticker or card still works. Nothing here depends on
-/// their phone.
+/// That direction is what makes the scan mean anything: the provider has to be
+/// at the door to read the client's screen. Handing them the code instead would
+/// let them confirm their own arrival from anywhere in Douala.
 class ScanArrivalScreen extends ConsumerStatefulWidget {
   const ScanArrivalScreen({super.key, required this.booking});
 
@@ -47,8 +47,9 @@ class _ScanArrivalScreenState extends ConsumerState<ScanArrivalScreen> {
     super.dispose();
   }
 
-  String get _providerFirstName =>
-      widget.booking.offer.providerName.split(' ').first;
+  /// The booking payload carries no client name, so the copy says "le client"
+  /// rather than inventing one.
+  static const _client = 'le client';
 
   Future<void> _submit(String token) async {
     if (_submitting) return;
@@ -79,34 +80,6 @@ class _ScanArrivalScreenState extends ConsumerState<ScanArrivalScreen> {
     );
   }
 
-  /// Reissues an expired code. The provider has nothing to redo.
-  Future<void> _regenerate() async {
-    setState(() => _submitting = true);
-    try {
-      await ref.read(apiProvider).regenerateQrToken(widget.booking.id);
-      if (!mounted) return;
-      setState(() {
-        _failure = null;
-        _failureDetail = null;
-        _submitting = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Nouveau code généré. Demandez à nouveau son code au prestataire.',
-          ),
-        ),
-      );
-    } on ApiException catch (e) {
-      if (mounted) {
-        setState(() {
-          _failureDetail = e.message;
-          _submitting = false;
-        });
-      }
-    }
-  }
-
   void _dismissFailure() {
     setState(() {
       _failure = null;
@@ -118,7 +91,7 @@ class _ScanArrivalScreenState extends ConsumerState<ScanArrivalScreen> {
   Widget build(BuildContext context) {
     if (_manualEntry) {
       return _ManualEntryScreen(
-        providerFirstName: _providerFirstName,
+        clientLabel: _client,
         busy: _submitting,
         onSubmit: _submit,
         onBack: () => setState(() => _manualEntry = false),
@@ -155,7 +128,7 @@ class _ScanArrivalScreenState extends ConsumerState<ScanArrivalScreen> {
                   onBack: () => Navigator.of(context).pop(false),
                 ),
                 const Spacer(),
-                _ScanInstructions(providerFirstName: _providerFirstName),
+                const _ScanInstructions(),
                 const SizedBox(height: Space.s16),
                 _ManualEntryLink(
                   onTap: () => setState(() => _manualEntry = true),
@@ -169,8 +142,7 @@ class _ScanArrivalScreenState extends ConsumerState<ScanArrivalScreen> {
             _FailureSheet(
               failure: _failure!,
               detail: _failureDetail,
-              providerFirstName: _providerFirstName,
-              onRegenerate: _regenerate,
+              clientLabel: _client,
               onManual: () {
                 _dismissFailure();
                 setState(() => _manualEntry = true);
@@ -299,9 +271,7 @@ class _ViewfinderOverlay extends StatelessWidget {
 }
 
 class _ScanInstructions extends StatelessWidget {
-  const _ScanInstructions({required this.providerFirstName});
-
-  final String providerFirstName;
+  const _ScanInstructions();
 
   @override
   Widget build(BuildContext context) {
@@ -310,14 +280,14 @@ class _ScanInstructions extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'Visez le code de $providerFirstName',
+            'Visez le code du client',
             textAlign: TextAlign.center,
             style: context.type.h3.copyWith(color: Colors.white),
           ),
           const SizedBox(height: Space.s8),
           Text(
-            'Il vous montre son code Panergo — autocollant, carte ou écran. '
-            'Aucun réseau n’est nécessaire de son côté.',
+            'Demandez-lui d’ouvrir « Mon code d’arrivée » dans Panergo, puis '
+            'scannez le code affiché sur son écran.',
             textAlign: TextAlign.center,
             style: context.type.bodySmall
                 .copyWith(color: Colors.white70, height: 1.5),
@@ -373,8 +343,8 @@ class _CameraUnavailable extends StatelessWidget {
               ),
               const SizedBox(height: Space.s8),
               Text(
-                'Vous pouvez saisir le code à la main : le prestataire vous le '
-                'lit, et la mission avance.',
+                'Vous pouvez saisir le code à la main : le client vous le lit, '
+                'et la mission avance.',
                 textAlign: TextAlign.center,
                 style: context.type.bodySmall
                     .copyWith(color: Colors.white70, height: 1.5),
@@ -468,8 +438,7 @@ class _FailureSheet extends StatelessWidget {
   const _FailureSheet({
     required this.failure,
     required this.detail,
-    required this.providerFirstName,
-    required this.onRegenerate,
+    required this.clientLabel,
     required this.onManual,
     required this.onRetry,
     required this.onLeave,
@@ -477,15 +446,14 @@ class _FailureSheet extends StatelessWidget {
 
   final ScanFailure failure;
   final String? detail;
-  final String providerFirstName;
-  final VoidCallback onRegenerate;
+  final String clientLabel;
   final VoidCallback onManual;
   final VoidCallback onRetry;
   final VoidCallback onLeave;
 
   @override
   Widget build(BuildContext context) {
-    final copy = _copyFor(failure, providerFirstName, detail);
+    final copy = _copyFor(failure, clientLabel, detail);
 
     return Align(
       alignment: Alignment.bottomCenter,
@@ -520,7 +488,6 @@ class _FailureSheet extends StatelessWidget {
             PanergoButton(
               label: copy.primaryLabel,
               onPressed: switch (copy.primary) {
-                _FailureAction.regenerate => onRegenerate,
                 _FailureAction.retry => onRetry,
                 _FailureAction.leave => onLeave,
                 _FailureAction.manual => onManual,
@@ -531,8 +498,7 @@ class _FailureSheet extends StatelessWidget {
               width: double.infinity,
               child: TextButton(
                 onPressed: switch (copy.secondary) {
-                  _FailureAction.regenerate => onRegenerate,
-                  _FailureAction.retry => onRetry,
+                    _FailureAction.retry => onRetry,
                   _FailureAction.leave => onLeave,
                   _FailureAction.manual => onManual,
                 },
@@ -549,7 +515,7 @@ class _FailureSheet extends StatelessWidget {
 
   static _FailureCopy _copyFor(
     ScanFailure failure,
-    String providerFirstName,
+    String clientLabel,
     String? detail,
   ) {
     return switch (failure) {
@@ -560,9 +526,9 @@ class _FailureSheet extends StatelessWidget {
           title: 'Ce code a expiré',
           body: 'Les codes d’arrivée ne valent que 24 h. Une mission reportée '
               'au lendemain arrive donc avec un code périmé — c’est normal. '
-              'Générez-en un nouveau, le prestataire n’a rien à refaire.',
-          primary: _FailureAction.regenerate,
-          primaryLabel: 'Générer un nouveau code',
+              'Demandez au client d’en générer un nouveau et de l’afficher.',
+          primary: _FailureAction.retry,
+          primaryLabel: 'Réessayer le scan',
           secondary: _FailureAction.manual,
           secondaryLabel: 'Saisir le code à la main',
         ),
@@ -572,7 +538,7 @@ class _FailureSheet extends StatelessWidget {
           foreground: Color(0xFFC2451F),
           title: 'Ce n’est pas un code Panergo',
           body: 'Le code lu ne correspond à aucune mission. Vérifiez que vous '
-              'visez bien le code que le prestataire vous présente, et non un '
+              'visez bien le code que le client vous présente, et non un '
               'autre QR.',
           primary: _FailureAction.retry,
           primaryLabel: 'Réessayer le scan',
@@ -584,8 +550,8 @@ class _FailureSheet extends StatelessWidget {
           tint: Color(0xFFE6EFF3),
           foreground: Color(0xFF0F4A61),
           title: 'Ce code est celui d’une autre mission',
-          body: 'Il appartient à une autre de vos demandes. Ouvrez cette '
-              'mission pour y confirmer l’arrivée, ou scannez le bon code ici.',
+          body: 'Il appartient à une autre de vos missions. Ouvrez celle-ci '
+              'pour y confirmer l’arrivée, ou scannez le bon code ici.',
           primary: _FailureAction.retry,
           primaryLabel: 'Réessayer le scan',
           secondary: _FailureAction.leave,
@@ -596,7 +562,7 @@ class _FailureSheet extends StatelessWidget {
           tint: const Color(0xFFE6F1EA),
           foreground: PanergoColors.online,
           title: 'Arrivée déjà confirmée',
-          body: 'Vous avez déjà confirmé l’arrivée de $providerFirstName. '
+          body: 'Vous avez déjà confirmé votre arrivée. '
               'Ce n’est pas une erreur : il n’y a rien à refaire.',
           primary: _FailureAction.leave,
           primaryLabel: 'Voir le suivi',
@@ -633,7 +599,7 @@ class _FailureSheet extends StatelessWidget {
   }
 }
 
-enum _FailureAction { regenerate, retry, leave, manual }
+enum _FailureAction { retry, leave, manual }
 
 class _FailureCopy {
   const _FailureCopy({
@@ -663,13 +629,13 @@ class _FailureCopy {
 /// whole mission.
 class _ManualEntryScreen extends StatefulWidget {
   const _ManualEntryScreen({
-    required this.providerFirstName,
+    required this.clientLabel,
     required this.busy,
     required this.onSubmit,
     required this.onBack,
   });
 
-  final String providerFirstName;
+  final String clientLabel;
   final bool busy;
   final ValueChanged<String> onSubmit;
   final VoidCallback onBack;
@@ -707,8 +673,8 @@ class _ManualEntryScreenState extends State<_ManualEntryScreen> {
                       Space.gutter, 0, Space.gutter, Space.gutter),
                   children: [
                     Text(
-                      'Demandez à ${widget.providerFirstName} de vous lire le '
-                      'code affiché sous son QR, puis recopiez-le ici.',
+                      'Demandez au client de vous lire le code affiché sous son '
+                      'QR, puis recopiez-le ici.',
                       style: context.type.bodyLarge,
                     ),
                     const SizedBox(height: Space.gutter),

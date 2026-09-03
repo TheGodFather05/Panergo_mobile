@@ -17,6 +17,7 @@ import '../../core/widgets/panergo_button.dart';
 import 'booking_providers.dart';
 import 'rate_provider_screen.dart';
 import 'scan_arrival_screen.dart';
+import 'show_arrival_code_screen.dart';
 
 /// Suivi de l'intervention — where a confirmed booking lives out its life.
 ///
@@ -95,6 +96,7 @@ class _LoadedState extends ConsumerState<_Loaded> {
 
   Booking get booking => widget.booking;
 
+  /// The provider scans; this is their action.
   Future<void> _openScan() async {
     final confirmed = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -102,6 +104,17 @@ class _LoadedState extends ConsumerState<_Loaded> {
       ),
     );
     if (confirmed == true) widget.onChanged();
+  }
+
+  /// The client displays the code the provider scans.
+  Future<void> _showCode() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ShowArrivalCodeScreen(booking: booking),
+      ),
+    );
+    // Reissuing from that screen changes the stored token.
+    widget.onChanged();
   }
 
   Future<void> _complete() async {
@@ -167,6 +180,7 @@ class _LoadedState extends ConsumerState<_Loaded> {
             booking: booking,
             busy: _busy,
             isClient: isClient,
+            onShowCode: _showCode,
             onScan: _openScan,
             onComplete: _complete,
             onRate: _rate,
@@ -364,6 +378,7 @@ class _Action extends StatelessWidget {
     required this.booking,
     required this.busy,
     required this.isClient,
+    required this.onShowCode,
     required this.onScan,
     required this.onComplete,
     required this.onRate,
@@ -372,25 +387,35 @@ class _Action extends StatelessWidget {
   final Booking booking;
   final bool busy;
 
-  /// Every action on a booking belongs to the client: the server enforces
-  /// `NOT_REQUEST_OWNER` on arrival, completion and rating alike. The provider
-  /// reads the same mission and is told what is expected of them instead of
-  /// being offered buttons that would 403.
+  /// The arrival handshake has two halves: the client displays the code and the
+  /// provider scans it, which is what makes the scan proof of presence. Every
+  /// other action — completing, rating — belongs to the client, and the server
+  /// enforces that with `NOT_REQUEST_OWNER`.
   final bool isClient;
 
+  final VoidCallback onShowCode;
   final VoidCallback onScan;
   final VoidCallback onComplete;
   final VoidCallback onRate;
 
   @override
   Widget build(BuildContext context) {
-    if (!isClient) return _ProviderGuidance(booking: booking);
+    if (!isClient) {
+      return switch (booking.status) {
+        BookingStatus.awaitingArrival => PanergoButton(
+            label: 'Scanner le code du client',
+            icon: 'qr_code_scanner',
+            onPressed: onScan,
+          ),
+        _ => _ProviderGuidance(booking: booking),
+      };
+    }
 
     return switch (booking.status) {
       BookingStatus.awaitingArrival => PanergoButton(
-          label: 'Confirmer l’arrivée',
-          icon: 'qr_code_scanner',
-          onPressed: onScan,
+          label: 'Afficher mon code d’arrivée',
+          icon: 'qr_code_2',
+          onPressed: onShowCode,
         ),
       BookingStatus.arrived => PanergoButton(
           label: 'Terminer la mission',
@@ -402,8 +427,8 @@ class _Action extends StatelessWidget {
   }
 }
 
-/// What the provider should expect at each step, since none of the buttons are
-/// theirs to press.
+/// What the provider should expect once the arrival is behind them — the rest
+/// of the lifecycle is the client's to drive.
 class _ProviderGuidance extends StatelessWidget {
   const _ProviderGuidance({required this.booking});
 
@@ -412,11 +437,13 @@ class _ProviderGuidance extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, title, body) = switch (booking.status) {
+      // Reached only if the state changes under us — the awaiting-arrival case
+      // is a scan button, not guidance.
       BookingStatus.awaitingArrival => (
           'qr_code_scanner',
-          'Présentez-vous au client',
-          'À votre arrivée, le client scanne votre code pour confirmer que '
-              'vous êtes bien sur place.',
+          'En attente de votre arrivée',
+          'À votre arrivée, demandez au client d’afficher son code et '
+              'scannez-le.',
         ),
       BookingStatus.arrived => (
           'handyman',
