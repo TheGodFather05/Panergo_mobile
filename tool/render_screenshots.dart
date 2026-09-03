@@ -12,7 +12,9 @@ import 'package:panergo_mobile/core/models/models.dart';
 import 'package:panergo_mobile/core/theme/app_theme.dart';
 import 'package:panergo_mobile/core/theme/palette.dart';
 import 'package:panergo_mobile/features/auth/login_screen.dart';
+import 'package:panergo_mobile/features/booking/rate_provider_screen.dart';
 import 'package:panergo_mobile/features/client/direct_dispatch_screen.dart';
+import 'package:panergo_mobile/core/models/enums.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Renders screens at the design's 390x844 canvas and writes them to PNGs, so
@@ -144,5 +146,33 @@ void main() {
       direction: BrandDirection.provider,
     );
 
+  });
+
+  testWidgets('rating form renders', (tester) async {
+    final booking = Booking.fromJson({
+      'booking_id': 'b1',
+      'status': 'COMPLETED',
+      'request_id': 'r1',
+      'category': 'PLOMBERIE',
+      'neighborhood': 'Bonamoussadi',
+      'description': 'Fuite sous l’évier',
+      'offer': {
+        'offer_id': 'o1',
+        'provider_id': 'p1',
+        'provider_name': 'Jean-Pierre Mbarga',
+        'provider_avg_rating': 4.9,
+        'provider_completed_bookings': 340,
+        'price': 8000,
+        'timeline_label': 'AUJOURD_HUI',
+        'status': 'SELECTED',
+        'created_at': '2026-09-02T14:00:00Z',
+      },
+      'completed_at': '2026-09-02T16:00:00Z',
+    });
+
+    await shoot(tester, 'rate_provider', RateProviderScreen(booking: booking));
+
+    expect(find.text('Commentaire · facultatif'), findsOneWidget);
+    expect(find.textContaining('sera public'), findsOneWidget);
   });
 }
