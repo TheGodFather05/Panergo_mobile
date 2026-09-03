@@ -14,7 +14,6 @@ import 'package:panergo_mobile/core/theme/palette.dart';
 import 'package:panergo_mobile/features/auth/login_screen.dart';
 import 'package:panergo_mobile/features/booking/rate_provider_screen.dart';
 import 'package:panergo_mobile/features/client/direct_dispatch_screen.dart';
-import 'package:panergo_mobile/core/models/enums.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Renders screens at the design's 390x844 canvas and writes them to PNGs, so
