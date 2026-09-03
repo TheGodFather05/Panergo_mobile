@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/format/formats.dart';
 import '../../core/models/enums.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -9,6 +10,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import 'chat_screen.dart';
 
 /// Conversations, derived from the bookings the user is part of.
 ///
@@ -36,6 +38,7 @@ final conversationsProvider =
         );
         return Conversation(
           requestId: r.id,
+          bookingId: r.bookingId,
           peerName: accepted.providerName,
           category: r.category,
           lastActivity: r.createdAt,
@@ -47,15 +50,24 @@ final conversationsProvider =
 class Conversation {
   const Conversation({
     required this.requestId,
+    required this.bookingId,
     required this.peerName,
     required this.category,
     required this.lastActivity,
   });
 
   final String requestId;
+
+  /// The thread is keyed by booking, not by request — accepting an offer is
+  /// what creates it. A null id means the booking has not landed yet, so the
+  /// row still shows but cannot be opened.
+  final String? bookingId;
+
   final String peerName;
   final ServiceCategory category;
   final DateTime lastActivity;
+
+  bool get isOpenable => bookingId != null && bookingId!.isNotEmpty;
 }
 
 /// Messages — the list of active discussions.
@@ -121,11 +133,23 @@ class _ConversationRow extends StatelessWidget {
 
   final Conversation conversation;
 
+  void _open(BuildContext context) {
+    Navigator.of(context).push(
+      ChatScreen.route(
+        bookingId: conversation.bookingId!,
+        peerName: conversation.peerName,
+        category: conversation.category,
+        confirmedAt: conversation.lastActivity,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PanergoCard(
       padding: const EdgeInsets.all(13),
       radius: Radii.card,
+      onTap: conversation.isOpenable ? () => _open(context) : null,
       child: Row(
         children: [
           InitialsAvatar(name: conversation.peerName, size: 50, radius: null),
@@ -141,6 +165,11 @@ class _ConversationRow extends StatelessWidget {
               ],
             ),
           ),
+          Text(
+            Formats.conversationTime(conversation.lastActivity),
+            style: context.type.metaSmall,
+          ),
+          const SizedBox(width: Space.s6),
           const MaterialSymbol('chevron_right',
               size: 20, color: PanergoColors.disabled),
         ],

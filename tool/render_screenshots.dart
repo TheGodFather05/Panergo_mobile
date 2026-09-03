@@ -8,13 +8,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:panergo_mobile/core/models/enums.dart';
 import 'package:panergo_mobile/core/models/models.dart';
+import 'package:panergo_mobile/core/network/chat_socket.dart';
 import 'package:panergo_mobile/core/theme/app_theme.dart';
 import 'package:panergo_mobile/core/theme/palette.dart';
 import 'package:panergo_mobile/features/auth/login_screen.dart';
 import 'package:panergo_mobile/features/booking/rate_provider_screen.dart';
 import 'package:panergo_mobile/features/client/direct_dispatch_screen.dart';
+import 'package:panergo_mobile/features/messages/chat_providers.dart';
+import 'package:panergo_mobile/features/messages/chat_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// `Override` is not re-exported by the flutter_riverpod barrel.
+import 'package:flutter_riverpod/misc.dart';
 
 /// Renders screens at the design's 390x844 canvas and writes them to PNGs, so
 /// the layout can be looked at rather than only type-checked.
@@ -41,6 +47,7 @@ void main() {
     String name,
     Widget child, {
     BrandDirection direction = BrandDirection.braise,
+    List<Override> overrides = const [],
   }) async {
     tester.view.physicalSize = canvas;
     tester.view.devicePixelRatio = 2.0;
@@ -51,6 +58,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
+        overrides: overrides,
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: AppTheme.build(direction),
@@ -174,4 +182,64 @@ void main() {
     expect(find.text('Commentaire · facultatif'), findsOneWidget);
     expect(find.textContaining('sera public'), findsOneWidget);
   });
+
+  testWidgets('discussion renders', (tester) async {
+    ChatMessage said(String id, String who, String text, DateTime at) =>
+        ChatMessage(
+          id: id,
+          bookingId: 'b1',
+          senderId: who,
+          senderRole: who == 'me' ? UserRole.user : UserRole.provider,
+          content: text,
+          photoUrl: null,
+          sentAt: at,
+        );
+
+    final today = DateTime.now();
+    DateTime at(int h, int m) =>
+        DateTime(today.year, today.month, today.day, h, m);
+
+    await shoot(
+      tester,
+      'chat',
+      const ChatScreen(
+        bookingId: 'b1',
+        peerName: 'Jean-Pierre Mbarga',
+        category: ServiceCategory.plomberie,
+      ),
+      overrides: [
+        // The screen's own controller opens a socket; a stub keeps the
+        // snapshot to layout and colour, which is what it exists to check.
+        chatControllerProvider('b1').overrideWith(
+          () => _StubChatController(
+            ChatThread(
+              isLoading: false,
+              connection: ChatConnection.connected,
+              messages: [
+                said('m1', 'them', 'Bonjour, je peux passer vers 16h.', at(15, 2)),
+                said('m2', 'me', 'Parfait. Le portail bleu, à côté de la pharmacie.', at(15, 4)),
+                said('m3', 'them', 'Bien reçu. J’apporte le joint de rechange.', at(15, 6)),
+                said('m4', 'me', 'Merci !', at(15, 7)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    expect(find.text('Jean-Pierre Mbarga'), findsOneWidget);
+    expect(find.text('En ligne'), findsOneWidget);
+    expect(find.text('Écrire un message…'), findsOneWidget);
+    expect(find.text('Merci !'), findsOneWidget);
+  });
+}
+
+/// Serves a fixed thread so the snapshot never touches the network.
+class _StubChatController extends ChatController {
+  _StubChatController(this._thread) : super('b1');
+
+  final ChatThread _thread;
+
+  @override
+  Future<ChatThread> build() async => _thread;
 }
