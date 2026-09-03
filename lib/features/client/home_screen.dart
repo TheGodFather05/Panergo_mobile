@@ -8,6 +8,7 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../assistant/assistant_screen.dart';
 import 'categories_screen.dart';
 import 'new_request_screen.dart';
 
@@ -46,7 +47,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             category: _assistantCategory,
             onCategoryChanged: (value) =>
                 setState(() => _assistantCategory = value),
-            onSearch: _openRequest,
+            onSearch: _openAssistant,
           ),
           const SizedBox(height: Space.s26),
           _SectionHeader(
@@ -69,7 +70,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     ));
   }
 
-  void _openRequest() => _openRequestFor(_assistantCategory);
+  /// The assistant is the primary entry (ADR-03), so the card opens it rather
+  /// than skipping ahead to the tender form.
+  void _openAssistant() {
+    Navigator.of(context).push(
+      AssistantScreen.route(initialCategory: _assistantCategory),
+    );
+  }
 
   void _openRequestFor(ServiceCategory? category) {
     Navigator.of(context).push(MaterialPageRoute(
