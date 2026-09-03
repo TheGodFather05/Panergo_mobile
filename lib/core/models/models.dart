@@ -104,6 +104,72 @@ class Offer {
       );
 }
 
+/// One of the provider's own offers, with enough of the request attached to
+/// render their list without a second call.
+///
+/// [bookingId] is what turns a won offer into a job the provider can open: it
+/// arrives only once this offer is the selected one.
+class MyOffer {
+  const MyOffer({
+    required this.offerId,
+    required this.requestId,
+    required this.bookingId,
+    required this.category,
+    required this.neighborhood,
+    required this.requestDescription,
+    required this.requestStatus,
+    required this.clientName,
+    required this.price,
+    required this.timeline,
+    required this.message,
+    required this.status,
+    required this.createdAt,
+  });
+
+  final String offerId;
+  final String requestId;
+  final String? bookingId;
+  final ServiceCategory category;
+  final String neighborhood;
+  final String requestDescription;
+  final RequestStatus requestStatus;
+  final String clientName;
+  final int price;
+  final TimelineLabel timeline;
+  final String? message;
+  final OfferStatus status;
+  final DateTime createdAt;
+
+  /// Won, and not cancelled out from under them.
+  bool get isWon =>
+      status == OfferStatus.selected &&
+      requestStatus != RequestStatus.cancelled;
+
+  /// Whether there is a booking to open. A selected offer whose booking has not
+  /// landed yet stays visible but inert rather than opening onto nothing.
+  bool get isOpenable => bookingId != null && bookingId!.isNotEmpty;
+
+  factory MyOffer.fromJson(Map<String, dynamic> json) => MyOffer(
+        offerId: Json.str(json['offer_id']),
+        requestId: Json.str(json['request_id']),
+        bookingId: Json.strOrNull(json['booking_id']),
+        category: Json.enumOf(json['category'], ServiceCategory.values,
+            ServiceCategory.plomberie),
+        neighborhood: Json.str(json['neighborhood']),
+        requestDescription: Json.str(json['request_description']),
+        requestStatus: Json.enumOf(
+            json['request_status'], RequestStatus.values, RequestStatus.open),
+        clientName: Json.str(json['client_name']),
+        price: Json.intOf(json['price']),
+        timeline: Json.enumOf(
+            json['timeline_label'], TimelineLabel.values, TimelineLabel.demain),
+        message: Json.strOrNull(json['message']),
+        status: Json.enumOf(
+            json['status'], OfferStatus.values, OfferStatus.pending),
+        createdAt: Json.dateTime(json['created_at']),
+      );
+}
+
 /// A service request the client posted.
 class ServiceRequest {
   const ServiceRequest({

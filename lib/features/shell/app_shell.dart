@@ -12,6 +12,7 @@ import '../deals/deals_screen.dart';
 import '../feed/feed_screen.dart';
 import '../messages/messages_screen.dart';
 import '../profile/profile_screen.dart';
+import '../provider/my_jobs_screen.dart';
 import '../provider/provider_inbox_screen.dart';
 import '../quartier/quartier_screen.dart';
 
@@ -34,8 +35,11 @@ class AppTab {
 ///
 /// Which tabs exist follows the account's role: a client gets
 /// Accueil · Quartier · Demandes · Messages · Profil, a provider gets
-/// Demandes · Feed · Messages · Profil (their Feed is their shop window, and
-/// only the client's Feed tab was replaced by Quartier).
+/// Demandes · Missions · Feed · Messages · Profil (their Feed is their shop
+/// window, and only the client's Feed tab was replaced by Quartier).
+///
+/// Missions is where a won offer becomes work the provider can open — without
+/// it their road ended at "offre envoyée".
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
@@ -85,6 +89,12 @@ class _AppShellState extends ConsumerState<AppShell> {
       icon: 'receipt_long',
       activeIcon: 'receipt_long',
       builder: (_) => const ProviderInboxScreen(),
+    ),
+    AppTab(
+      label: 'Missions',
+      icon: 'handyman',
+      activeIcon: 'handyman',
+      builder: (_) => const MyJobsScreen(),
     ),
     AppTab(
       label: 'Feed',

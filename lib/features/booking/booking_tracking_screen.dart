@@ -146,6 +146,7 @@ class _LoadedState extends ConsumerState<_Loaded> {
   @override
   Widget build(BuildContext context) {
     final type = context.type;
+    final isClient = ref.watch(currentUserProvider)?.isProvider != true;
 
     return FadeUp(
       child: ListView(
@@ -155,7 +156,7 @@ class _LoadedState extends ConsumerState<_Loaded> {
           if (widget.stale) const _StaleBanner(),
           _StateCard(booking: booking),
           const SizedBox(height: 13),
-          _ProviderCard(booking: booking),
+          _ProviderCard(booking: booking, isClient: isClient),
           if (_error != null) ...[
             const SizedBox(height: 13),
             Text(_error!,
@@ -165,6 +166,7 @@ class _LoadedState extends ConsumerState<_Loaded> {
           _Action(
             booking: booking,
             busy: _busy,
+            isClient: isClient,
             onScan: _openScan,
             onComplete: _complete,
             onRate: _rate,
@@ -295,14 +297,42 @@ class _StatusStyle {
 }
 
 class _ProviderCard extends StatelessWidget {
-  const _ProviderCard({required this.booking});
+  const _ProviderCard({required this.booking, required this.isClient});
 
   final Booking booking;
+  final bool isClient;
 
   @override
   Widget build(BuildContext context) {
     final type = context.type;
     final offer = booking.offer;
+
+    // Showing a provider their own name and avatar would be noise, and the
+    // booking payload carries no client name to put there instead — so their
+    // side of this card states the terms of the job rather than a person.
+    if (!isClient) {
+      return PanergoCard(
+        child: Row(
+          children: [
+            CategoryTile(category: booking.category, size: 48),
+            const SizedBox(width: Space.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Prix convenu', style: type.metaSmall),
+                  const SizedBox(height: 3),
+                  Text(
+                    '${Formats.money(offer.price)} · ${offer.timeline.label}',
+                    style: type.cardTitle,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return PanergoCard(
       child: Row(
@@ -333,6 +363,7 @@ class _Action extends StatelessWidget {
   const _Action({
     required this.booking,
     required this.busy,
+    required this.isClient,
     required this.onScan,
     required this.onComplete,
     required this.onRate,
@@ -340,12 +371,21 @@ class _Action extends StatelessWidget {
 
   final Booking booking;
   final bool busy;
+
+  /// Every action on a booking belongs to the client: the server enforces
+  /// `NOT_REQUEST_OWNER` on arrival, completion and rating alike. The provider
+  /// reads the same mission and is told what is expected of them instead of
+  /// being offered buttons that would 403.
+  final bool isClient;
+
   final VoidCallback onScan;
   final VoidCallback onComplete;
   final VoidCallback onRate;
 
   @override
   Widget build(BuildContext context) {
+    if (!isClient) return _ProviderGuidance(booking: booking);
+
     return switch (booking.status) {
       BookingStatus.awaitingArrival => PanergoButton(
           label: 'Confirmer l’arrivée',
@@ -359,6 +399,59 @@ class _Action extends StatelessWidget {
         ),
       BookingStatus.completed => _RateInvitation(onRate: onRate),
     };
+  }
+}
+
+/// What the provider should expect at each step, since none of the buttons are
+/// theirs to press.
+class _ProviderGuidance extends StatelessWidget {
+  const _ProviderGuidance({required this.booking});
+
+  final Booking booking;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, title, body) = switch (booking.status) {
+      BookingStatus.awaitingArrival => (
+          'qr_code_scanner',
+          'Présentez-vous au client',
+          'À votre arrivée, le client scanne votre code pour confirmer que '
+              'vous êtes bien sur place.',
+        ),
+      BookingStatus.arrived => (
+          'handyman',
+          'Arrivée confirmée',
+          'Votre présence est enregistrée. Le client clôturera la mission une '
+              'fois le travail terminé.',
+        ),
+      BookingStatus.completed => (
+          'check_circle',
+          'Mission terminée',
+          'Le client peut désormais vous laisser un avis. Merci pour votre '
+              'travail.',
+        ),
+    };
+
+    return PanergoCard(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MaterialSymbol(icon, size: 20, color: context.brand.link),
+          const SizedBox(width: Space.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: context.type.cardTitleSmall),
+                const SizedBox(height: Space.s6),
+                Text(body,
+                    style: context.type.bodySmall.copyWith(height: 1.5)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

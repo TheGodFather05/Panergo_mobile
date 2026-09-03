@@ -142,9 +142,11 @@ class PanergoApi {
     );
   }
 
-  Future<List<Map<String, dynamic>>> myOffers() async {
+  /// Every offer this provider has made, newest first. A selected one carries
+  /// the booking id that lets the provider open the job they won.
+  Future<List<MyOffer>> myOffers() async {
     final data = await _client.get<List<dynamic>>('/api/offers/mine');
-    return Json.list(data);
+    return Json.list(data).map(MyOffer.fromJson).toList();
   }
 
   // ------------------------------------------------------------ bookings ---
