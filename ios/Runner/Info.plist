@@ -47,5 +47,16 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Development only: the backend runs over plain HTTP on the local network
+	     while there is no TLS terminator in front of it. Scoped to local domains
+	     rather than allowing arbitrary cleartext, and to be removed once the API
+	     is served over HTTPS. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Panergo se connecte au serveur de développement sur votre réseau local.</string>
 </dict>
 </plist>
