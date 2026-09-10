@@ -4,6 +4,8 @@
 <dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Pour scanner le code d’arrivée que vous présente le prestataire.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pour choisir la photo de votre profil prestataire.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/providers.dart';
+import '../../core/app_mode.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/panergo_button.dart';
 import '../client/requests_screen.dart';
 import '../deals/deals_screen.dart';
+import '../onboarding/become_provider_screen.dart';
 import '../provider/agenda_screen.dart';
 import '../provider/availability_screen.dart';
 import '../provider/clients_screen.dart';
@@ -60,9 +63,18 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        user?.neighborhood.isNotEmpty == true
-                            ? user!.neighborhood
-                            : 'Quartier non renseigné',
+                        [
+                          if (user?.neighborhood.isNotEmpty == true)
+                            user!.neighborhood
+                          else
+                            'Quartier non renseigné',
+                          // The teal repaint says which half you are in, but
+                          // colour alone never suffices — the mode is named.
+                          if (user?.isProvider == true)
+                            ref.watch(effectiveModeProvider) == AppMode.provider
+                                ? 'Mode prestataire'
+                                : 'Mode client',
+                        ].join(' · '),
                         style: type.metaSmall
                             .copyWith(color: Colors.white.withValues(alpha: 0.85)),
                       ),
@@ -153,7 +165,20 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(height: Space.gutter),
           if (user?.isProvider != true)
             _BecomeProviderCard(
-              onTap: () => _showProviderNote(context),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const BecomeProviderScreen()),
+              ),
+            )
+          else
+            // Instant, free and undone in one tap — so no confirmation sheet.
+            // The label always names where you are going, never where you are.
+            PanergoOutlinedButton(
+              label: ref.watch(effectiveModeProvider) == AppMode.provider
+                  ? 'Passer en mode client'
+                  : 'Passer en mode prestataire',
+              icon: 'swap_horiz',
+              onPressed: () => ref.read(activeModeProvider.notifier).toggle(),
             ),
           const SizedBox(height: Space.gutter),
           TextButton(
@@ -187,19 +212,6 @@ class ProfileScreen extends ConsumerWidget {
     }
   }
 
-  /// Becoming a provider forces a re-login, because the role lives in the JWT.
-  /// Better to say so than to leave the user staring at a permission error.
-  Future<void> _showProviderNote(BuildContext context) {
-    return ConfirmSheet.showInfo(
-      context,
-      title: 'Devenir prestataire',
-      body: Text(
-        'L’inscription en tant que prestataire vous demandera de vous '
-        'reconnecter pour activer votre nouveau rôle.',
-        style: context.type.bodySmall.copyWith(height: 1.5),
-      ),
-    );
-  }
 }
 
 class _SectionLabel extends StatelessWidget {

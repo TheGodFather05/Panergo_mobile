@@ -89,6 +89,17 @@ class ApiClient {
             options: headers == null ? null : Options(headers: headers),
           ));
 
+  /// Uploads one file as multipart.
+  ///
+  /// Routed through the same [_send] as everything else so an expired session
+  /// and a mapped error behave here exactly as they do on any other call.
+  Future<T> upload<T>(String path, {required File file, String field = 'file'}) async {
+    final form = FormData.fromMap({
+      field: await MultipartFile.fromFile(file.path),
+    });
+    return _send(() => _dio.post<T>(path, data: form));
+  }
+
   Future<T> put<T>(String path, {Object? body}) =>
       _send(() => _dio.put<T>(path, data: body));
 

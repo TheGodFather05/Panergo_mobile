@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../models/enums.dart';
 import '../models/models.dart';
 import 'api_client.dart';
@@ -57,6 +59,15 @@ class PanergoApi {
       },
     );
     return AppUser.fromJson(data);
+  }
+
+  /// Uploads an image and returns the URL to store against a profile.
+  Future<String> uploadImage(File file) async {
+    final data = await _client.upload<Map<String, dynamic>>(
+      '/api/uploads',
+      file: file,
+    );
+    return Json.str(data['url']);
   }
 
   /// The quartiers Panergo serves. Public — the first screen needs it before
