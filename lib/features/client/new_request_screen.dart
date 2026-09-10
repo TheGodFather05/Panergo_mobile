@@ -64,8 +64,16 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
 
     final api = ref.read(apiProvider);
     final user = ref.read(currentUserProvider);
-    final neighborhood =
-        user?.neighborhood.isNotEmpty == true ? user!.neighborhood : 'Douala';
+    // Onboarding guarantees a real quartier now, so this is unreachable — but it
+    // used to fall back to the literal word "Douala", which no provider's
+    // quartier ever equals, and routing compares them exactly. Those requests
+    // went to nobody behind a success screen. Failing loudly beats that.
+    final neighborhood = user?.neighborhood ?? '';
+    if (neighborhood.trim().isEmpty) {
+      setState(() => _error =
+          'Choisissez votre quartier dans votre profil avant d’envoyer une demande.');
+      return;
+    }
 
     try {
       if (_urgency == Urgency.now) {

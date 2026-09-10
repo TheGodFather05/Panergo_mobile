@@ -7,6 +7,7 @@ import 'core/providers.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/palette.dart';
 import 'features/auth/login_screen.dart';
+import 'features/onboarding/complete_profile_screen.dart';
 import 'features/shell/app_shell.dart';
 
 Future<void> main() async {
@@ -52,6 +53,11 @@ class _Root extends ConsumerWidget {
     return switch (auth) {
       AuthLoading() => const _Splash(),
       SignedOut() => const LoginScreen(),
+      // Before the shell, and before the bare SignedIn arm — Dart takes the
+      // first match, and an account that has not introduced itself has nothing
+      // useful to show behind this.
+      SignedIn(:final user) when user.needsProfileCompletion =>
+        const CompleteProfileScreen(),
       SignedIn() => const AppShell(),
     };
   }
