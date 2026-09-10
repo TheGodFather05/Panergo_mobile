@@ -16,7 +16,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
 import '../client/categories_screen.dart';
-import 'quartier_picker_screen.dart';
+import 'place_pickers.dart';
 
 enum _Step { metier, quartier, presentation, recap }
 
@@ -201,8 +201,8 @@ class _BecomeProviderScreenState extends ConsumerState<BecomeProviderScreen> {
 
   Future<void> _pickQuartier() async {
     // Scoped to the town on their account: an artisan works where they are.
-    final picked = await QuartierPickerScreen.show(context,
-        selected: _quartier?.name, cityId: _cityId);
+    final picked = await PlacePickers.quartier(context,
+        cityId: _cityId, selected: _quartier?.name);
     if (picked != null && mounted) setState(() => _quartier = picked);
   }
 

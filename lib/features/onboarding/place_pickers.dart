@@ -17,6 +17,11 @@ final citiesProvider = FutureProvider.family<List<City>, String>(
   (ref, countryCode) => ref.read(apiProvider).cities(countryCode),
 );
 
+/// The quartiers of one town. Keyed by city so switching towns refetches.
+final quartiersProvider = FutureProvider.family<List<Quartier>, String?>(
+  (ref, cityId) => ref.read(apiProvider).quartiers(cityId: cityId),
+);
+
 /// Where someone is, chosen rather than typed.
 ///
 /// Three lists that narrow — country, then town, then quartier — because
@@ -40,6 +45,25 @@ abstract final class PlacePickers {
             detailOf: (c) => c.dialCode,
             isSelected: (c) => c.code == selected,
             icon: 'public',
+          ),
+        ),
+      );
+
+  /// The quartiers of one town. [cityId] null lists everywhere Panergo serves,
+  /// which is what the profile edit screen wants.
+  static Future<Quartier?> quartier(BuildContext context,
+          {String? cityId, String? selected}) =>
+      Navigator.of(context).push<Quartier>(
+        MaterialPageRoute<Quartier>(
+          builder: (_) => _PlaceList<Quartier>(
+            title: 'Quartiers',
+            hint: 'Rechercher un quartier',
+            emptyCount: (n) => '$n quartier${n > 1 ? 's' : ''} desservi${n > 1 ? 's' : ''}',
+            watch: (ref) => ref.watch(quartiersProvider(cityId)),
+            labelOf: (q) => q.name,
+            detailOf: (q) => q.city,
+            isSelected: (q) => q.name == selected,
+            icon: 'location_on',
           ),
         ),
       );
@@ -91,7 +115,14 @@ class _PlaceList<T> extends ConsumerStatefulWidget {
 }
 
 class _PlaceListState<T> extends ConsumerState<_PlaceList<T>> {
+  final _search = TextEditingController();
   String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -124,10 +155,25 @@ class _PlaceListState<T> extends ConsumerState<_PlaceList<T>> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
                 child: TextField(
+                  controller: _search,
                   onChanged: (v) => setState(() => _query = v),
                   decoration: InputDecoration(
                     hintText: widget.hint,
                     prefixIcon: const Icon(Icons.search, size: 20),
+                    // Clearing a search on a phone otherwise means holding
+                    // backspace, which nobody enjoys.
+                    suffixIcon: _query.isEmpty
+                        ? null
+                        : GestureDetector(
+                            onTap: () {
+                              _search.clear();
+                              setState(() => _query = '');
+                            },
+                            child: const Center(
+                              widthFactor: 1,
+                              child: _ClearChip(),
+                            ),
+                          ),
                     filled: true,
                     fillColor: PanergoColors.surface,
                     border: OutlineInputBorder(
@@ -181,6 +227,25 @@ class _PlaceListState<T> extends ConsumerState<_PlaceList<T>> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ClearChip extends StatelessWidget {
+  const _ClearChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: const BoxDecoration(
+        color: PanergoColors.fillAlt,
+        shape: BoxShape.circle,
+      ),
+      child: const Center(
+        child: MaterialSymbol('close', size: 16, color: PanergoColors.muted),
       ),
     );
   }

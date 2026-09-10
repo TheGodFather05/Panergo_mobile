@@ -11,7 +11,6 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
 import 'place_pickers.dart';
-import 'quartier_picker_screen.dart';
 
 /// The rest of signing up.
 ///
@@ -98,6 +97,8 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                     padding: const EdgeInsets.fromLTRB(
                         Space.gutter, Space.s30, Space.gutter, Space.s20),
                     children: [
+                      const _BrandMark(),
+                      const SizedBox(height: Space.s22),
                       Text('Bienvenue sur Panergo',
                           style: type.h1.copyWith(color: PanergoColors.ink)),
                       const SizedBox(height: Space.s8),
@@ -114,38 +115,35 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                         onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: Space.s20),
-                      const _RequiredLabel('Votre pays'),
-                      const SizedBox(height: Space.s8),
+                      // One question, three narrowing answers — not three
+                      // unrelated fields.
+                      const _RequiredLabel('Où vivez-vous ?'),
+                      const SizedBox(height: Space.s10),
                       _PlaceField(
                         icon: 'public',
+                        caption: 'Pays',
                         value: _country?.name,
-                        placeholder: 'Choisir votre pays',
+                        placeholder: 'Choisir',
                         onTap: _pickCountry,
                       ),
-                      const SizedBox(height: Space.s20),
-                      const _RequiredLabel('Votre ville'),
-                      const SizedBox(height: Space.s8),
+                      const SizedBox(height: 9),
                       _PlaceField(
                         icon: 'location_city',
+                        caption: 'Ville',
                         value: _city?.name,
-                        placeholder: _country == null
-                            ? 'Choisissez d’abord un pays'
-                            : 'Choisir votre ville',
-                        enabled: _country != null,
+                        placeholder: 'Choisir',
                         onTap: _pickCity,
                       ),
-                      const SizedBox(height: Space.s20),
-                      const _RequiredLabel('Votre quartier'),
-                      const SizedBox(height: Space.s8),
+                      const SizedBox(height: 9),
                       _PlaceField(
                         icon: 'location_on',
+                        caption: 'Quartier',
                         value: _quartier?.name,
-                        placeholder: _city == null
-                            ? 'Choisissez d’abord une ville'
-                            : 'Choisir votre quartier',
-                        enabled: _city != null,
+                        placeholder: 'Choisir',
                         onTap: _pickQuartier,
                       ),
+                      const SizedBox(height: Space.s12),
+                      const _Explainer(),
                       if (_error != null) ...[
                         const SizedBox(height: Space.gutterTight),
                         Text(_error!,
@@ -206,7 +204,12 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   }
 
   Future<void> _pickCity() async {
-    if (_country == null) return;
+    // Reaching for a later step takes you through the one before it, rather
+    // than ignoring the tap. A row that does nothing is a dead end.
+    if (_country == null) {
+      await _pickCountry();
+      if (_country == null || !mounted) return;
+    }
     final picked = await PlacePickers.city(context,
         countryCode: _country!.code, selected: _city?.name);
     if (picked == null || !mounted) return;
@@ -217,9 +220,12 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   }
 
   Future<void> _pickQuartier() async {
-    if (_city == null) return;
-    final picked = await QuartierPickerScreen.show(context,
-        selected: _quartier?.name, cityId: _city!.id);
+    if (_city == null) {
+      await _pickCity();
+      if (_city == null || !mounted) return;
+    }
+    final picked = await PlacePickers.quartier(context,
+        cityId: _city!.id, selected: _quartier?.name);
     if (picked != null && mounted) setState(() => _quartier = picked);
   }
 
@@ -272,7 +278,7 @@ class _NameField extends StatelessWidget {
         decoration: const InputDecoration(
           border: InputBorder.none,
           isDense: true,
-          hintText: 'Comment vous appelle-t-on ?',
+          hintText: 'Comme vos voisins vous appellent',
           hintStyle: TextStyle(fontSize: 15, color: PanergoColors.placeholder),
         ),
       ),
@@ -280,63 +286,118 @@ class _NameField extends StatelessWidget {
   }
 }
 
+/// The 52 px mark the design opens on.
+class _BrandMark extends StatelessWidget {
+  const _BrandMark();
 
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: context.brand.fill,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: const Center(
+        child: Text('P',
+            style: TextStyle(
+                fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
+      ),
+    );
+  }
+}
+
+/// What the quartier is for, and what changing the steps above will do.
+///
+/// Worth saying out loud: the reset is real behaviour, and finding out about it
+/// by watching two fields empty themselves is a poor way to learn.
+class _Explainer extends StatelessWidget {
+  const _Explainer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const MaterialSymbol('info', size: 16, color: PanergoColors.faint),
+        const SizedBox(width: 7),
+        const Expanded(
+          child: Text(
+            'Le quartier décide à qui vos demandes sont envoyées. Changer de '
+            'pays ou de ville le remet à zéro.',
+            style: TextStyle(
+                fontSize: 11.5, height: 1.45, color: PanergoColors.subtle),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// One step of the location cascade.
+///
+/// Always tappable, even before the step above it is answered — the tap walks
+/// you through the missing one rather than being swallowed. A row that ignores
+/// you teaches nothing.
 class _PlaceField extends StatelessWidget {
   const _PlaceField({
     required this.icon,
+    required this.caption,
     required this.value,
     required this.placeholder,
     required this.onTap,
-    this.enabled = true,
   });
 
   final String icon;
+
+  /// Sits inside the row at a fixed width so the three values line up.
+  final String caption;
   final String? value;
   final String placeholder;
   final VoidCallback onTap;
-
-  /// False while an earlier step is unanswered — the row says why rather than
-  /// opening a list that could only be empty.
-  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final chosen = value != null;
 
     return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Opacity(
-        opacity: enabled ? 1 : 0.55,
-        child: Container(
-          decoration: BoxDecoration(
-            color: PanergoColors.surface,
-            borderRadius: Radii.brInput,
-            border: Border.all(color: PanergoColors.borderInput),
-          ),
-          padding: const EdgeInsets.symmetric(
-              horizontal: Space.s14, vertical: Space.s14),
-          child: Row(
-            children: [
-              MaterialSymbol(icon,
-                  size: 19,
-                  color: chosen ? context.brand.link : PanergoColors.subtle),
-              const SizedBox(width: Space.s12),
-              Expanded(
-                child: Text(
-                  chosen ? value! : placeholder,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: chosen ? FontWeight.w700 : FontWeight.w400,
-                    color: chosen
-                        ? PanergoColors.ink
-                        : PanergoColors.placeholder,
-                  ),
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: PanergoColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: chosen ? PanergoColors.borderStrong : PanergoColors.borderInput),
+        ),
+        padding: const EdgeInsets.all(15),
+        child: Row(
+          children: [
+            MaterialSymbol(icon, size: 21, color: context.brand.fill),
+            const SizedBox(width: 11),
+            SizedBox(
+              width: 64,
+              child: Text(caption,
+                  style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: PanergoColors.subtle)),
+            ),
+            Expanded(
+              child: Text(
+                chosen ? value! : placeholder,
+                style: TextStyle(
+                  fontSize: 15.5,
+                  fontWeight: chosen ? FontWeight.w700 : FontWeight.w500,
+                  color: chosen
+                      ? PanergoColors.ink
+                      : PanergoColors.placeholder,
                 ),
               ),
-              const MaterialSymbol('chevron_right',
-                  size: 20, color: PanergoColors.subtle),
-            ],
-          ),
+            ),
+            const MaterialSymbol('chevron_right',
+                size: 20, color: PanergoColors.disabled),
+          ],
         ),
       ),
     );

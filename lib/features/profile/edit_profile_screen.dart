@@ -14,7 +14,6 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
 import '../onboarding/place_pickers.dart';
-import '../onboarding/quartier_picker_screen.dart';
 
 /// Editing who you are, after signing up.
 ///
@@ -199,8 +198,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _pickQuartier() async {
-    final picked = await QuartierPickerScreen.show(context,
-        selected: _quartier, cityId: _cityId);
+    final picked = await PlacePickers.quartier(context,
+        cityId: _cityId, selected: _quartier);
     if (picked == null || !mounted) return;
     setState(() {
       _quartier = picked.name;
