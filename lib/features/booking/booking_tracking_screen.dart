@@ -294,6 +294,20 @@ class _StateCard extends StatelessWidget {
           detail: 'La mission est close. Votre avis aide les voisins à choisir.',
           foreground: PanergoColors.online,
         ),
+      BookingStatus.cancelled => const _StatusStyle(
+          label: 'Mission annulée',
+          detail: 'Cette mission n’aura pas lieu. Vous pouvez publier une '
+              'nouvelle demande quand vous voulez.',
+          foreground: PanergoColors.subtle,
+        ),
+      // "Absent", never "refusé" — the provider did not turn something down,
+      // they did not come.
+      BookingStatus.noShow => const _StatusStyle(
+          label: 'Prestataire absent',
+          detail: 'Le prestataire n’est pas venu. La mission a été close et '
+              'vous pouvez publier une nouvelle demande.',
+          foreground: PanergoColors.danger,
+        ),
     };
   }
 }
@@ -423,6 +437,8 @@ class _Action extends StatelessWidget {
           onPressed: onComplete,
         ),
       BookingStatus.completed => _RateInvitation(onRate: onRate),
+      // A job that did not happen has nothing left to drive from here.
+      BookingStatus.cancelled || BookingStatus.noShow => const SizedBox.shrink(),
     };
   }
 }
@@ -456,6 +472,18 @@ class _ProviderGuidance extends StatelessWidget {
           'Mission terminée',
           'Le client peut désormais vous laisser un avis. Merci pour votre '
               'travail.',
+        ),
+      BookingStatus.cancelled => (
+          'event_busy',
+          'Mission annulée',
+          'Cette mission n’aura pas lieu. Les demandes de votre quartier '
+              'continuent d’arriver normalement.',
+        ),
+      BookingStatus.noShow => (
+          'person_off',
+          'Absence signalée',
+          'Le client a signalé que vous n’êtes pas venu. Si c’est une erreur, '
+              'contactez-le depuis la discussion.',
         ),
     };
 
