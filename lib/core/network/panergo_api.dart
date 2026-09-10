@@ -34,10 +34,36 @@ class PanergoApi {
 
   // ---------------------------------------------------------------- user ---
 
-  Future<AppUser> me() async {
-    final data = await _client.get<Map<String, dynamic>>('/api/user/me');
-    // This endpoint omits `role`; callers merge it from the stored session.
-    return AppUser.fromJson({...data, 'role': UserRole.user.wire});
+  /// The person, and what they can currently do.
+  ///
+  /// It used to hard-code the role to `user` here, which was harmless only
+  /// while nothing called it — the obvious way to refresh someone after
+  /// onboarding would have quietly demoted every artisan to a client.
+  Future<AppUser> me() async =>
+      AppUser.fromJson(await _client.get<Map<String, dynamic>>('/api/user/me'));
+
+  /// Records who someone is, at the end of signing up.
+  Future<AppUser> completeProfile({
+    required String name,
+    required String neighborhood,
+    String? photoUrl,
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/api/user/me/complete-profile',
+      body: {
+        'name': name,
+        'neighborhood': neighborhood,
+        if (photoUrl != null) 'photo_url': photoUrl,
+      },
+    );
+    return AppUser.fromJson(data);
+  }
+
+  /// The quartiers Panergo serves. Public — the first screen needs it before
+  /// the account it belongs to has said anything.
+  Future<List<Quartier>> quartiers() async {
+    final data = await _client.get<List<dynamic>>('/api/quartiers');
+    return data.map((e) => Quartier.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<void> updateProfile({String? name, String? neighborhood}) async {

@@ -45,7 +45,9 @@ class TokenStore {
         'name': session.user.name,
         'phone_number': session.user.phoneNumber,
         'neighborhood': session.user.neighborhood,
-        'role': session.user.role.wire,
+        'photo_url': session.user.photoUrl,
+        'is_provider': session.user.isProvider,
+        'profile_complete': session.user.profileComplete,
       }),
     );
   }

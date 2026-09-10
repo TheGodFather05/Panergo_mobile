@@ -138,15 +138,6 @@ enum UrgencyLabel implements WireEnum {
   final String label;
 }
 
-enum UserRole implements WireEnum {
-  user('USER'),
-  provider('PROVIDER');
-
-  const UserRole(this.wire);
-
-  @override
-  final String wire;
-}
 
 enum PostType implements WireEnum {
   realisation('REALISATION', 'Réalisation'),

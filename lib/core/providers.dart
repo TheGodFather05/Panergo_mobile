@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app_mode.dart';
 import 'models/enums.dart';
 import 'models/models.dart';
 import 'network/api_client.dart';
@@ -90,7 +91,9 @@ class AuthNotifier extends Notifier<AuthState> {
       name: name ?? current.user.name,
       phoneNumber: current.user.phoneNumber,
       neighborhood: neighborhood ?? current.user.neighborhood,
-      role: current.user.role,
+      photoUrl: current.user.photoUrl,
+      isProvider: current.user.isProvider,
+      profileComplete: current.user.profileComplete,
     );
     await _store.save(AuthSession(
       token: (await _store.readToken()) ?? '',
@@ -99,20 +102,46 @@ class AuthNotifier extends Notifier<AuthState> {
     state = SignedIn(updated);
   }
 
-  /// Registering as a provider changes the role, but the role is baked into the
-  /// JWT at issue time — so the old token still says USER and every provider
-  /// endpoint would 403. Signing out forces a fresh token.
-  Future<void> registerAsProvider({
+  /// Records who someone is, at the end of signing up.
+  Future<void> completeProfile({
+    required String name,
+    required String neighborhood,
+    String? photoUrl,
+  }) async {
+    final updated = await _api.completeProfile(
+        name: name, neighborhood: neighborhood, photoUrl: photoUrl);
+    await _store.save(AuthSession(
+      token: (await _store.readToken()) ?? '',
+      user: updated,
+    ));
+    state = SignedIn(updated);
+  }
+
+  /// Creates the provider profile.
+  ///
+  /// This used to sign the person out: capability lived in the token, so a new
+  /// artisan's old token still said client and every provider endpoint refused
+  /// them until they logged in again. Capability is read from the database now,
+  /// so re-reading the profile is the whole of it.
+  Future<void> becomeProvider({
     required ServiceCategory category,
     required String neighborhood,
     String? bio,
+    String? photoUrl,
   }) async {
     await _api.registerAsProvider(
       category: category,
       neighborhood: neighborhood,
       bio: bio,
+      photoUrl: photoUrl,
     );
-    await signOut();
+
+    final updated = await _api.me();
+    await _store.save(AuthSession(
+      token: (await _store.readToken()) ?? '',
+      user: updated,
+    ));
+    state = SignedIn(updated);
   }
 
   void handleExpiredSession() {
@@ -141,8 +170,10 @@ final currentUserProvider = Provider<AppUser?>((ref) {
 /// The provider flow runs on teal so a prestataire never mistakes their screens
 /// for the client's; clients get Braise, the shipped default.
 final brandDirectionProvider = Provider<BrandDirection>((ref) {
-  final user = ref.watch(currentUserProvider);
-  return user?.isProvider == true
+  // The whole app repaints with the mode, so the teal is not decoration — it is
+  // the clearest signal of which half you are in. Not the only one, though:
+  // colour alone never is, so the profile header names the mode in words too.
+  return ref.watch(effectiveModeProvider) == AppMode.provider
       ? BrandDirection.provider
       : BrandDirection.braise;
 });

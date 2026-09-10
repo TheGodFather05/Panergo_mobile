@@ -8,21 +8,37 @@ class AppUser {
     required this.name,
     required this.phoneNumber,
     required this.neighborhood,
-    required this.role,
+    required this.isProvider,
+    this.photoUrl,
+    this.profileComplete,
   });
 
   final String id;
   final String name;
   final String phoneNumber;
   final String neighborhood;
-  final UserRole role;
+  final String? photoUrl;
 
-  bool get isProvider => role == UserRole.provider;
+  /// Whether this person has a provider profile.
+  ///
+  /// A capability, not an identity: the same account is a client when it hires
+  /// someone and an artisan when it works. Read from the server, which checks
+  /// the database — the token stopped claiming to know.
+  final bool isProvider;
 
-  /// First login creates the account with the phone number as the name and no
-  /// quartier, so the app knows to ask for a real profile before continuing.
+  /// The server's answer to whether they have introduced themselves. Null only
+  /// for a session stored before the server could say.
+  final bool? profileComplete;
+
+  /// Whether to ask who they are before opening the app.
+  ///
+  /// An account is created by the first OTP with the phone number standing in
+  /// for a name and nowhere to route anything to. The string test is the
+  /// fallback for a session stored before the server answered this directly —
+  /// it is a guess, and it is wrong about anyone genuinely displaying their
+  /// number.
   bool get needsProfileCompletion =>
-      neighborhood.trim().isEmpty || name == phoneNumber;
+      profileComplete ?? (neighborhood.trim().isEmpty || name == phoneNumber);
 
   /// The initials shown on avatar tiles when there is no photo.
   String get initials {
@@ -37,7 +53,11 @@ class AppUser {
         name: Json.str(json['name']),
         phoneNumber: Json.str(json['phone_number']),
         neighborhood: Json.str(json['neighborhood']),
-        role: Json.enumOf(json['role'], UserRole.values, UserRole.user),
+        photoUrl: Json.strOrNull(json['photo_url']),
+        isProvider: Json.boolOf(json['is_provider']),
+        profileComplete: json['profile_complete'] == null
+            ? null
+            : Json.boolOf(json['profile_complete']),
       );
 }
 
@@ -486,7 +506,7 @@ class ChatMessage {
   final String id;
   final String bookingId;
   final String senderId;
-  final UserRole senderRole;
+  final PartyRole senderRole;
   final String? content;
   final String? photoUrl;
   final DateTime sentAt;
@@ -498,7 +518,7 @@ class ChatMessage {
         bookingId: Json.str(json['booking_id']),
         senderId: Json.str(json['sender_id']),
         senderRole:
-            Json.enumOf(json['sender_role'], UserRole.values, UserRole.user),
+            Json.enumOf(json['sender_role'], PartyRole.values, PartyRole.user),
         content: Json.strOrNull(json['content']),
         photoUrl: Json.strOrNull(json['photo_url']),
         sentAt: Json.dateTime(json['sent_at']),
@@ -1192,5 +1212,24 @@ class MissedOpportunities {
         windowDays: Json.intOf(json['window_days']),
         lostOffers:
             Json.list(json['lost_offers']).map(LostOffer.fromJson).toList(),
+      );
+}
+
+// ------------------------------------------------------------- quartiers ---
+
+/// A quartier Panergo serves.
+///
+/// The list is curated server-side because routing compares quartiers as exact
+/// strings — a typed spelling that differs by a space or an accent is a market
+/// nobody else can reach.
+class Quartier {
+  const Quartier({required this.name, required this.city});
+
+  final String name;
+  final String city;
+
+  factory Quartier.fromJson(Map<String, dynamic> json) => Quartier(
+        name: Json.str(json['name']),
+        city: Json.str(json['city']),
       );
 }

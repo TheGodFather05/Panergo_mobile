@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/providers.dart';
+import '../../core/app_mode.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
@@ -118,8 +118,8 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
-    final tabs = user?.isProvider == true ? _providerTabs : _clientTabs;
+    final mode = ref.watch(effectiveModeProvider);
+    final tabs = mode == AppMode.provider ? _providerTabs : _clientTabs;
 
     // Switching roles can leave the old index out of range.
     final index = _index.clamp(0, tabs.length - 1);
@@ -129,6 +129,10 @@ class _AppShellState extends ConsumerState<AppShell> {
       body: SafeArea(
         bottom: false,
         child: IndexedStack(
+          // Rebuild the subtree when the mode changes: the two tab lists are
+          // different screens at the same positions, and without a key Flutter
+          // would match old state onto new widgets.
+          key: ValueKey(mode),
           index: index,
           children: [
             for (final tab in tabs) Builder(builder: tab.builder),
