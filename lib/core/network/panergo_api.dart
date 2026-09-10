@@ -238,18 +238,6 @@ class PanergoApi {
     });
   }
 
-  /// Total value of completed missions. Not a wallet — Panergo does not
-  /// transact, it introduces.
-  Future<({int total, String currency, int completedBookings})> revenue() async {
-    final data =
-        await _client.get<Map<String, dynamic>>('/api/provider/me/revenue');
-    return (
-      total: Json.intOf(data['total_valeur_missions']),
-      currency: Json.str(data['currency']),
-      completedBookings: Json.intOf(data['completed_bookings_count']),
-    );
-  }
-
   // ---------------------------------------------------------------- chat ---
 
   /// Messages for a booking, oldest first. Omit [before] for the latest window.
@@ -386,4 +374,132 @@ class PanergoApi {
     await _client
         .delete<dynamic>('/api/device/token', body: {'fcm_token': fcmToken});
   }
+
+  // ------------------------------------------------- price negotiation ---
+
+  Future<PriceNegotiation> priceThread(String offerId) async {
+    final data =
+        await _client.get<Map<String, dynamic>>('/api/offers/$offerId/price');
+    return PriceNegotiation.fromJson(data);
+  }
+
+  /// Puts a new price on the table. Answering an open proposal with a different
+  /// number counters it — the server closes the old round as part of the same
+  /// call, so there is never more than one live price.
+  Future<PriceNegotiation> proposePrice(
+    String offerId, {
+    required int price,
+    String? message,
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/api/offers/$offerId/price/proposals',
+      body: {
+        'price': price,
+        if (message != null && message.isNotEmpty) 'message': message,
+      },
+    );
+    return PriceNegotiation.fromJson(data);
+  }
+
+  /// Takes the price on the table. Only the party who did not propose it may.
+  Future<PriceNegotiation> acceptPrice(String offerId, String proposalId) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/api/offers/$offerId/price/proposals/$proposalId/accept',
+    );
+    return PriceNegotiation.fromJson(data);
+  }
+
+  // ---------------------------------------------------------- schedule ---
+
+  /// The provider's committed work between two dates, inclusive.
+  Future<Agenda> agenda({required DateTime from, required DateTime to}) async {
+    final data = await _client.get<Map<String, dynamic>>(
+      '/api/provider/me/agenda',
+      query: {'from': _isoDate(from), 'to': _isoDate(to)},
+    );
+    return Agenda.fromJson(data);
+  }
+
+  /// Sets or moves when a visit happens. Either participant may call it.
+  Future<void> scheduleBooking(
+    String bookingId, {
+    required DateTime scheduledAt,
+    DateTime? scheduledEndAt,
+  }) async {
+    await _client.post<dynamic>('/api/bookings/$bookingId/schedule', body: {
+      'scheduled_at': scheduledAt.toUtc().toIso8601String(),
+      if (scheduledEndAt != null)
+        'scheduled_end_at': scheduledEndAt.toUtc().toIso8601String(),
+    });
+  }
+
+  Future<Availability> availability() async {
+    final data =
+        await _client.get<Map<String, dynamic>>('/api/provider/me/availability');
+    return Availability.fromJson(data);
+  }
+
+  /// Replaces the whole week. Days left out are days not worked.
+  Future<Availability> setAvailability(List<WorkingDay> days) async {
+    final data = await _client.put<Map<String, dynamic>>(
+      '/api/provider/me/availability',
+      body: {'days': days.map((d) => d.toJson()).toList()},
+    );
+    return Availability.fromJson(data);
+  }
+
+  Future<void> addTimeOff({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? reason,
+  }) async {
+    await _client.post<dynamic>('/api/provider/me/time-off', body: {
+      'start_date': _isoDate(startDate),
+      'end_date': _isoDate(endDate),
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+    });
+  }
+
+  Future<void> removeTimeOff(String id) async {
+    await _client.delete<dynamic>('/api/provider/me/time-off/$id');
+  }
+
+  // ----------------------------------------------------------- workspace ---
+
+  Future<ProviderMetrics> metrics() async {
+    final data =
+        await _client.get<Map<String, dynamic>>('/api/provider/me/metrics');
+    return ProviderMetrics.fromJson(data);
+  }
+
+  Future<ProviderRevenue> revenue(
+      {RevenuePeriod period = RevenuePeriod.allTime}) async {
+    final data = await _client.get<Map<String, dynamic>>(
+      '/api/provider/me/revenue',
+      query: {'period': period.wire},
+    );
+    return ProviderRevenue.fromJson(data);
+  }
+
+  // ---------------------------------------------------------- cancellation ---
+
+  /// Calls off a job that has not started. [noShow] is the client's report that
+  /// the provider never came, and the server refuses it from anyone else.
+  Future<void> cancelBooking(
+    String bookingId, {
+    String? reason,
+    bool noShow = false,
+  }) async {
+    await _client.post<dynamic>('/api/bookings/$bookingId/cancel', body: {
+      if (reason != null && reason.isNotEmpty) 'reason': reason,
+      'no_show': noShow,
+    });
+  }
+
+  /// Dates on the wire are plain calendar days, not instants — the agenda is
+  /// read in Douala time and a timezone would shift it by a day at the edges.
+  static String _isoDate(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-'
+      '${date.month.toString().padLeft(2, '0')}-'
+      '${date.day.toString().padLeft(2, '0')}';
 }

@@ -110,7 +110,12 @@ enum OfferStatus implements WireEnum {
 enum BookingStatus implements WireEnum {
   awaitingArrival('AWAITING_ARRIVAL', 'En attente d’arrivée'),
   arrived('ARRIVED', 'Prestataire arrivé'),
-  completed('COMPLETED', 'Terminée');
+  completed('COMPLETED', 'Terminée'),
+  cancelled('CANCELLED', 'Annulée'),
+
+  /// The provider never came. Kept apart from [cancelled] because it is the one
+  /// ending that says something about the provider rather than about the job.
+  noShow('NO_SHOW', 'Prestataire absent');
 
   const BookingStatus(this.wire, this.label);
 
@@ -161,6 +166,68 @@ enum QuartierPostKind implements WireEnum {
   recommandation('RECOMMANDATION', 'Recommandation');
 
   const QuartierPostKind(this.wire, this.label);
+
+  @override
+  final String wire;
+  final String label;
+}
+
+
+/// Where one round of a price negotiation ended up.
+///
+/// [withdrawn] is not a refusal: nobody turned the price down, the provider
+/// simply arrived before it was answered. The copy has to keep that distinction
+/// — "refusé" would put a decision in the record that nobody made.
+enum ProposalStatus implements WireEnum {
+  pending('PENDING', 'En attente'),
+  accepted('ACCEPTED', 'Accepté'),
+  countered('COUNTERED', 'Contré'),
+  withdrawn('WITHDRAWN', 'Sans réponse avant l’arrivée');
+
+  const ProposalStatus(this.wire, this.label);
+
+  @override
+  final String wire;
+  final String label;
+}
+
+/// Which side of the table someone is on.
+enum PartyRole implements WireEnum {
+  user('USER', 'Client'),
+  provider('PROVIDER', 'Prestataire');
+
+  const PartyRole(this.wire, this.label);
+
+  @override
+  final String wire;
+  final String label;
+}
+
+/// Why a metric has no number.
+///
+/// A refusal is a first-class state, not an error and not a blank: a rate over
+/// three offers is noise with a percent sign, and shown to an artisan it becomes
+/// a fact about them they will act on.
+enum MetricUnavailability implements WireEnum {
+  notEnoughData('NOT_ENOUGH_DATA', 'Pas encore assez de données'),
+  notMeasurableYet('NOT_MEASURABLE_YET', 'Bientôt disponible'),
+  noActivityInPeriod('NO_ACTIVITY_IN_PERIOD', 'Aucune activité sur la période');
+
+  const MetricUnavailability(this.wire, this.label);
+
+  @override
+  final String wire;
+  final String label;
+}
+
+/// The window a revenue figure covers.
+enum RevenuePeriod implements WireEnum {
+  allTime('ALL_TIME', 'Tout'),
+  thisMonth('THIS_MONTH', 'Ce mois'),
+  lastMonth('LAST_MONTH', 'Mois dernier'),
+  last30Days('LAST_30_DAYS', '30 jours');
+
+  const RevenuePeriod(this.wire, this.label);
 
   @override
   final String wire;

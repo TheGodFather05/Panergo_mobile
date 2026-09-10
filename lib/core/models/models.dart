@@ -699,3 +699,410 @@ class AssistantAnswer {
             Json.list(json['providers']).map(AssistantResult.fromJson).toList(),
       );
 }
+
+// ------------------------------------------------------ price negotiation ---
+
+/// One round of haggling over an offer's price.
+class PriceProposal {
+  const PriceProposal({
+    required this.id,
+    required this.proposedBy,
+    required this.proposerName,
+    required this.price,
+    required this.message,
+    required this.status,
+    required this.resolvedAt,
+    required this.createdAt,
+  });
+
+  final String id;
+  final PartyRole proposedBy;
+  final String proposerName;
+  final int price;
+  final String? message;
+  final ProposalStatus status;
+  final DateTime? resolvedAt;
+  final DateTime createdAt;
+
+  bool get isLive => status == ProposalStatus.pending;
+
+  factory PriceProposal.fromJson(Map<String, dynamic> json) => PriceProposal(
+        id: Json.str(json['id']),
+        proposedBy:
+            Json.enumOf(json['proposed_by'], PartyRole.values, PartyRole.user),
+        proposerName: Json.str(json['proposer_name']),
+        price: Json.intOf(json['price']),
+        message: Json.strOrNull(json['message']),
+        status: Json.enumOf(
+            json['status'], ProposalStatus.values, ProposalStatus.pending),
+        resolvedAt: Json.dateTimeOrNull(json['resolved_at']),
+        createdAt: Json.dateTime(json['created_at']),
+      );
+}
+
+/// The state of the haggle over one offer, and how it got there.
+///
+/// Three prices because they answer three questions: what was first asked, what
+/// both sides settled on, and what is currently waiting for an answer.
+class PriceNegotiation {
+  const PriceNegotiation({
+    required this.offerId,
+    required this.openingPrice,
+    required this.agreedPrice,
+    required this.effectivePrice,
+    required this.pendingPrice,
+    required this.locked,
+    required this.proposals,
+  });
+
+  final String offerId;
+  final int openingPrice;
+  final int? agreedPrice;
+
+  /// What the client owes as things stand — the agreed price where there is one.
+  final int effectivePrice;
+
+  /// The number currently on the table, or null when nobody is waiting.
+  final int? pendingPrice;
+
+  /// True once the provider has confirmed arrival: the price is final and the
+  /// compose affordance must disappear rather than sit there and fail.
+  final bool locked;
+
+  final List<PriceProposal> proposals;
+
+  /// The round awaiting an answer, if any.
+  PriceProposal? get pending =>
+      proposals.where((p) => p.isLive).firstOrNull;
+
+  /// True when a price was haggled rather than simply accepted as quoted.
+  bool get wasNegotiated => agreedPrice != null;
+
+  factory PriceNegotiation.fromJson(Map<String, dynamic> json) =>
+      PriceNegotiation(
+        offerId: Json.str(json['offer_id']),
+        openingPrice: Json.intOf(json['opening_price']),
+        agreedPrice: Json.intOrNull(json['agreed_price']),
+        effectivePrice: Json.intOf(json['effective_price']),
+        pendingPrice: Json.intOrNull(json['pending_price']),
+        locked: Json.boolOf(json['locked']),
+        proposals: Json.list(json['proposals'])
+            .map(PriceProposal.fromJson)
+            .toList(),
+      );
+}
+
+// -------------------------------------------------------------- schedule ---
+
+/// One job on the agenda.
+class AgendaJob {
+  const AgendaJob({
+    required this.bookingId,
+    required this.scheduledAt,
+    required this.scheduledEndAt,
+    required this.category,
+    required this.clientName,
+    required this.neighborhood,
+    required this.description,
+    required this.price,
+    required this.status,
+  });
+
+  final String bookingId;
+
+  /// Null for an urgent job dispatched without a date — real committed work,
+  /// but not an appointment, so it belongs beside the grid rather than in it.
+  final DateTime? scheduledAt;
+  final DateTime? scheduledEndAt;
+  final ServiceCategory category;
+  final String clientName;
+  final String neighborhood;
+  final String description;
+  final int price;
+  final BookingStatus status;
+
+  factory AgendaJob.fromJson(Map<String, dynamic> json) => AgendaJob(
+        bookingId: Json.str(json['booking_id']),
+        scheduledAt: Json.dateTimeOrNull(json['scheduled_at']),
+        scheduledEndAt: Json.dateTimeOrNull(json['scheduled_end_at']),
+        category: Json.enumOf(json['category'], ServiceCategory.values,
+            ServiceCategory.plomberie),
+        clientName: Json.str(json['client_name']),
+        neighborhood: Json.str(json['neighborhood']),
+        description: Json.str(json['description']),
+        price: Json.intOf(json['price']),
+        status: Json.enumOf(
+            json['status'], BookingStatus.values, BookingStatus.awaitingArrival),
+      );
+}
+
+/// One day in the week view.
+///
+/// A quiet working day and a declared day off look nothing alike on the screen,
+/// so they are told apart here rather than left for the widget to guess.
+class AgendaDay {
+  const AgendaDay({
+    required this.date,
+    required this.workingDay,
+    required this.startTime,
+    required this.endTime,
+    required this.off,
+    required this.timeOffReason,
+    required this.jobs,
+  });
+
+  final DateTime date;
+
+  /// Whether the provider declared hours for this weekday.
+  final bool workingDay;
+  final String? startTime;
+  final String? endTime;
+
+  /// True when an absence covers this date.
+  final bool off;
+  final String? timeOffReason;
+  final List<AgendaJob> jobs;
+
+  factory AgendaDay.fromJson(Map<String, dynamic> json) => AgendaDay(
+        date: Json.dateTime(json['date']),
+        workingDay: Json.boolOf(json['working_day']),
+        startTime: Json.strOrNull(json['start_time']),
+        endTime: Json.strOrNull(json['end_time']),
+        off: Json.boolOf(json['off']),
+        timeOffReason: Json.strOrNull(json['time_off_reason']),
+        jobs: Json.list(json['jobs']).map(AgendaJob.fromJson).toList(),
+      );
+}
+
+class Agenda {
+  const Agenda({
+    required this.days,
+    required this.unscheduled,
+    required this.declaredAvailability,
+  });
+
+  final List<AgendaDay> days;
+
+  /// Urgent jobs with no date. Shown as their own strip above the grid.
+  final List<AgendaJob> unscheduled;
+
+  /// False when the provider has never set hours — which is not the same as
+  /// being unavailable, and the screen must say so.
+  final bool declaredAvailability;
+
+  int get jobCount =>
+      days.fold(0, (sum, day) => sum + day.jobs.length) + unscheduled.length;
+
+  factory Agenda.fromJson(Map<String, dynamic> json) => Agenda(
+        days: Json.list(json['days']).map(AgendaDay.fromJson).toList(),
+        unscheduled:
+            Json.list(json['unscheduled']).map(AgendaJob.fromJson).toList(),
+        declaredAvailability: Json.boolOf(json['declared_availability']),
+      );
+}
+
+/// One weekday the provider works, and the hours they work it.
+class WorkingDay {
+  const WorkingDay({
+    required this.dayOfWeek,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  /// ISO-8601: 1 = Monday .. 7 = Sunday.
+  final int dayOfWeek;
+
+  /// Local wall-clock, `HH:mm`. Cameroon keeps one zone, so eight o'clock is
+  /// eight o'clock whatever the server is doing.
+  final String startTime;
+  final String endTime;
+
+  Map<String, dynamic> toJson() => {
+        'day_of_week': dayOfWeek,
+        'start_time': startTime,
+        'end_time': endTime,
+      };
+
+  factory WorkingDay.fromJson(Map<String, dynamic> json) => WorkingDay(
+        dayOfWeek: Json.intOf(json['day_of_week']),
+        startTime: Json.str(json['start_time']),
+        endTime: Json.str(json['end_time']),
+      );
+}
+
+class TimeOff {
+  const TimeOff({
+    required this.id,
+    required this.startDate,
+    required this.endDate,
+    required this.reason,
+  });
+
+  final String id;
+
+  /// Both ends inclusive — "absent du 12 au 19" includes the 19th.
+  final DateTime startDate;
+  final DateTime endDate;
+  final String? reason;
+
+  factory TimeOff.fromJson(Map<String, dynamic> json) => TimeOff(
+        id: Json.str(json['id']),
+        startDate: Json.dateTime(json['start_date']),
+        endDate: Json.dateTime(json['end_date']),
+        reason: Json.strOrNull(json['reason']),
+      );
+}
+
+class Availability {
+  const Availability({
+    required this.days,
+    required this.declared,
+    required this.timeOff,
+  });
+
+  final List<WorkingDay> days;
+
+  /// False when nothing has ever been declared. The provider still receives
+  /// requests at any hour — declaring nothing is not declaring unavailable.
+  final bool declared;
+
+  final List<TimeOff> timeOff;
+
+  factory Availability.fromJson(Map<String, dynamic> json) => Availability(
+        days: Json.list(json['days']).map(WorkingDay.fromJson).toList(),
+        declared: Json.boolOf(json['declared']),
+        timeOff: Json.list(json['time_off']).map(TimeOff.fromJson).toList(),
+      );
+}
+
+// --------------------------------------------------------------- metrics ---
+
+/// A metric that is allowed to have no answer.
+///
+/// [value] and [unavailableBecause] are mutually exclusive and exactly one is
+/// always set, so a widget can never render a number that was never computed.
+///
+/// [sampleSize] is present either way, and that is what makes a refusal legible:
+/// "4 sur 10 enregistrées" reads as progress towards something, where a blank
+/// tile reads as a fault.
+class Metric<T> {
+  const Metric({
+    required this.value,
+    required this.unavailableBecause,
+    required this.sampleSize,
+    required this.requiredSampleSize,
+  });
+
+  final T? value;
+  final MetricUnavailability? unavailableBecause;
+  final int sampleSize;
+
+  /// The floor this metric is working towards; zero where it has none.
+  final int requiredSampleSize;
+
+  bool get hasValue => value != null;
+
+  /// How many more observations are needed. Null unless the metric is short of
+  /// a floor it can actually reach.
+  int? get remaining =>
+      unavailableBecause == MetricUnavailability.notEnoughData &&
+              requiredSampleSize > sampleSize
+          ? requiredSampleSize - sampleSize
+          : null;
+
+  static Metric<double> numberFromJson(Map<String, dynamic> json) => Metric(
+        value: Json.dblOrNull(json['value']),
+        unavailableBecause: json['unavailable_because'] == null
+            ? null
+            : Json.enumOf(json['unavailable_because'],
+                MetricUnavailability.values, MetricUnavailability.notEnoughData),
+        sampleSize: Json.intOf(json['sample_size']),
+        requiredSampleSize: Json.intOf(json['required_sample_size']),
+      );
+}
+
+/// How a provider is doing, as far as the data can honestly say.
+///
+/// Nothing here is a grade. The numbers arrive with the sample that produced
+/// them and the provider draws their own conclusion.
+class ProviderMetrics {
+  const ProviderMetrics({
+    required this.winRate,
+    required this.responseHours,
+    required this.onSiteHours,
+    required this.averageRating,
+    required this.repeatClientRate,
+    required this.reliability,
+    required this.punctuality,
+    required this.utilisation,
+    required this.completedJobs,
+    required this.distinctClients,
+  });
+
+  final Metric<double> winRate;
+  final Metric<double> responseHours;
+  final Metric<double> onSiteHours;
+  final Metric<double> averageRating;
+  final Metric<double> repeatClientRate;
+  final Metric<double> reliability;
+
+  /// Declines until agendas have enough history to compare arrivals against.
+  final Metric<double> punctuality;
+
+  /// Declines: needs a jobs-per-day capacity nobody has decided.
+  final Metric<double> utilisation;
+
+  final int completedJobs;
+  final int distinctClients;
+
+  factory ProviderMetrics.fromJson(Map<String, dynamic> json) => ProviderMetrics(
+        winRate: Metric.numberFromJson(Json.obj(json['win_rate'])),
+        responseHours: Metric.numberFromJson(Json.obj(json['response_hours'])),
+        onSiteHours: Metric.numberFromJson(Json.obj(json['on_site_hours'])),
+        averageRating: Metric.numberFromJson(Json.obj(json['average_rating'])),
+        repeatClientRate:
+            Metric.numberFromJson(Json.obj(json['repeat_client_rate'])),
+        reliability: Metric.numberFromJson(Json.obj(json['reliability'])),
+        punctuality: Metric.numberFromJson(Json.obj(json['punctuality'])),
+        utilisation: Metric.numberFromJson(Json.obj(json['utilisation'])),
+        completedJobs: Json.intOf(json['completed_jobs']),
+        distinctClients: Json.intOf(json['distinct_clients']),
+      );
+}
+
+/// What a provider's finished missions were worth.
+///
+/// Not a balance — Panergo never holds the money. The client pays the artisan
+/// directly, and this reports the value of work done.
+class ProviderRevenue {
+  const ProviderRevenue({
+    required this.total,
+    required this.currency,
+    required this.completedCount,
+    required this.period,
+    required this.totalAllTime,
+    required this.averagePerMission,
+  });
+
+  final int total;
+  final String currency;
+  final int completedCount;
+  final String period;
+
+  /// Kept beside the period figure: a quiet month should not read as a failed
+  /// career.
+  final int totalAllTime;
+
+  /// Null, never zero, when there are no missions. Zero is a claim about a
+  /// provider; absence is the truth.
+  final int? averagePerMission;
+
+  factory ProviderRevenue.fromJson(Map<String, dynamic> json) => ProviderRevenue(
+        total: Json.intOf(json['total_valeur_missions']),
+        currency: Json.str(json['currency']),
+        completedCount: Json.intOf(json['completed_bookings_count']),
+        period: Json.str(json['period']),
+        totalAllTime: Json.intOf(json['total_all_time']),
+        averagePerMission: Json.intOrNull(json['average_per_mission']),
+      );
+}
