@@ -10,6 +10,12 @@ import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../client/requests_screen.dart';
 import '../deals/deals_screen.dart';
+import '../provider/agenda_screen.dart';
+import '../provider/availability_screen.dart';
+import '../provider/clients_screen.dart';
+import '../provider/missed_opportunities_screen.dart';
+import '../provider/performance_screen.dart';
+import '../provider/revenue_screen.dart';
 
 /// Profil — account, shortcuts and sign-out.
 class ProfileScreen extends ConsumerWidget {
@@ -67,6 +73,65 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: Space.gutter),
+          // The provider's workspace. Grouped and labelled rather than mixed in
+          // with the general rows: these are about running a business, not about
+          // using the app.
+          if (user?.isProvider == true) ...[
+            const _SectionLabel('Mon activité'),
+            _MenuRow(
+              icon: 'calendar_month',
+              label: 'Agenda',
+              detail: 'Vos missions, jour par jour',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const AgendaScreen()),
+              ),
+            ),
+            _MenuRow(
+              icon: 'schedule',
+              label: 'Mes disponibilités',
+              detail: 'Horaires et absences',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const AvailabilityScreen()),
+              ),
+            ),
+            _MenuRow(
+              icon: 'payments',
+              label: 'Revenus',
+              detail: 'Valeur de vos missions terminées',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const RevenueScreen()),
+              ),
+            ),
+            _MenuRow(
+              icon: 'insights',
+              label: 'Ma performance',
+              detail: 'Vos chiffres, avec leur échantillon',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const PerformanceScreen()),
+              ),
+            ),
+            _MenuRow(
+              icon: 'search_off',
+              label: 'Occasions manquées',
+              detail: 'Ce que vous auriez pu remporter',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const MissedOpportunitiesScreen()),
+              ),
+            ),
+            _MenuRow(
+              icon: 'group',
+              label: 'Mes clients',
+              detail: 'Qui revient vers vous',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const ClientsScreen()),
+              ),
+            ),
+            const SizedBox(height: Space.gutter),
+            const _SectionLabel('Général'),
+          ],
           _MenuRow(
             icon: 'receipt_long',
             label: 'Mes demandes',
@@ -132,6 +197,27 @@ class ProfileScreen extends ConsumerWidget {
         'L’inscription en tant que prestataire vous demandera de vous '
         'reconnecter pour activer votre nouveau rôle.',
         style: context.type.bodySmall.copyWith(height: 1.5),
+      ),
+    );
+  }
+}
+
+class _SectionLabel extends StatelessWidget {
+  const _SectionLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.s10, left: 2),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.9,
+            color: PanergoColors.faint),
       ),
     );
   }

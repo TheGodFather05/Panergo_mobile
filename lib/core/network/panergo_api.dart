@@ -472,6 +472,20 @@ class PanergoApi {
     return ProviderMetrics.fromJson(data);
   }
 
+  Future<List<ClientSummary>> clients() async {
+    final data = await _client
+        .get<List<dynamic>>('/api/provider/me/clients');
+    return data
+        .map((e) => ClientSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<MissedOpportunities> missedOpportunities() async {
+    final data = await _client
+        .get<Map<String, dynamic>>('/api/provider/me/missed-opportunities');
+    return MissedOpportunities.fromJson(data);
+  }
+
   Future<ProviderRevenue> revenue(
       {RevenuePeriod period = RevenuePeriod.allTime}) async {
     final data = await _client.get<Map<String, dynamic>>(

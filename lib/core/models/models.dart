@@ -1106,3 +1106,91 @@ class ProviderRevenue {
         averagePerMission: Json.intOrNull(json['average_per_mission']),
       );
 }
+
+// ---------------------------------------------- missed work and clients ---
+
+/// A client this provider has worked for.
+class ClientSummary {
+  const ClientSummary({
+    required this.clientId,
+    required this.name,
+    required this.jobs,
+    required this.lastHired,
+    required this.totalValue,
+    required this.repeat,
+  });
+
+  final String clientId;
+  final String name;
+  final int jobs;
+  final DateTime? lastHired;
+  final int totalValue;
+
+  /// True once they have come back. Shown as a word, never as a colour alone.
+  final bool repeat;
+
+  factory ClientSummary.fromJson(Map<String, dynamic> json) => ClientSummary(
+        clientId: Json.str(json['client_id']),
+        name: Json.str(json['name']),
+        jobs: Json.intOf(json['jobs']),
+        lastHired: Json.dateTimeOrNull(json['last_hired']),
+        totalValue: Json.intOf(json['total_value']),
+        repeat: Json.boolOf(json['repeat']),
+      );
+}
+
+/// An offer this provider lost, beside the price that won it.
+///
+/// Carries no identity for the winner — the insight is about the market, not
+/// about a neighbour.
+class LostOffer {
+  const LostOffer({
+    required this.category,
+    required this.neighborhood,
+    required this.yourPrice,
+    required this.winningPrice,
+    required this.requestedAt,
+  });
+
+  final ServiceCategory category;
+  final String neighborhood;
+  final int yourPrice;
+  final int winningPrice;
+  final DateTime requestedAt;
+
+  /// Positive when they quoted above the price that won.
+  int get gap => yourPrice - winningPrice;
+
+  factory LostOffer.fromJson(Map<String, dynamic> json) => LostOffer(
+        category: Json.enumOf(json['category'], ServiceCategory.values,
+            ServiceCategory.plomberie),
+        neighborhood: Json.str(json['neighborhood']),
+        yourPrice: Json.intOf(json['your_price']),
+        winningPrice: Json.intOf(json['winning_price']),
+        requestedAt: Json.dateTime(json['requested_at']),
+      );
+}
+
+class MissedOpportunities {
+  const MissedOpportunities({
+    required this.unansweredRequests,
+    required this.windowDays,
+    required this.lostOffers,
+  });
+
+  /// Requests they could have bid on and did not. Not "ignored" — nothing
+  /// records who was actually notified.
+  final int unansweredRequests;
+  final int windowDays;
+  final List<LostOffer> lostOffers;
+
+  bool get isEmpty => unansweredRequests == 0 && lostOffers.isEmpty;
+
+  factory MissedOpportunities.fromJson(Map<String, dynamic> json) =>
+      MissedOpportunities(
+        unansweredRequests: Json.intOf(json['unanswered_requests']),
+        windowDays: Json.intOf(json['window_days']),
+        lostOffers:
+            Json.list(json['lost_offers']).map(LostOffer.fromJson).toList(),
+      );
+}
