@@ -47,6 +47,8 @@ class PanergoApi {
   /// Records who someone is, at the end of signing up.
   Future<AppUser> completeProfile({
     required String name,
+    required String countryCode,
+    required String city,
     required String neighborhood,
     String? photoUrl,
   }) async {
@@ -54,6 +56,8 @@ class PanergoApi {
       '/api/user/me/complete-profile',
       body: {
         'name': name,
+        'country_code': countryCode,
+        'city': city,
         'neighborhood': neighborhood,
         if (photoUrl != null) 'photo_url': photoUrl,
       },
@@ -70,18 +74,43 @@ class PanergoApi {
     return Json.str(data['url']);
   }
 
-  /// The quartiers Panergo serves. Public — the first screen needs it before
-  /// the account it belongs to has said anything.
-  Future<List<Quartier>> quartiers() async {
-    final data = await _client.get<List<dynamic>>('/api/quartiers');
+  /// Where Panergo operates. Public — the first screen needs these before the
+  /// account they belong to has said anything.
+  Future<List<Country>> countries() async {
+    final data = await _client.get<List<dynamic>>('/api/quartiers/countries');
+    return data.map((e) => Country.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<List<City>> cities(String countryCode) async {
+    final data = await _client
+        .get<List<dynamic>>('/api/quartiers/countries/$countryCode/cities');
+    return data.map((e) => City.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  /// The quartiers of one town, or all of them when no town is named.
+  Future<List<Quartier>> quartiers({String? cityId}) async {
+    final data = await _client.get<List<dynamic>>(
+      '/api/quartiers',
+      query: cityId == null ? null : {'city_id': cityId},
+    );
     return data.map((e) => Quartier.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<void> updateProfile({String? name, String? neighborhood}) async {
-    await _client.put<dynamic>('/api/user/me', body: {
+  Future<AppUser> updateProfile({
+    String? name,
+    String? countryCode,
+    String? city,
+    String? neighborhood,
+    String? photoUrl,
+  }) async {
+    final data = await _client.put<Map<String, dynamic>>('/api/user/me', body: {
       if (name != null) 'name': name,
+      if (countryCode != null) 'country_code': countryCode,
+      if (city != null) 'city': city,
       if (neighborhood != null) 'neighborhood': neighborhood,
+      if (photoUrl != null) 'photo_url': photoUrl,
     });
+    return AppUser.fromJson(data);
   }
 
   // ------------------------------------------------------------ requests ---

@@ -9,9 +9,11 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import 'place_pickers.dart';
 
-final quartiersProvider = FutureProvider<List<Quartier>>(
-  (ref) => ref.read(apiProvider).quartiers(),
+/// The quartiers of one town. Keyed by city so switching towns refetches.
+final quartiersProvider = FutureProvider.family<List<Quartier>, String?>(
+  (ref, cityId) => ref.read(apiProvider).quartiers(cityId: cityId),
 );
 
 /// The quartiers Panergo serves.
@@ -25,16 +27,27 @@ final quartiersProvider = FutureProvider<List<Quartier>>(
 /// count — with one difference: this list comes over the network, so it declares
 /// all five states.
 class QuartierPickerScreen extends ConsumerStatefulWidget {
-  const QuartierPickerScreen({
-    super.key,
-    required this.onSelected,
-    this.selected,
-  });
-
-  final ValueChanged<Quartier> onSelected;
+  const QuartierPickerScreen({super.key, this.selected, this.cityId});
 
   /// Highlighted on open, so someone changing their mind sees where they were.
   final String? selected;
+
+  /// Narrows the list to one town. Null lists everywhere Panergo serves.
+  final String? cityId;
+
+  /// Opens the picker and returns what was chosen, or null if they backed out.
+  ///
+  /// The choice comes back through the route rather than a callback: the rows
+  /// are built inside two nested builders, and resolving a Navigator from one
+  /// of those is the kind of thing that works until it quietly does not.
+  static Future<Quartier?> show(BuildContext context,
+          {String? selected, String? cityId}) =>
+      Navigator.of(context).push<Quartier>(
+        MaterialPageRoute<Quartier>(
+          builder: (_) =>
+              QuartierPickerScreen(selected: selected, cityId: cityId),
+        ),
+      );
 
   @override
   ConsumerState<QuartierPickerScreen> createState() =>
@@ -46,7 +59,11 @@ class _QuartierPickerScreenState extends ConsumerState<QuartierPickerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(quartiersProvider);
+    // Held once here: the rows are built inside two nested builders, each of
+    // which shadows `context`, and popping the route from one of those is the
+    // kind of thing that works right up until it does not.
+    final rootContext = context;
+    final async = ref.watch(quartiersProvider(widget.cityId));
 
     return Scaffold(
       backgroundColor: PanergoColors.page,
@@ -99,7 +116,7 @@ class _QuartierPickerScreenState extends ConsumerState<QuartierPickerScreen> {
                           ? LoadState.error
                           : LoadState.normal,
                   data: async.value,
-                  onRetry: () => ref.invalidate(quartiersProvider),
+                  onRetry: () => ref.invalidate(quartiersProvider(widget.cityId)),
                   errorTitle: 'Impossible de charger les quartiers',
                   skeleton: (_) => const _Skeleton(),
                   empty: (_) => const SizedBox.shrink(),
@@ -107,8 +124,8 @@ class _QuartierPickerScreenState extends ConsumerState<QuartierPickerScreen> {
                     final matches = quartiers
                         .where((q) =>
                             _query.isEmpty ||
-                            normalizeForSearch(q.name)
-                                .contains(normalizeForSearch(_query)))
+                            normalizePlace(q.name)
+                                .contains(normalizePlace(_query)))
                         .toList();
 
                     if (matches.isEmpty) return const _NoMatch();
@@ -117,13 +134,12 @@ class _QuartierPickerScreenState extends ConsumerState<QuartierPickerScreen> {
                       padding: const EdgeInsets.fromLTRB(
                           Space.gutter, 0, Space.gutter, Space.s26),
                       itemCount: matches.length,
-                      itemBuilder: (context, i) => _QuartierRow(
-                        quartier: matches[i],
+                      itemBuilder: (_, i) => PlaceRow(
+                        icon: 'location_on',
+                        label: matches[i].name,
+                        detail: matches[i].city,
                         selected: matches[i].name == widget.selected,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          widget.onSelected(matches[i]);
-                        },
+                        onTap: () => Navigator.of(rootContext).pop(matches[i]),
                       ),
                     );
                   },
@@ -137,63 +153,6 @@ class _QuartierPickerScreenState extends ConsumerState<QuartierPickerScreen> {
   }
 }
 
-class _QuartierRow extends StatelessWidget {
-  const _QuartierRow({
-    required this.quartier,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Quartier quartier;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final brand = context.brand;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: Space.s8),
-        padding: const EdgeInsets.symmetric(
-            horizontal: Space.s14, vertical: Space.s14),
-        decoration: BoxDecoration(
-          color: PanergoColors.surface,
-          borderRadius: Radii.brCard,
-          border: Border.all(
-              color: selected ? brand.fill : PanergoColors.border,
-              width: selected ? 1.5 : 1),
-        ),
-        child: Row(
-          children: [
-            MaterialSymbol('location_on',
-                size: 19,
-                color: selected ? brand.link : PanergoColors.subtle),
-            const SizedBox(width: Space.s12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(quartier.name,
-                      style: const TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: PanergoColors.ink)),
-                  Text(quartier.city,
-                      style: const TextStyle(
-                          fontSize: 11.5, color: PanergoColors.faint)),
-                ],
-              ),
-            ),
-            if (selected)
-              MaterialSymbol('check_circle', size: 20, color: brand.link),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _NoMatch extends StatelessWidget {
   const _NoMatch();
@@ -249,15 +208,3 @@ class _Skeleton extends StatelessWidget {
   }
 }
 
-/// Accent-insensitive comparison for search.
-///
-/// Nobody reaches for the diaeresis on a phone keyboard, so `Deido` has to find
-/// `Deïdo` and `Bepanda` has to find `Bépanda`.
-String normalizeForSearch(String value) => value
-    .toLowerCase()
-    .replaceAll(RegExp('[àâä]'), 'a')
-    .replaceAll(RegExp('[éèêë]'), 'e')
-    .replaceAll(RegExp('[îï]'), 'i')
-    .replaceAll(RegExp('[ôö]'), 'o')
-    .replaceAll(RegExp('[ùûü]'), 'u')
-    .replaceAll('ç', 'c');

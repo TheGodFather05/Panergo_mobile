@@ -9,6 +9,8 @@ class AppUser {
     required this.phoneNumber,
     required this.neighborhood,
     required this.isProvider,
+    this.countryCode,
+    this.city,
     this.photoUrl,
     this.profileComplete,
   });
@@ -17,6 +19,8 @@ class AppUser {
   final String name;
   final String phoneNumber;
   final String neighborhood;
+  final String? countryCode;
+  final String? city;
   final String? photoUrl;
 
   /// Whether this person has a provider profile.
@@ -53,6 +57,8 @@ class AppUser {
         name: Json.str(json['name']),
         phoneNumber: Json.str(json['phone_number']),
         neighborhood: Json.str(json['neighborhood']),
+        countryCode: Json.strOrNull(json['country_code']),
+        city: Json.strOrNull(json['city']),
         photoUrl: Json.strOrNull(json['photo_url']),
         isProvider: Json.boolOf(json['is_provider']),
         profileComplete: json['profile_complete'] == null
@@ -1223,13 +1229,45 @@ class MissedOpportunities {
 /// strings — a typed spelling that differs by a space or an accent is a market
 /// nobody else can reach.
 class Quartier {
-  const Quartier({required this.name, required this.city});
+  const Quartier({required this.name, required this.city, required this.cityId});
 
   final String name;
   final String city;
+  final String cityId;
 
   factory Quartier.fromJson(Map<String, dynamic> json) => Quartier(
         name: Json.str(json['name']),
         city: Json.str(json['city']),
+        cityId: Json.str(json['city_id']),
+      );
+}
+
+/// A country Panergo operates in.
+class Country {
+  const Country({required this.code, required this.name, required this.dialCode});
+
+  final String code;
+  final String name;
+
+  /// Shown beside the country so the phone number makes sense.
+  final String dialCode;
+
+  factory Country.fromJson(Map<String, dynamic> json) => Country(
+        code: Json.str(json['code']),
+        name: Json.str(json['name']),
+        dialCode: Json.str(json['dial_code']),
+      );
+}
+
+/// A town. The middle step of saying where you are.
+class City {
+  const City({required this.id, required this.name});
+
+  final String id;
+  final String name;
+
+  factory City.fromJson(Map<String, dynamic> json) => City(
+        id: Json.str(json['id']),
+        name: Json.str(json['name']),
       );
 }

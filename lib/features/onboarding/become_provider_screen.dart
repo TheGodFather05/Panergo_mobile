@@ -52,6 +52,9 @@ class _BecomeProviderScreenState extends ConsumerState<BecomeProviderScreen> {
   bool _busy = false;
   String? _error;
 
+  /// Resolved lazily — the quartier list narrows to the town on their account.
+  String? _cityId;
+
   static const _bioLimit = 300;
 
   @override
@@ -60,7 +63,8 @@ class _BecomeProviderScreenState extends ConsumerState<BecomeProviderScreen> {
     // Work is most often where you live, so start there — and say it can differ.
     final home = ref.read(currentUserProvider)?.neighborhood;
     if (home != null && home.trim().isNotEmpty) {
-      _quartier = Quartier(name: home, city: 'Douala');
+      final city = ref.read(currentUserProvider)?.city ?? 'Douala';
+      _quartier = Quartier(name: home, city: city, cityId: '');
     }
   }
 
@@ -196,14 +200,10 @@ class _BecomeProviderScreenState extends ConsumerState<BecomeProviderScreen> {
   }
 
   Future<void> _pickQuartier() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => QuartierPickerScreen(
-          selected: _quartier?.name,
-          onSelected: (q) => setState(() => _quartier = q),
-        ),
-      ),
-    );
+    // Scoped to the town on their account: an artisan works where they are.
+    final picked = await QuartierPickerScreen.show(context,
+        selected: _quartier?.name, cityId: _cityId);
+    if (picked != null && mounted) setState(() => _quartier = picked);
   }
 
   Future<void> _pickPhoto(ImageSource source) async {

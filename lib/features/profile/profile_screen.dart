@@ -13,6 +13,7 @@ import '../../core/widgets/panergo_button.dart';
 import '../client/requests_screen.dart';
 import '../deals/deals_screen.dart';
 import '../onboarding/become_provider_screen.dart';
+import 'edit_profile_screen.dart';
 import '../provider/agenda_screen.dart';
 import '../provider/availability_screen.dart';
 import '../provider/clients_screen.dart';
@@ -144,6 +145,14 @@ class ProfileScreen extends ConsumerWidget {
             const SizedBox(height: Space.gutter),
             const _SectionLabel('Général'),
           ],
+          _MenuRow(
+            icon: 'account_circle',
+            label: 'Mes informations',
+            detail: 'Nom, photo, localisation',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const EditProfileScreen()),
+            ),
+          ),
           _MenuRow(
             icon: 'receipt_long',
             label: 'Mes demandes',

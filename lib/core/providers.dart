@@ -66,8 +66,28 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> _restore() async {
     final token = await _store.readToken();
-    final user = await _store.readUser();
-    state = (token != null && user != null) ? SignedIn(user) : const SignedOut();
+    final stored = await _store.readUser();
+    if (token == null || stored == null) {
+      state = const SignedOut();
+      return;
+    }
+
+    // Show the stored user immediately so the app opens without waiting on the
+    // network.
+    state = SignedIn(stored);
+
+    // Then ask the server who they actually are. Capability and profile
+    // completeness are its answers to give, and a session written by an older
+    // build carries neither — without this refresh someone would keep whatever
+    // the app guessed about them on the day they signed in.
+    try {
+      final fresh = await _api.me();
+      await _store.save(AuthSession(token: token, user: fresh));
+      if (state is SignedIn) state = SignedIn(fresh);
+    } catch (_) {
+      // Offline, or the server is down. The stored user is better than nothing
+      // and an expired token already signs itself out through the interceptor.
+    }
   }
 
   Future<void> requestOtp(String phoneNumber) => _api.requestOtp(phoneNumber);
@@ -79,21 +99,24 @@ class AuthNotifier extends Notifier<AuthState> {
     return session.user;
   }
 
-  /// Applies a profile edit locally so the UI does not have to refetch.
-  Future<void> updateProfile({String? name, String? neighborhood}) async {
-    await _api.updateProfile(name: name, neighborhood: neighborhood);
-
-    final current = state;
-    if (current is! SignedIn) return;
-
-    final updated = AppUser(
-      id: current.user.id,
-      name: name ?? current.user.name,
-      phoneNumber: current.user.phoneNumber,
-      neighborhood: neighborhood ?? current.user.neighborhood,
-      photoUrl: current.user.photoUrl,
-      isProvider: current.user.isProvider,
-      profileComplete: current.user.profileComplete,
+  /// Saves a profile edit and keeps the server's answer.
+  ///
+  /// It used to rebuild the user locally, which meant it could never carry a
+  /// field it did not already know about — including whether the profile is
+  /// complete. Taking the response back is simpler and cannot drift.
+  Future<void> updateProfile({
+    String? name,
+    String? countryCode,
+    String? city,
+    String? neighborhood,
+    String? photoUrl,
+  }) async {
+    final updated = await _api.updateProfile(
+      name: name,
+      countryCode: countryCode,
+      city: city,
+      neighborhood: neighborhood,
+      photoUrl: photoUrl,
     );
     await _store.save(AuthSession(
       token: (await _store.readToken()) ?? '',
@@ -105,11 +128,17 @@ class AuthNotifier extends Notifier<AuthState> {
   /// Records who someone is, at the end of signing up.
   Future<void> completeProfile({
     required String name,
+    required String countryCode,
+    required String city,
     required String neighborhood,
     String? photoUrl,
   }) async {
     final updated = await _api.completeProfile(
-        name: name, neighborhood: neighborhood, photoUrl: photoUrl);
+        name: name,
+        countryCode: countryCode,
+        city: city,
+        neighborhood: neighborhood,
+        photoUrl: photoUrl);
     await _store.save(AuthSession(
       token: (await _store.readToken()) ?? '',
       user: updated,
