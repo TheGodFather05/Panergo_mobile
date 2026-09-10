@@ -7,7 +7,9 @@ import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
+import '../../core/models/enums.dart';
 import '../../core/theme/tokens.dart';
+import '../negotiation/price_negotiation_section.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
@@ -196,6 +198,13 @@ class _OfferDetailScreenState extends ConsumerState<OfferDetailScreen> {
                           ],
                         ],
                       ),
+                    ),
+                    const SizedBox(height: Space.gutterTight),
+                    // Haggling belongs here, before the client commits: this is
+                    // the moment they are weighing prices against each other.
+                    PriceNegotiationSection(
+                      offerId: offer.id,
+                      viewerRole: PartyRole.user,
                     ),
                     if (_error != null) ...[
                       const SizedBox(height: Space.gutterTight),

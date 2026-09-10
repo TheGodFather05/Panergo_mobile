@@ -39,6 +39,28 @@ abstract final class Formats {
   static String moneyRange(num min, num max) =>
       '${amount(min)}$rangeSeparator${amount(max)}${nbsp}FCFA';
 
+  static const _weekdays = [
+    'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'
+  ];
+  static const _months = [
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
+  ];
+
+  /// A day heading on the agenda: `Mercredi 2 septembre`.
+  static String dayHeading(DateTime date) =>
+      '${_weekdays[date.weekday - 1]} ${date.day} ${_months[date.month - 1]}';
+
+  /// The span a week view covers. The month is written once where both ends
+  /// share it — `2 – 8 septembre` rather than repeating it.
+  static String weekRange(DateTime from, DateTime to) {
+    if (from.month == to.month) {
+      return '${from.day}$rangeSeparator${to.day} ${_months[to.month - 1]}';
+    }
+    return '${from.day} ${_months[from.month - 1]}$rangeSeparator'
+        '${to.day} ${_months[to.month - 1]}';
+  }
+
   /// A rating with a French decimal comma: `4.9` -> `4,9`.
   static String rating(num value) =>
       value.toStringAsFixed(1).replaceAll('.', ',');
