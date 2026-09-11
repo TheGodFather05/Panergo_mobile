@@ -14,6 +14,8 @@ import '../client/requests_screen.dart';
 import '../deals/deals_screen.dart';
 import '../onboarding/become_provider_screen.dart';
 import 'edit_profile_screen.dart';
+import 'support_screen.dart';
+import 'settings_screen.dart';
 import '../provider/agenda_screen.dart';
 import '../provider/availability_screen.dart';
 import '../provider/clients_screen.dart';
@@ -52,7 +54,11 @@ class ProfileScreen extends ConsumerWidget {
             child: Row(
               children: [
                 InitialsAvatar(
-                    name: user?.name ?? '', size: 56, radius: null),
+                  name: user?.name ?? '',
+                  photoUrl: user?.photoUrl,
+                  size: 56,
+                  radius: null,
+                ),
                 const SizedBox(width: Space.gutterTight),
                 Expanded(
                   child: Column(
@@ -157,6 +163,9 @@ class ProfileScreen extends ConsumerWidget {
             icon: 'receipt_long',
             label: 'Mes demandes',
             detail: activeCount == null ? null : '$activeCount en cours',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const RequestsScreen()),
+            ),
           ),
           _MenuRow(
             icon: 'local_offer',
@@ -166,11 +175,22 @@ class ProfileScreen extends ConsumerWidget {
               MaterialPageRoute(builder: (_) => const DealsScreen()),
             ),
           ),
-          const _MenuRow(icon: 'help', label: 'Aide & support'),
-          const _MenuRow(
-              icon: 'settings',
-              label: 'Paramètres',
-              detail: 'Compte, langue, notifications'),
+          _MenuRow(
+            icon: 'help',
+            label: 'Aide & support',
+            detail: 'Questions fréquentes, nous joindre',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SupportScreen()),
+            ),
+          ),
+          _MenuRow(
+            icon: 'settings',
+            label: 'Paramètres',
+            detail: 'Notifications, langue, compte',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+            ),
+          ),
           const SizedBox(height: Space.gutter),
           if (user?.isProvider != true)
             _BecomeProviderCard(

@@ -20,6 +20,14 @@ abstract final class ApiConfig {
 
   /// The STOMP endpoint. The backend registers `/ws` with SockJS enabled.
   static String get webSocketUrl => '$baseUrl/ws';
+
+  /// Turns a stored path into something [Image.network] can fetch.
+  ///
+  /// Uploads come back as `/uploads/…` — a path, not a URL — because the server
+  /// has no idea which host the app reached it on. Anything already absolute is
+  /// handed straight back.
+  static String absolute(String pathOrUrl) =>
+      pathOrUrl.startsWith('http') ? pathOrUrl : '$baseUrl$pathOrUrl';
 }
 
 /// Called when the API rejects our token, so the app can drop to the login

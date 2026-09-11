@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../core/models/models.dart';
+import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -297,7 +298,11 @@ class _PhotoHeader extends StatelessWidget {
                     image: photo != null
                         ? DecorationImage(
                             image: FileImage(photo!), fit: BoxFit.cover)
-                        : null,
+                        : (photoUrl != null && photoUrl!.isNotEmpty
+                            ? DecorationImage(
+                                image: NetworkImage(ApiConfig.absolute(photoUrl!)),
+                                fit: BoxFit.cover)
+                            : null),
                   ),
                   child: uploading
                       ? const Center(
@@ -307,7 +312,7 @@ class _PhotoHeader extends StatelessWidget {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         )
-                      : photo == null
+                      : (photo == null && (photoUrl == null || photoUrl!.isEmpty))
                           ? Center(
                               child: Text(initials,
                                   style: const TextStyle(
@@ -421,10 +426,10 @@ class _Row extends StatelessWidget {
             horizontal: Space.s14, vertical: Space.s14),
         child: Row(
           children: [
-            MaterialSymbol(icon,
-                size: 19,
-                color: chosen ? context.brand.link : PanergoColors.subtle),
-            const SizedBox(width: Space.s12),
+            // Always brand-coloured, as on Bienvenue. Greying it while the
+            // field is empty made the row look disabled, which it is not.
+            MaterialSymbol(icon, size: 21, color: context.brand.fill),
+            const SizedBox(width: 11),
             Expanded(
               child: Text(
                 chosen ? value! : 'Non renseigné',

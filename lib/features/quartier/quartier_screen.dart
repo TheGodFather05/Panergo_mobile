@@ -11,6 +11,7 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
+import 'quartier_thread_screen.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
 
@@ -261,7 +262,13 @@ class _PostCard extends StatelessWidget {
     final type = context.type;
     final tint = _kindTint(post.kind);
 
-    return PanergoCard(
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => QuartierThreadScreen(post: post),
+        ),
+      ),
+      child: PanergoCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -305,9 +312,13 @@ class _PostCard extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                     color: context.brand.link,
                   )),
+              const SizedBox(width: 3),
+              MaterialSymbol('chevron_right',
+                  size: 16, color: context.brand.link),
             ],
           ),
         ],
+      ),
       ),
     );
   }

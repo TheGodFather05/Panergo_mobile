@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../format/formats.dart';
 import '../models/enums.dart';
+import '../network/api_client.dart';
 import '../theme/app_theme.dart';
 import '../theme/palette.dart';
 import '../theme/tokens.dart';
@@ -258,10 +259,16 @@ class InitialsAvatar extends StatelessWidget {
     this.size = 48,
     this.radius = 14,
     this.tintIndex,
+    this.photoUrl,
   });
 
   final String name;
   final double size;
+
+  /// Shown instead of the initials when there is one. Initials remain the
+  /// fallback everywhere — most people never upload a photo, and a name-derived
+  /// tile is a better empty state than a grey silhouette.
+  final String? photoUrl;
 
   /// Null gives a circle.
   final double? radius;
@@ -273,16 +280,38 @@ class InitialsAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tint = CategoryTints.at(tintIndex ?? name.hashCode.abs());
+    final shape = radius == null ? BoxShape.circle : BoxShape.rectangle;
+    final corners = radius == null ? null : BorderRadius.circular(radius!);
+
+    final photo = photoUrl;
+    if (photo != null && photo.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: corners ?? BorderRadius.circular(size / 2),
+        child: Image.network(
+          ApiConfig.absolute(photo),
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          // A photo that will not load falls back to the initials rather than
+          // to a broken-image glyph.
+          errorBuilder: (_, __, ___) => _tile(context, tint, shape, corners),
+        ),
+      );
+    }
+
+    return _tile(context, tint, shape, corners);
+  }
+
+  Widget _tile(BuildContext context, CategoryTint tint, BoxShape shape,
+      BorderRadius? corners) {
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: tint.tint,
-        borderRadius: radius == null
-            ? null
-            : BorderRadius.circular(radius!),
-        shape: radius == null ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: corners,
+        shape: shape,
       ),
       child: Text(
         _initials(name),
