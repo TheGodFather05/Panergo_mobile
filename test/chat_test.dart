@@ -15,7 +15,7 @@ import 'package:panergo_mobile/features/messages/messages_screen.dart';
 ChatMessage message(
   String id, {
   String sender = 'user-1',
-  UserRole role = UserRole.user,
+  PartyRole role = PartyRole.user,
   String? content = 'Bonjour',
   String? photoUrl,
   DateTime? sentAt,
@@ -45,7 +45,7 @@ void main() {
 
       expect(parsed.id, 'm-1');
       expect(parsed.bookingId, 'b-1');
-      expect(parsed.senderRole, UserRole.user);
+      expect(parsed.senderRole, PartyRole.user);
       expect(parsed.content, 'Je suis devant le portail');
       expect(parsed.isPhoto, isFalse);
     });
@@ -62,7 +62,7 @@ void main() {
       });
 
       expect(parsed.isPhoto, isTrue);
-      expect(parsed.senderRole, UserRole.provider);
+      expect(parsed.senderRole, PartyRole.provider);
     });
 
     test('an empty photo url is not a photo message', () {

@@ -1271,3 +1271,44 @@ class City {
         name: Json.str(json['name']),
       );
 }
+
+
+// ------------------------------------------------------- marks and replies ---
+
+/// Whether this reader has marked a post useful, and how many have.
+class PostMark {
+  const PostMark({required this.marked, required this.count});
+
+  final bool marked;
+  final int count;
+
+  factory PostMark.fromJson(Map<String, dynamic> json) => PostMark(
+        marked: Json.boolOf(json['marked']),
+        count: Json.intOf(json['count']),
+      );
+}
+
+/// A reply on an artisan's post.
+class PostReply {
+  const PostReply({
+    required this.id,
+    required this.authorId,
+    required this.authorName,
+    required this.body,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String authorId;
+  final String authorName;
+  final String body;
+  final DateTime createdAt;
+
+  factory PostReply.fromJson(Map<String, dynamic> json) => PostReply(
+        id: Json.str(json['id']),
+        authorId: Json.str(json['author_id']),
+        authorName: Json.str(json['author_name']),
+        body: Json.str(json['body']),
+        createdAt: Json.dateTime(json['created_at']),
+      );
+}

@@ -189,7 +189,7 @@ void main() {
           id: id,
           bookingId: 'b1',
           senderId: who,
-          senderRole: who == 'me' ? UserRole.user : UserRole.provider,
+          senderRole: who == 'me' ? PartyRole.user : PartyRole.provider,
           content: text,
           photoUrl: null,
           sentAt: at,

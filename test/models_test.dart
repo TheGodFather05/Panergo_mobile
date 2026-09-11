@@ -17,7 +17,6 @@ void main() {
       final user = AppUser.fromJson(json);
 
       expect(user.name, 'Murielle Tchatchoua');
-      expect(user.role, UserRole.user);
       expect(user.isProvider, isFalse);
       expect(user.needsProfileCompletion, isFalse);
       expect(user.initials, 'MT');
@@ -37,13 +36,18 @@ void main() {
       expect(user.needsProfileCompletion, isTrue);
     });
 
-    test('reads the provider role', () {
+    // Being a provider is a flag on the account, not a role the token carries:
+    // the same person places orders as a client with the same identity. The
+    // legacy 'role' string is still emitted by the server and deliberately
+    // ignored here.
+    test('reads the provider flag, not the legacy role string', () {
       final user = AppUser.fromJson({
         'id': 'x',
         'name': 'Jean-Pierre Mbarga',
         'phone_number': '+237600000002',
         'neighborhood': 'Bonamoussadi',
-        'role': 'PROVIDER',
+        'role': 'USER',
+        'is_provider': true,
       });
 
       expect(user.isProvider, isTrue);

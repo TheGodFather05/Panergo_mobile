@@ -10,6 +10,8 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/useful_button.dart';
+import 'feed_thread_screen.dart';
 
 final feedProvider = FutureProvider.autoDispose<List<FeedPost>>((ref) async {
   final page = await ref.watch(apiProvider).feed();
@@ -82,7 +84,11 @@ class _FeedCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final type = context.type;
 
-    return PanergoCard(
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => FeedThreadScreen(post: post)),
+      ),
+      child: PanergoCard(
       padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,11 +118,31 @@ class _FeedCard extends StatelessWidget {
           _Photo(url: post.photoUrl),
           if (post.caption != null && post.caption!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.all(13),
+              padding: const EdgeInsets.fromLTRB(13, 13, 13, 0),
               child: Text(post.caption!,
                   style: type.bodySmall.copyWith(height: 1.45)),
             ),
+          // « Utile » and the way in to the messages. Without this row the
+          // card was something to look at and nothing to answer.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(13, 0, 13, 4),
+            child: Row(
+              children: [
+                UsefulButton(kind: 'PROVIDER', postId: post.id),
+                const Spacer(),
+                Text('Commenter',
+                    style: type.metaSmall.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: context.brand.link,
+                    )),
+                const SizedBox(width: 3),
+                MaterialSymbol('chevron_right',
+                    size: 16, color: context.brand.link),
+              ],
+            ),
+          ),
         ],
+      ),
       ),
     );
   }

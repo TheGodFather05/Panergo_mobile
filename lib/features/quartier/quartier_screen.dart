@@ -11,6 +11,7 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/useful_button.dart';
 import 'quartier_thread_screen.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
@@ -306,6 +307,8 @@ class _PostCard extends StatelessWidget {
                     : '${post.replyCount} réponse${post.replyCount > 1 ? 's' : ''}',
                 style: type.metaSmall,
               ),
+              const SizedBox(width: Space.s12),
+              UsefulButton(kind: 'QUARTIER', postId: post.id),
               const Spacer(),
               Text('Répondre',
                   style: type.metaSmall.copyWith(

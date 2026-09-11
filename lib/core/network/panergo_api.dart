@@ -372,6 +372,32 @@ class PanergoApi {
     return QuartierReply.fromJson(data);
   }
 
+  // ------------------------------------------------- marks and replies ---
+
+  /// Marks a post useful, or takes the mark back.
+  ///
+  /// A toggle: the tap says the mark should be there or should not, and the
+  /// server answers with the state that resulted.
+  Future<PostMark> toggleMark({required String kind, required String postId}) async {
+    final data =
+        await _client.post<Map<String, dynamic>>('/api/marks/$kind/$postId');
+    return PostMark.fromJson(data);
+  }
+
+  Future<List<PostReply>> feedReplies(String postId) async {
+    final data =
+        await _client.get<List<dynamic>>('/api/feed/posts/$postId/replies');
+    return data.map((e) => PostReply.fromJson(e as Map<String, dynamic>)).toList();
+  }
+
+  Future<PostReply> replyToFeedPost(String postId, String body) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/api/feed/posts/$postId/replies',
+      body: {'body': body},
+    );
+    return PostReply.fromJson(data);
+  }
+
   // --------------------------------------------------------------- deals ---
 
   Future<List<Deal>> deals() async {
