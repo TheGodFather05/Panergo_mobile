@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Adaptive icon: Android 8+ masks this to whatever shape the launcher uses.
+  Without it the legacy square gets auto-masked, which crops the mark's point —
+  the one part the brand guidance says never to redraw.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

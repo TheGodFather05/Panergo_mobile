@@ -71,6 +71,12 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
 
+  # The brand mark. PNG rather than SVG: three files do not justify pulling in
+  # a rendering dependency, and the mark is never shown below its 20 px floor.
+  assets:
+    - assets/panergo-mark.png
+    - assets/panergo-mark-on-dark.png
+
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.

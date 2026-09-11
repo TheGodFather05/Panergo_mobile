@@ -7,6 +7,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/widgets/brand_mark.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
@@ -97,7 +98,7 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
                     padding: const EdgeInsets.fromLTRB(
                         Space.gutter, Space.s30, Space.gutter, Space.s20),
                     children: [
-                      const _BrandMark(),
+                      const BrandMark(height: 56),
                       const SizedBox(height: Space.s22),
                       Text('Bienvenue sur Panergo',
                           style: type.h1.copyWith(color: PanergoColors.ink)),
@@ -286,27 +287,6 @@ class _NameField extends StatelessWidget {
   }
 }
 
-/// The 52 px mark the design opens on.
-class _BrandMark extends StatelessWidget {
-  const _BrandMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        color: context.brand.fill,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: const Center(
-        child: Text('P',
-            style: TextStyle(
-                fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
-      ),
-    );
-  }
-}
 
 /// What the quartier is for, and what changing the steps above will do.
 ///

@@ -7,6 +7,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/widgets/brand_mark.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
@@ -72,7 +73,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final brand = context.brand;
     final type = context.type;
 
     return Scaffold(
@@ -85,19 +85,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: brand.fill,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    'P',
-                    style: type.h1.copyWith(color: Colors.white, fontSize: 30),
-                  ),
-                ),
+                // The mark stands on its own — the brand guidance reserves the
+                // rounded square for app icons.
+                const BrandMark(height: 60),
                 const SizedBox(height: Space.s26),
                 Text(
                   _step == _Step.phone
