@@ -16,6 +16,26 @@ import '../provider/my_jobs_screen.dart';
 import '../provider/provider_inbox_screen.dart';
 import '../quartier/quartier_screen.dart';
 
+/// A request to show one of the bottom tabs.
+///
+/// Addressed by label rather than by index: the client and provider tab lists
+/// are different screens at the same positions, so an index means two different
+/// things depending on the mode, and would silently land on the wrong one.
+///
+/// Consumed once and cleared, so returning to the shell later does not replay an
+/// old jump.
+class TabRequest extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void show(String label) => state = label;
+
+  void consume() => state = null;
+}
+
+final tabRequestProvider =
+    NotifierProvider<TabRequest, String?>(TabRequest.new);
+
 /// A bottom-tab destination.
 class AppTab {
   const AppTab({
@@ -120,6 +140,18 @@ class _AppShellState extends ConsumerState<AppShell> {
   Widget build(BuildContext context) {
     final mode = ref.watch(effectiveModeProvider);
     final tabs = mode == AppMode.provider ? _providerTabs : _clientTabs;
+
+    // Somewhere else asked for a tab by name — honour it, then clear it so the
+    // jump does not repeat on a later rebuild.
+    final requested = ref.watch(tabRequestProvider);
+    if (requested != null) {
+      final target = tabs.indexWhere((t) => t.label == requested);
+      if (target != -1) _index = target;
+      // A label with no tab in this mode is dropped rather than throwing: the
+      // caller asked for somewhere this account cannot go.
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => ref.read(tabRequestProvider.notifier).consume());
+    }
 
     // Switching roles can leave the old index out of range.
     final index = _index.clamp(0, tabs.length - 1);
