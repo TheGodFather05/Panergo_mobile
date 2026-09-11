@@ -372,6 +372,17 @@ class PanergoApi {
     return QuartierReply.fromJson(data);
   }
 
+  // -------------------------------------------------------------- stream ---
+
+  /// The merged stream: neighbours' posts and artisans' work together.
+  Future<StreamPage> stream({bool onlyMine = false, int page = 0}) async {
+    final data = await _client.get<Map<String, dynamic>>(
+      '/api/stream',
+      query: {'onlyMine': onlyMine, 'page': page},
+    );
+    return StreamPage.fromJson(data);
+  }
+
   // ------------------------------------------------- marks and replies ---
 
   /// Marks a post useful, or takes the mark back.

@@ -1312,3 +1312,120 @@ class PostReply {
         createdAt: Json.dateTime(json['created_at']),
       );
 }
+
+
+// -------------------------------------------------------------- the stream ---
+
+/// Which board a post came from.
+enum StreamKind { quartier, provider }
+
+/// One post in the merged stream.
+///
+/// Both boards in one type because they are now one screen. The fields that
+/// only one kind carries are nullable, and [kind] decides which card is drawn —
+/// the app never guesses from whether a photo happens to be present.
+class StreamPost {
+  const StreamPost({
+    required this.id,
+    required this.kind,
+    required this.authorId,
+    required this.authorName,
+    required this.neighborhood,
+    required this.replyCount,
+    required this.markCount,
+    required this.marked,
+    required this.createdAt,
+    this.authorPhotoUrl,
+    this.body,
+    this.photoUrl,
+    this.postKind,
+    this.category,
+  });
+
+  final String id;
+  final StreamKind kind;
+  final String authorId;
+  final String authorName;
+  final String? authorPhotoUrl;
+  final String neighborhood;
+
+  /// The question on a quartier post, the caption on a réalisation.
+  final String? body;
+
+  /// Only a réalisation has one.
+  final String? photoUrl;
+
+  /// Only a quartier post has one.
+  final QuartierPostKind? postKind;
+
+  /// The artisan's trade, on a réalisation.
+  final ServiceCategory? category;
+
+  final int replyCount;
+  final int markCount;
+  final bool marked;
+  final DateTime createdAt;
+
+  bool get isRealisation => kind == StreamKind.provider;
+
+  /// What the mark endpoint calls this kind.
+  String get markKind => kind == StreamKind.provider ? 'PROVIDER' : 'QUARTIER';
+
+  factory StreamPost.fromJson(Map<String, dynamic> json) {
+    final kind = Json.str(json['kind']) == 'PROVIDER'
+        ? StreamKind.provider
+        : StreamKind.quartier;
+    return StreamPost(
+      id: Json.str(json['id']),
+      kind: kind,
+      authorId: Json.str(json['author_id']),
+      authorName: Json.str(json['author_name']),
+      authorPhotoUrl: json['author_photo_url'] as String?,
+      neighborhood: Json.str(json['neighborhood']),
+      body: json['body'] as String?,
+      photoUrl: json['photo_url'] as String?,
+      postKind: kind == StreamKind.quartier
+          ? Json.enumOf(json['post_kind'], QuartierPostKind.values,
+              QuartierPostKind.question)
+          : null,
+      category: kind == StreamKind.provider && json['category'] != null
+          ? Json.enumOf(json['category'], ServiceCategory.values,
+              ServiceCategory.values.first)
+          : null,
+      replyCount: Json.intOf(json['reply_count']),
+      markCount: Json.intOf(json['mark_count']),
+      marked: Json.boolOf(json['marked']),
+      createdAt: Json.dateTime(json['created_at']),
+    );
+  }
+}
+
+/// A page of the merged stream, with the scope it was read under.
+class StreamPage {
+  const StreamPage({
+    required this.content,
+    required this.page,
+    required this.totalPages,
+    required this.totalPosts,
+    required this.neighborhood,
+    required this.onlyMine,
+  });
+
+  final List<StreamPost> content;
+  final int page;
+  final int totalPages;
+  final int totalPosts;
+  final String neighborhood;
+  final bool onlyMine;
+
+  factory StreamPage.fromJson(Map<String, dynamic> json) => StreamPage(
+        content: (json['content'] as List<dynamic>? ?? const [])
+            .map((e) => StreamPost.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        page: Json.intOf(json['page']),
+        totalPages: Json.intOf(json['total_pages']),
+        totalPosts: Json.intOf(json['total_posts']),
+        neighborhood: Json.str(json['neighborhood']),
+        onlyMine: Json.boolOf(json['only_mine']),
+      );
+}

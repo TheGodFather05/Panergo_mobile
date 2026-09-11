@@ -11,7 +11,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
-import 'quartier_screen.dart';
+import '../stream/stream_screen.dart';
 
 final quartierRepliesProvider =
     FutureProvider.autoDispose.family<List<QuartierReply>, String>(
@@ -58,8 +58,8 @@ class _QuartierThreadScreenState extends ConsumerState<QuartierThreadScreen> {
       await ref.read(apiProvider).replyToPost(widget.post.id, body);
       _controller.clear();
       ref.invalidate(quartierRepliesProvider(widget.post.id));
-      // The count on the board is now stale, so the board reloads behind us.
-      ref.invalidate(quartierProvider);
+      // The reply count on the feed card behind us is now stale.
+      ref.invalidate(streamProvider);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {

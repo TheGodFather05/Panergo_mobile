@@ -13,6 +13,7 @@ import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/useful_button.dart';
+import '../stream/stream_screen.dart';
 
 final feedRepliesProvider =
     FutureProvider.autoDispose.family<List<PostReply>, String>(
@@ -58,6 +59,8 @@ class _FeedThreadScreenState extends ConsumerState<FeedThreadScreen> {
       await ref.read(apiProvider).replyToFeedPost(widget.post.id, body);
       _controller.clear();
       ref.invalidate(feedRepliesProvider(widget.post.id));
+      // The reply count on the feed card behind us is now stale.
+      ref.invalidate(streamProvider);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } catch (_) {

@@ -9,12 +9,11 @@ import '../../core/widgets/material_symbol.dart';
 import '../client/home_screen.dart';
 import '../client/requests_screen.dart';
 import '../deals/deals_screen.dart';
-import '../feed/feed_screen.dart';
 import '../messages/messages_screen.dart';
 import '../profile/profile_screen.dart';
 import '../provider/my_jobs_screen.dart';
 import '../provider/provider_inbox_screen.dart';
-import '../quartier/quartier_screen.dart';
+import '../stream/stream_screen.dart';
 
 /// A request to show one of the bottom tabs.
 ///
@@ -54,9 +53,12 @@ class AppTab {
 /// The tabbed frame around the app.
 ///
 /// Which tabs exist follows the account's role: a client gets
-/// Accueil · Quartier · Demandes · Messages · Profil, a provider gets
-/// Demandes · Missions · Feed · Messages · Profil (their Feed is their shop
-/// window, and only the client's Feed tab was replaced by Quartier).
+/// Accueil · Demandes · Feed · Messages · Profil, a provider gets
+/// Demandes · Missions · Feed · Messages · Profil.
+///
+/// Feed sits at the centre of both, and means the same screen on both — the
+/// merged stream of neighbours' posts and artisans' work. It used to be two
+/// screens that each hid what the other needed.
 ///
 /// Missions is where a won offer becomes work the provider can open — without
 /// it their road ended at "offre envoyée".
@@ -78,16 +80,16 @@ class _AppShellState extends ConsumerState<AppShell> {
       builder: (_) => const HomeScreen(),
     ),
     AppTab(
-      label: 'Quartier',
-      icon: 'groups',
-      activeIcon: 'groups',
-      builder: (_) => const QuartierScreen(),
-    ),
-    AppTab(
       label: 'Demandes',
       icon: 'receipt_long',
       activeIcon: 'receipt_long',
       builder: (_) => const RequestsScreen(),
+    ),
+    AppTab(
+      label: 'Feed',
+      icon: 'dynamic_feed',
+      activeIcon: 'dynamic_feed',
+      builder: (_) => const StreamScreen(),
     ),
     AppTab(
       label: 'Messages',
@@ -118,9 +120,9 @@ class _AppShellState extends ConsumerState<AppShell> {
     ),
     AppTab(
       label: 'Feed',
-      icon: 'photo_library',
-      activeIcon: 'photo_library',
-      builder: (_) => const FeedScreen(),
+      icon: 'dynamic_feed',
+      activeIcon: 'dynamic_feed',
+      builder: (_) => const StreamScreen(),
     ),
     AppTab(
       label: 'Messages',
