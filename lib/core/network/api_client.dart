@@ -6,16 +6,24 @@ import 'api_exception.dart';
 
 /// Where the backend lives.
 ///
-/// Supplied at build time so the same binary can point at a laptop, an emulator
-/// host or a real deployment:
-/// `flutter run --dart-define=PANERGO_API_BASE_URL=http://10.0.2.2:8080`
+/// Supplied at build time so the same binary can point at a laptop or a real
+/// deployment:
+/// `flutter build ios --dart-define=PANERGO_API_BASE_URL=https://api.panergo.cm`
 ///
-/// The default suits the Android emulator, where `10.0.2.2` is the host machine.
-/// An iOS simulator shares the host's network, so it wants `localhost` instead.
+/// The default is the development Mac's Bonjour name rather than its IP. A
+/// hardcoded address is right until the laptop moves — a new café, a DHCP lease
+/// that expires — and then every request fails with nothing on screen to say
+/// why. mDNS re-resolves the name to whatever address the machine currently
+/// holds, so the build survives the move.
+///
+/// Emulators need their own host: `http://10.0.2.2:8080` on Android,
+/// `http://localhost:8080` on an iOS simulator. Neither is the default, because
+/// a default that only works on an emulator produces a silently broken app on
+/// a real handset — which is exactly how this went wrong once already.
 abstract final class ApiConfig {
   static const baseUrl = String.fromEnvironment(
     'PANERGO_API_BASE_URL',
-    defaultValue: 'http://10.0.2.2:8080',
+    defaultValue: 'http://TheGodFather005s-MacBook-Pro.local:8080',
   );
 
   /// The STOMP endpoint. The backend registers `/ws` with SockJS enabled.
