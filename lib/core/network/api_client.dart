@@ -10,21 +10,27 @@ import 'api_exception.dart';
 /// deployment:
 /// `flutter build ios --dart-define=PANERGO_API_BASE_URL=https://api.panergo.cm`
 ///
-/// The default is the development Mac's Bonjour name rather than its IP. A
-/// hardcoded address is right until the laptop moves — a new café, a DHCP lease
-/// that expires — and then every request fails with nothing on screen to say
-/// why. mDNS re-resolves the name to whatever address the machine currently
-/// holds, so the build survives the move.
+/// There is no useful default, so there isn't one: an empty base URL fails
+/// loudly at startup rather than quietly at every request.
 ///
-/// Emulators need their own host: `http://10.0.2.2:8080` on Android,
-/// `http://localhost:8080` on an iOS simulator. Neither is the default, because
-/// a default that only works on an emulator produces a silently broken app on
-/// a real handset — which is exactly how this went wrong once already.
+/// Two earlier defaults each produced an app that installed cleanly and then
+/// failed everything. `10.0.2.2` is the Android emulator's alias for its host
+/// and means nothing on a handset. A `.local` Bonjour name resolves only once
+/// iOS grants the local-network permission, and when that prompt never appears
+/// the failure is silent and indistinguishable from a dead server.
+///
+/// So the host is passed in, and `scripts/dev_run.sh` resolves the developer
+/// Mac's current address at build time — the laptop can still move, the lookup
+/// just happens on the Mac, where it works, instead of on the phone, where it
+/// is gated.
+///
+/// Emulators: `http://10.0.2.2:8080` on Android, `http://localhost:8080` on an
+/// iOS simulator.
 abstract final class ApiConfig {
-  static const baseUrl = String.fromEnvironment(
-    'PANERGO_API_BASE_URL',
-    defaultValue: 'http://TheGodFather005s-MacBook-Pro.local:8080',
-  );
+  static const baseUrl = String.fromEnvironment('PANERGO_API_BASE_URL');
+
+  /// Whether the build was told where the backend is.
+  static bool get isConfigured => baseUrl.isNotEmpty;
 
   /// The STOMP endpoint. The backend registers `/ws` with SockJS enabled.
   static String get webSocketUrl => '$baseUrl/ws';

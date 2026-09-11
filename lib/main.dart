@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'core/network/api_client.dart';
 import 'core/providers.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/palette.dart';
@@ -16,7 +17,55 @@ Future<void> main() async {
   // everywhere, which needs the locale data loaded before first paint.
   await initializeDateFormatting('fr_FR');
 
+  // A build with no backend address cannot do anything at all. Say so on the
+  // first screen rather than letting every request fail behind a spinner, which
+  // is indistinguishable from a server being down.
+  if (!ApiConfig.isConfigured) {
+    runApp(const _MisconfiguredApp());
+    return;
+  }
+
   runApp(const ProviderScope(child: PanergoApp()));
+}
+
+/// Shown when the binary was built without PANERGO_API_BASE_URL.
+///
+/// Deliberately plain and in English: this is a build mistake, seen by whoever
+/// made it, never by someone in Douala.
+class _MisconfiguredApp extends StatelessWidget {
+  const _MisconfiguredApp();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: PanergoColors.page,
+        body: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text('No backend configured',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: PanergoColors.ink)),
+              SizedBox(height: 10),
+              Text(
+                'This build carries no PANERGO_API_BASE_URL, so every request '
+                'would fail.\n\nBuild with scripts/dev_run.sh, which resolves '
+                'this Mac\u2019s address and passes it in.',
+                style: TextStyle(
+                    fontSize: 14, height: 1.5, color: PanergoColors.body),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class PanergoApp extends ConsumerWidget {
