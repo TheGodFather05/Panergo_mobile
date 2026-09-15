@@ -115,7 +115,10 @@ class _MatchedProviderCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              InitialsAvatar(name: match.providerName ?? '', size: 52),
+              InitialsAvatar(
+                  name: match.providerName ?? '',
+                  photoUrl: match.providerPhotoUrl,
+                  size: 52),
               const SizedBox(width: Space.s12),
               Expanded(
                 child: Column(

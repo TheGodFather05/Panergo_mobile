@@ -243,7 +243,10 @@ class _MissionCard extends StatelessWidget {
     return PanergoCard(
       child: Row(
         children: [
-          InitialsAvatar(name: booking.offer.providerName, size: 48),
+          InitialsAvatar(
+              name: booking.offer.providerName,
+              photoUrl: booking.offer.providerPhotoUrl,
+              size: 48),
           const SizedBox(width: Space.s12),
           Expanded(
             child: Column(

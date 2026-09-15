@@ -545,6 +545,7 @@ class QuartierPost {
     required this.authorName,
     required this.neighborhood,
     required this.kind,
+    this.authorPhotoUrl,
     required this.body,
     required this.replyCount,
     required this.createdAt,
@@ -553,6 +554,7 @@ class QuartierPost {
   final String id;
   final String authorId;
   final String authorName;
+  final String? authorPhotoUrl;
   final String neighborhood;
   final QuartierPostKind kind;
   final String body;
@@ -563,6 +565,7 @@ class QuartierPost {
         id: Json.str(json['post_id']),
         authorId: Json.str(json['author_id']),
         authorName: Json.str(json['author_name']),
+        authorPhotoUrl: Json.strOrNull(json['author_photo_url']),
         neighborhood: Json.str(json['neighborhood']),
         kind: Json.enumOf(json['kind'], QuartierPostKind.values,
             QuartierPostKind.question),
@@ -579,11 +582,13 @@ class QuartierReply {
     required this.authorName,
     required this.body,
     required this.createdAt,
+    this.authorPhotoUrl,
   });
 
   final String id;
   final String authorId;
   final String authorName;
+  final String? authorPhotoUrl;
   final String body;
   final DateTime createdAt;
 
@@ -591,6 +596,7 @@ class QuartierReply {
         id: Json.str(json['reply_id']),
         authorId: Json.str(json['author_id']),
         authorName: Json.str(json['author_name']),
+        authorPhotoUrl: Json.strOrNull(json['author_photo_url']),
         body: Json.str(json['body']),
         createdAt: Json.dateTime(json['created_at']),
       );
@@ -1302,11 +1308,13 @@ class PostReply {
     required this.authorName,
     required this.body,
     required this.createdAt,
+    this.authorPhotoUrl,
   });
 
   final String id;
   final String authorId;
   final String authorName;
+  final String? authorPhotoUrl;
   final String body;
   final DateTime createdAt;
 
@@ -1314,6 +1322,7 @@ class PostReply {
         id: Json.str(json['id']),
         authorId: Json.str(json['author_id']),
         authorName: Json.str(json['author_name']),
+        authorPhotoUrl: Json.strOrNull(json['author_photo_url']),
         body: Json.str(json['body']),
         createdAt: Json.dateTime(json['created_at']),
       );

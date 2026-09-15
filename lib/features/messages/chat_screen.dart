@@ -23,12 +23,14 @@ class ChatScreen extends ConsumerStatefulWidget {
     super.key,
     required this.bookingId,
     required this.peerName,
+    this.peerPhotoUrl,
     this.category,
     this.confirmedAt,
   });
 
   final String bookingId;
   final String peerName;
+  final String? peerPhotoUrl;
 
   /// Drives the "Réservation confirmée" banner subtitle when known.
   final ServiceCategory? category;
@@ -37,6 +39,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   static Route<void> route({
     required String bookingId,
     required String peerName,
+    String? peerPhotoUrl,
     ServiceCategory? category,
     DateTime? confirmedAt,
   }) =>
@@ -44,6 +47,7 @@ class ChatScreen extends ConsumerStatefulWidget {
         builder: (_) => ChatScreen(
           bookingId: bookingId,
           peerName: peerName,
+          peerPhotoUrl: peerPhotoUrl,
           category: category,
           confirmedAt: confirmedAt,
         ),
@@ -121,6 +125,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           children: [
             _ChatHeader(
               peerName: widget.peerName,
+              peerPhotoUrl: widget.peerPhotoUrl,
               connection: thread?.connection ?? ChatConnection.connecting,
               onBack: () => Navigator.of(context).pop(),
             ),
@@ -157,11 +162,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 class _ChatHeader extends StatelessWidget {
   const _ChatHeader({
     required this.peerName,
+    this.peerPhotoUrl,
     required this.connection,
     required this.onBack,
   });
 
   final String peerName;
+  final String? peerPhotoUrl;
   final ChatConnection connection;
   final VoidCallback onBack;
 
@@ -198,7 +205,8 @@ class _ChatHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: Space.s6),
-          InitialsAvatar(name: peerName, size: 42, radius: null),
+          InitialsAvatar(
+              name: peerName, photoUrl: peerPhotoUrl, size: 42, radius: null),
           const SizedBox(width: Space.s10),
           Expanded(
             child: Column(

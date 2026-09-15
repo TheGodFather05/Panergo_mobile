@@ -113,7 +113,10 @@ class _OfferDetailScreenState extends ConsumerState<OfferDetailScreen> {
                     Row(
                       children: [
                         InitialsAvatar(
-                            name: offer.providerName, size: 68, radius: null),
+                            name: offer.providerName,
+                            photoUrl: offer.providerPhotoUrl,
+                            size: 68,
+                            radius: null),
                         const SizedBox(width: Space.gutterTight),
                         Expanded(
                           child: Column(

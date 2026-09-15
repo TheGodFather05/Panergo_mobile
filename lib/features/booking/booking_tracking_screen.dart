@@ -365,7 +365,10 @@ class _ProviderCard extends StatelessWidget {
     return PanergoCard(
       child: Row(
         children: [
-          InitialsAvatar(name: offer.providerName, size: 48),
+          InitialsAvatar(
+              name: offer.providerName,
+              photoUrl: offer.providerPhotoUrl,
+              size: 48),
           const SizedBox(width: Space.s12),
           Expanded(
             child: Column(

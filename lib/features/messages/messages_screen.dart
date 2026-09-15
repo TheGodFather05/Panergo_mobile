@@ -40,6 +40,7 @@ final conversationsProvider =
           requestId: r.id,
           bookingId: r.bookingId,
           peerName: accepted.providerName,
+          peerPhotoUrl: accepted.providerPhotoUrl,
           category: r.category,
           lastActivity: r.createdAt,
         );
@@ -52,6 +53,7 @@ class Conversation {
     required this.requestId,
     required this.bookingId,
     required this.peerName,
+    required this.peerPhotoUrl,
     required this.category,
     required this.lastActivity,
   });
@@ -64,6 +66,10 @@ class Conversation {
   final String? bookingId;
 
   final String peerName;
+
+  /// The artisan's photo, so the list shows a face rather than initials.
+  final String? peerPhotoUrl;
+
   final ServiceCategory category;
   final DateTime lastActivity;
 
@@ -138,6 +144,7 @@ class _ConversationRow extends StatelessWidget {
       ChatScreen.route(
         bookingId: conversation.bookingId!,
         peerName: conversation.peerName,
+        peerPhotoUrl: conversation.peerPhotoUrl,
         category: conversation.category,
         confirmedAt: conversation.lastActivity,
       ),
@@ -152,7 +159,11 @@ class _ConversationRow extends StatelessWidget {
       onTap: conversation.isOpenable ? () => _open(context) : null,
       child: Row(
         children: [
-          InitialsAvatar(name: conversation.peerName, size: 50, radius: null),
+          InitialsAvatar(
+              name: conversation.peerName,
+              photoUrl: conversation.peerPhotoUrl,
+              size: 50,
+              radius: null),
           const SizedBox(width: Space.s12),
           Expanded(
             child: Column(

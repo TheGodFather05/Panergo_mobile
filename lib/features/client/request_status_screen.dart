@@ -223,7 +223,9 @@ class _OfferCard extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  InitialsAvatar(name: offer.providerName),
+                  InitialsAvatar(
+                      name: offer.providerName,
+                      photoUrl: offer.providerPhotoUrl),
                   const SizedBox(width: Space.s12),
                   Expanded(
                     child: Column(

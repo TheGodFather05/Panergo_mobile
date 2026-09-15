@@ -539,7 +539,8 @@ class _ResultCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              InitialsAvatar(name: result.name, size: 44),
+              InitialsAvatar(
+                  name: result.name, photoUrl: result.photoUrl, size: 44),
               const SizedBox(width: Space.s12),
               Expanded(
                 child: Column(

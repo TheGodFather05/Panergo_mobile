@@ -97,7 +97,11 @@ class _FeedCard extends StatelessWidget {
             padding: const EdgeInsets.all(13),
             child: Row(
               children: [
-                InitialsAvatar(name: post.providerName, size: 40, radius: 12),
+                InitialsAvatar(
+                    name: post.providerName,
+                    photoUrl: post.providerPhotoUrl,
+                    size: 40,
+                    radius: 12),
                 const SizedBox(width: Space.s12),
                 Expanded(
                   child: Column(

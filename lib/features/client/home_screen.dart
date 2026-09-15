@@ -39,7 +39,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         padding: const EdgeInsets.fromLTRB(
             Space.gutter, Space.s6, Space.gutter, Space.s26),
         children: [
-          _TopRow(quartier: quartier, name: user?.name ?? ''),
+          _TopRow(
+              quartier: quartier,
+              name: user?.name ?? '',
+              photoUrl: user?.photoUrl),
           const SizedBox(height: Space.s22),
           _Headline(firstName: firstName),
           const SizedBox(height: Space.s18),
@@ -86,10 +89,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _TopRow extends StatelessWidget {
-  const _TopRow({required this.quartier, required this.name});
+  const _TopRow({required this.quartier, required this.name, this.photoUrl});
 
   final String quartier;
   final String name;
+  final String? photoUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +108,7 @@ class _TopRow extends StatelessWidget {
             style: context.type.body.copyWith(
                 fontWeight: FontWeight.w700, color: PanergoColors.ink)),
         const Spacer(),
-        InitialsAvatar(name: name, size: 40, radius: null),
+        InitialsAvatar(name: name, photoUrl: photoUrl, size: 40, radius: null),
       ],
     );
   }

@@ -104,6 +104,7 @@ void main() {
           requestId: 'r-1',
           bookingId: bookingId,
           peerName: 'Jean-Pierre Mballa',
+          peerPhotoUrl: null,
           category: ServiceCategory.plomberie,
           lastActivity: DateTime(2026, 9, 3, 16, 4),
         );

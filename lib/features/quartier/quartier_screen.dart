@@ -58,6 +58,7 @@ class QuartierScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: Space.gutterTight),
             child: _Composer(
               name: user?.name ?? '',
+              photoUrl: user?.photoUrl,
               onTap: () => _compose(context, ref),
             ),
           ),
@@ -104,9 +105,10 @@ class QuartierScreen extends ConsumerWidget {
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.name, required this.onTap});
+  const _Composer({required this.name, required this.onTap, this.photoUrl});
 
   final String name;
+  final String? photoUrl;
   final VoidCallback onTap;
 
   @override
@@ -117,7 +119,8 @@ class _Composer extends StatelessWidget {
       radius: Radii.card,
       child: Row(
         children: [
-          InitialsAvatar(name: name, size: 36, radius: null),
+          InitialsAvatar(
+              name: name, photoUrl: photoUrl, size: 36, radius: null),
           const SizedBox(width: Space.s12),
           Expanded(
             child: Text('Poser une question au quartier…',
@@ -275,7 +278,11 @@ class _PostCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              InitialsAvatar(name: post.authorName, size: 40, radius: 12),
+              InitialsAvatar(
+                  name: post.authorName,
+                  photoUrl: post.authorPhotoUrl,
+                  size: 40,
+                  radius: 12),
               const SizedBox(width: Space.s12),
               Expanded(
                 child: Column(

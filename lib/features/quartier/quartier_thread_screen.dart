@@ -157,7 +157,10 @@ class _OriginalPost extends StatelessWidget {
         children: [
           Row(
             children: [
-              InitialsAvatar(name: post.authorName, size: 40),
+              InitialsAvatar(
+                  name: post.authorName,
+                  photoUrl: post.authorPhotoUrl,
+                  size: 40),
               const SizedBox(width: Space.s12),
               Expanded(
                 child: Column(
@@ -227,7 +230,10 @@ class _ReplyCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          InitialsAvatar(name: reply.authorName, size: 34),
+          InitialsAvatar(
+              name: reply.authorName,
+              photoUrl: reply.authorPhotoUrl,
+              size: 34),
           const SizedBox(width: Space.s10),
           Expanded(
             child: Column(
