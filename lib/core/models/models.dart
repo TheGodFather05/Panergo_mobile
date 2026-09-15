@@ -338,6 +338,7 @@ class ProviderRating {
     required this.authorName,
     required this.score,
     required this.comment,
+    this.authorPhotoUrl,
     required this.category,
     required this.neighborhood,
     required this.createdAt,
@@ -345,6 +346,7 @@ class ProviderRating {
 
   final String id;
   final String authorName;
+  final String? authorPhotoUrl;
   final int score;
   final String? comment;
   final ServiceCategory category;
@@ -354,6 +356,7 @@ class ProviderRating {
   factory ProviderRating.fromJson(Map<String, dynamic> json) => ProviderRating(
         id: Json.str(json['rating_id']),
         authorName: Json.str(json['author_name']),
+        authorPhotoUrl: Json.strOrNull(json['author_photo_url']),
         score: Json.intOf(json['score']),
         comment: Json.strOrNull(json['comment']),
         category: Json.enumOf(json['category'], ServiceCategory.values,

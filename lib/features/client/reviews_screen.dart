@@ -234,7 +234,11 @@ class _ReviewCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              InitialsAvatar(name: review.authorName, size: 40, radius: 12),
+              InitialsAvatar(
+                  name: review.authorName,
+                  photoUrl: review.authorPhotoUrl,
+                  size: 40,
+                  radius: 12),
               const SizedBox(width: Space.s12),
               Expanded(
                 child: Column(
