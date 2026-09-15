@@ -55,6 +55,52 @@ void main() {
     });
   });
 
+  group('profile completion', () {
+    // The routing between Bienvenue and the app hangs entirely on this getter,
+    // and it was inverted: the server reports whether the profile IS complete,
+    // the getter asks whether it still NEEDS completing. Reading the flag
+    // straight through sent everyone who had just filled the form back to it.
+    test('a completed profile does not need completing', () {
+      final user = AppUser.fromJson({
+        'id': 'x',
+        'name': 'Arkel Test',
+        'phone_number': '+237699555666',
+        'neighborhood': 'Akwa',
+        'country_code': 'CM',
+        'city': 'Douala',
+        'is_provider': false,
+        'profile_complete': true,
+      });
+
+      expect(user.needsProfileCompletion, isFalse);
+    });
+
+    test('a fresh account does need completing', () {
+      final user = AppUser.fromJson({
+        'id': 'x',
+        'name': '+237699555666',
+        'phone_number': '+237699555666',
+        'neighborhood': '',
+        'is_provider': false,
+        'profile_complete': false,
+      });
+
+      expect(user.needsProfileCompletion, isTrue);
+    });
+
+    test('an older session with no flag falls back to the shape of the data', () {
+      final stale = AppUser.fromJson({
+        'id': 'x',
+        'name': '+237600000001',
+        'phone_number': '+237600000001',
+        'neighborhood': '',
+        'is_provider': false,
+      });
+
+      expect(stale.needsProfileCompletion, isTrue);
+    });
+  });
+
   group('ServiceRequest', () {
     test('parses the /api/requests/mine payload', () {
       final json = jsonDecode('''

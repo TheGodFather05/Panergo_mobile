@@ -41,8 +41,14 @@ class AppUser {
   /// fallback for a session stored before the server answered this directly —
   /// it is a guess, and it is wrong about anyone genuinely displaying their
   /// number.
+  /// Note the negation: the server reports whether the profile IS complete,
+  /// and this asks whether it still needs completing. Reading the flag straight
+  /// through sent everyone who had just filled the form back to it, because a
+  /// successful save answers `profile_complete: true`.
   bool get needsProfileCompletion =>
-      profileComplete ?? (neighborhood.trim().isEmpty || name == phoneNumber);
+      profileComplete != null
+          ? !profileComplete!
+          : (neighborhood.trim().isEmpty || name == phoneNumber);
 
   /// The initials shown on avatar tiles when there is no photo.
   String get initials {
