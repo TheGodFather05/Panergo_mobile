@@ -119,6 +119,42 @@ class MaterialSymbol extends StatelessWidget {
     'grid_view': Icons.grid_view_outlined,
     'window': Icons.window_outlined,
     'construction': Icons.construction_outlined,
+
+    // Glyphs that screens referenced without ever being mapped, so every one of
+    // them rendered as the fallback circle.
+    'arrow_outward': Icons.arrow_outward,
+    'chat_bubble': Icons.chat_bubble_outline,
+    'event_busy': Icons.event_busy_outlined,
+    'event_note': Icons.event_note_outlined,
+    'forum': Icons.forum_outlined,
+    'group': Icons.group_outlined,
+    'handyman': Icons.handyman_outlined,
+    'hourglass_top': Icons.hourglass_top_outlined,
+    'image_not_supported': Icons.image_not_supported_outlined,
+    'keyboard': Icons.keyboard_outlined,
+    'mark_email_unread': Icons.mark_email_unread_outlined,
+    'support_agent': Icons.support_agent_outlined,
+    'task_alt': Icons.task_alt,
+    'thumb_up': Icons.thumb_up_outlined,
+    'dynamic_feed': Icons.dynamic_feed_outlined,
+    'account_circle': Icons.account_circle_outlined,
+    'translate': Icons.translate,
+
+    // Names reaching the widget indirectly, as `icon:` strings on row widgets,
+    // which the first sweep missed because it only searched direct calls.
+    'block': Icons.block,
+    'calendar_month': Icons.calendar_month_outlined,
+    'chat': Icons.chat_outlined,
+    'chevron_left': Icons.chevron_left,
+    'equalizer': Icons.equalizer_outlined,
+    'flashlight_on': Icons.flashlight_on_outlined,
+    'insights': Icons.insights_outlined,
+    'location_city': Icons.location_city_outlined,
+    'phone': Icons.phone_outlined,
+    'public': Icons.public,
+    'search_off': Icons.search_off_outlined,
+    'swap_horiz': Icons.swap_horiz,
+    'tune': Icons.tune_outlined,
   };
 
   static const _filled = <String, IconData>{
@@ -135,5 +171,13 @@ class MaterialSymbol extends StatelessWidget {
     'campaign': Icons.campaign,
     'groups': Icons.groups,
     'person': Icons.person,
+
+    // « Utile » uses the filled thumb to carry the marked state alongside the
+    // word, so the filled variant has to exist or marking changes nothing.
+    'thumb_up': Icons.thumb_up,
+    'dynamic_feed': Icons.dynamic_feed,
+    'forum': Icons.forum,
+    'task_alt': Icons.task_alt,
+    'account_circle': Icons.account_circle,
   };
 }
