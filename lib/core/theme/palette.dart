@@ -95,6 +95,11 @@ abstract final class PanergoColors {
   static const borderDashed = Color(0xFFD8CFC2);
   static const borderInput = Color(0xFFE3DCD2);
 
+  /// The hairline inside a card, between a post's body and its footer. Fainter
+  /// than [border], which separates the card from the page — a rule inside an
+  /// object should read as lighter than the object's own edge.
+  static const borderFaint = Color(0xFFF2ECE4);
+
   // Quiet filled surfaces.
   static const fill = Color(0xFFF5F0E9);
   static const fillAlt = Color(0xFFF2ECE4);

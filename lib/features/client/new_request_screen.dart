@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/formats.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/models.dart';
+import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -21,9 +23,21 @@ import 'direct_dispatch_screen.dart';
 /// are present (RM-07), and picking "Tout de suite" routes to direct dispatch
 /// rather than opening a tender (ADR-02).
 class NewRequestScreen extends ConsumerStatefulWidget {
-  const NewRequestScreen({super.key, this.initialCategory});
+  const NewRequestScreen({
+    super.key,
+    this.initialCategory,
+    this.fromPost,
+  });
 
   final ServiceCategory? initialCategory;
+
+  /// The réalisation this request was started from, when it was.
+  ///
+  /// It fills in the trade, seeds the description, and travels with the request
+  /// as its photo. The request is otherwise ordinary and still goes out to
+  /// tender: a direct quote would give the client one price with nothing to
+  /// compare it to, and the product exists to get them three.
+  final StreamPost? fromPost;
 
   @override
   ConsumerState<NewRequestScreen> createState() => _NewRequestScreenState();
@@ -35,8 +49,24 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
 
   final _descriptionController = TextEditingController();
 
-  late ServiceCategory _category =
-      widget.initialCategory ?? ServiceCategory.plomberie;
+  @override
+  void initState() {
+    super.initState();
+    final origin = widget.fromPost;
+    if (origin != null) {
+      _descriptionController.text =
+          'J’ai besoin du même travail que sur la photo de '
+          '${origin.authorName.split(' ').first}.';
+    }
+  }
+
+  late ServiceCategory _category = widget.fromPost?.category ??
+      widget.initialCategory ??
+      ServiceCategory.plomberie;
+
+  /// Detachable — the origin can be dropped and the request becomes ordinary,
+  /// so nobody is trapped in a path they opened out of curiosity.
+  late StreamPost? _origin = widget.fromPost;
   Urgency? _urgency;
   BudgetBracket? _budget;
 
@@ -95,6 +125,9 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
           description: _description,
           urgency: _urgency!,
           budget: _budget,
+          // The photo that convinced them travels with the request, so the
+          // artisan who took it knows why they are being called.
+          photoUrl: _origin?.photoUrl,
         );
         if (!mounted) return;
         Navigator.of(context).pushReplacement(MaterialPageRoute(
@@ -127,6 +160,7 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
             children: [
               ScreenHeader(
                 title: 'Nouvelle demande',
+                subtitle: _origin == null ? null : 'D’après une réalisation',
                 onBack: () => Navigator.of(context).pop(),
               ),
               Expanded(
@@ -134,6 +168,13 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
                   padding: const EdgeInsets.fromLTRB(
                       Space.gutter, Space.xs, Space.gutter, Space.s22),
                   children: [
+                    if (_origin != null) ...[
+                      _OriginCard(
+                        post: _origin!,
+                        onRemove: () => setState(() => _origin = null),
+                      ),
+                      const SizedBox(height: Space.s18),
+                    ],
                     Text('Catégorie', style: type.label),
                     const SizedBox(height: Space.s10),
                     _CategoryChips(
@@ -490,6 +531,113 @@ class _StickyFooter extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+/// The réalisation a request was started from.
+///
+/// Removable: dropping it turns this back into an ordinary request rather than
+/// leaving someone stuck in a path they opened out of curiosity.
+class _OriginCard extends StatelessWidget {
+  const _OriginCard({required this.post, required this.onRemove});
+
+  final StreamPost post;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: PanergoColors.surface,
+            borderRadius: Radii.brCard,
+            border: Border.all(color: PanergoColors.border),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: post.photoUrl == null
+                    ? const SizedBox(width: 56, height: 56)
+                    : Image.network(
+                        ApiConfig.absolute(post.photoUrl!),
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                            width: 56,
+                            height: 56,
+                            color: PanergoColors.skeleton),
+                      ),
+              ),
+              const SizedBox(width: Space.s12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'D’après le travail de '
+                      '${post.authorName.split(' ').first}',
+                      style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: PanergoColors.ink),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${post.category?.label ?? ''} · ${post.neighborhood}',
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: PanergoColors.faint),
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: onRemove,
+                behavior: HitTestBehavior.opaque,
+                child: const Padding(
+                  padding: EdgeInsets.all(6),
+                  child: MaterialSymbol('close',
+                      size: 19, color: PanergoColors.subtle),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Space.s10),
+        Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: PanergoColors.fill,
+            borderRadius: Radii.brCard,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const MaterialSymbol('group',
+                  size: 19, color: PanergoColors.muted),
+              const SizedBox(width: Space.s8),
+              Expanded(
+                child: Text(
+                  '${post.authorName.split(' ').first} recevra votre demande '
+                  'avec la photo qui vous a décidé. D’autres artisans de votre '
+                  'quartier pourront aussi répondre — vous comparerez les prix '
+                  'avant de choisir.',
+                  style: const TextStyle(
+                      fontSize: 12, height: 1.45, color: PanergoColors.body),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

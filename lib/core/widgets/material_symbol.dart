@@ -155,6 +155,7 @@ class MaterialSymbol extends StatelessWidget {
     'search_off': Icons.search_off_outlined,
     'swap_horiz': Icons.swap_horiz,
     'tune': Icons.tune_outlined,
+    'request_quote': Icons.request_quote_outlined,
   };
 
   static const _filled = <String, IconData>{

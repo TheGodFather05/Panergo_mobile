@@ -14,6 +14,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/useful_button.dart';
 import 'compose_sheet.dart';
+import '../client/new_request_screen.dart';
 import '../feed/feed_thread_screen.dart';
 import '../quartier/quartier_thread_screen.dart';
 
@@ -69,12 +70,14 @@ class StreamScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Feed', style: context.type.h1),
+                          Text('Le fil', style: context.type.h1),
                           const SizedBox(height: Space.xs),
                           Text(
-                            onlyMine
-                                ? 'Votre quartier'
-                                : 'Votre quartier d’abord, puis tout Douala',
+                            // The quartier names itself here, so the cards do
+                            // not have to repeat it on every row.
+                            async.value?.neighborhood.isNotEmpty == true
+                                ? async.value!.neighborhood
+                                : '',
                             style: context.type.meta,
                           ),
                         ],
@@ -179,25 +182,23 @@ class _ScopeChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brand = context.brand;
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? brand.soft : PanergoColors.surface,
-          borderRadius: BorderRadius.circular(999),
+          color: selected ? PanergoColors.ink : PanergoColors.surface,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-              color: selected ? brand.link : PanergoColors.border),
+              color: selected ? PanergoColors.ink : PanergoColors.border),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 12.5,
-            // Weight carries the selection as well as the colour (RM-16).
-            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-            color: selected ? brand.link : PanergoColors.muted,
+            // Weight carries the selection as well as the fill (RM-16).
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            color: selected ? Colors.white : PanergoColors.body,
           ),
         ),
       ),
@@ -205,110 +206,84 @@ class _ScopeChip extends StatelessWidget {
   }
 }
 
-/// One post, drawn as its kind rather than as whatever fields happen to be set.
-class _StreamCard extends StatelessWidget {
+/// One post: author header, body, footer — the same three blocks in the same
+/// places whichever kind it is.
+///
+/// Only the body changes nature. That is what keeps the stream from looking
+/// broken where two contents meet, and what lets a third kind arrive later
+/// without a redraw. Two differences are deliberate and they are the only two:
+/// the trade chip under an artisan's name, and a photo that runs to the card's
+/// edges while text keeps the header's inset.
+class _StreamCard extends StatefulWidget {
   const _StreamCard({required this.post});
 
   final StreamPost post;
 
   @override
+  State<_StreamCard> createState() => _StreamCardState();
+}
+
+class _StreamCardState extends State<_StreamCard> {
+  /// Set when a mark failed to reach the server. Cleared on a successful retry.
+  bool _markFailed = false;
+
+  @override
   Widget build(BuildContext context) {
+    final post = widget.post;
     final type = context.type;
 
     return GestureDetector(
       onTap: () => _openThread(context),
-      child: PanergoCard(
-        padding: EdgeInsets.zero,
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: PanergoColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: PanergoColors.border),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.all(13),
-              child: Row(
-                children: [
-                  InitialsAvatar(
-                      name: post.authorName,
-                      photoUrl: post.authorPhotoUrl,
-                      size: 40,
-                      radius: 12),
-                  const SizedBox(width: Space.s12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(post.authorName, style: type.cardTitleSmall),
-                        const SizedBox(height: 2),
-                        Text(
-                          // A réalisation names the trade; a neighbour's post
-                          // names only where they are.
-                          post.isRealisation && post.category != null
-                              ? '${post.category!.label} · ${post.neighborhood}'
-                              : post.neighborhood,
-                          style: type.metaSmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (!post.isRealisation && post.postKind != null)
-                    StatusPill(
-                      label: post.postKind!.label,
-                      background: _kindTint(post.postKind!).tint,
-                      foreground: _kindTint(post.postKind!).foreground,
-                    )
-                  else
-                    Text(Formats.relativeTime(post.createdAt),
-                        style: type.metaSmall
-                            .copyWith(color: PanergoColors.faint)),
-                ],
-              ),
-            ),
+            _Header(post: post),
             if (post.isRealisation && post.photoUrl != null)
+              // Full bleed, the one liberty taken with the grid: scrolling, the
+              // eye tells a réalisation from a question before reading a word.
               Image.network(
                 ApiConfig.absolute(post.photoUrl!),
                 width: double.infinity,
+                height: 178,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => Container(
-                  height: 170,
+                  height: 178,
                   color: PanergoColors.skeleton,
                   alignment: Alignment.center,
                   child: const MaterialSymbol('image_not_supported',
                       size: 24, color: PanergoColors.subtle),
                 ),
               ),
-            if (post.body != null && post.body!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(13, 13, 13, 0),
-                child: Text(post.body!,
-                    style: type.bodySmall.copyWith(height: 1.45)),
-              ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(13, 2, 13, 4),
-              child: Row(
+              padding: EdgeInsets.fromLTRB(
+                  15, post.isRealisation ? 13 : 0, 15, 15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  UsefulButton(
-                    kind: post.markKind,
-                    postId: post.id,
-                    initial: PostMark(
-                        marked: post.marked, count: post.markCount),
+                  if (post.body != null && post.body!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(post.body!,
+                          style: type.bodySmall.copyWith(height: 1.5)),
+                    ),
+                  if (post.isRealisation) _AskTheSame(post: post),
+                  if (_markFailed) ...[
+                    _MarkFailedBanner(
+                      onRetry: () => setState(() => _markFailed = false),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  _Footer(
+                    post: post,
+                    onMarkFailed: () => setState(() => _markFailed = true),
                   ),
-                  const SizedBox(width: Space.s12),
-                  Text(
-                    post.replyCount == 0
-                        ? ''
-                        : '${post.replyCount} réponse'
-                            '${post.replyCount > 1 ? 's' : ''}',
-                    style: type.metaSmall,
-                  ),
-                  const Spacer(),
-                  Text(
-                      post.isRealisation ? 'Commenter' : 'Répondre',
-                      style: type.metaSmall.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: context.brand.link,
-                      )),
-                  const SizedBox(width: 3),
-                  MaterialSymbol('chevron_right',
-                      size: 16, color: context.brand.link),
                 ],
               ),
             ),
@@ -318,9 +293,8 @@ class _StreamCard extends StatelessWidget {
     );
   }
 
-  /// Each kind keeps its own thread — they are different conversations and the
-  /// screens already exist.
   void _openThread(BuildContext context) {
+    final post = widget.post;
     if (post.isRealisation) {
       Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => FeedThreadScreen(
@@ -333,8 +307,6 @@ class _StreamCard extends StatelessWidget {
             neighborhood: post.neighborhood,
             photoUrl: post.photoUrl ?? '',
             caption: post.body,
-            // The stream does not distinguish post types; every réalisation in
-            // it is one, which is what the feed query already filters for.
             postType: PostType.realisation,
             createdAt: post.createdAt,
           ),
@@ -347,6 +319,7 @@ class _StreamCard extends StatelessWidget {
             id: post.id,
             authorId: post.authorId,
             authorName: post.authorName,
+            authorPhotoUrl: post.authorPhotoUrl,
             neighborhood: post.neighborhood,
             kind: post.postKind ?? QuartierPostKind.question,
             body: post.body ?? '',
@@ -357,12 +330,194 @@ class _StreamCard extends StatelessWidget {
       ));
     }
   }
+}
+
+/// The header both kinds share. An artisan additionally wears their trade.
+class _Header extends StatelessWidget {
+  const _Header({required this.post});
+
+  final StreamPost post;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = context.type;
+    final tint = post.isRealisation
+        ? null
+        : _kindTint(post.postKind ?? QuartierPostKind.question);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(15, 15, 15, 11),
+      child: Row(
+        children: [
+          InitialsAvatar(
+              name: post.authorName,
+              photoUrl: post.authorPhotoUrl,
+              size: 42,
+              radius: 13),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(post.authorName, style: type.cardTitleSmall),
+                const SizedBox(height: 2),
+                if (post.isRealisation && post.category != null)
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: context.brand.soft,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(post.category!.label,
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: context.brand.link)),
+                      ),
+                      const SizedBox(width: Space.s6),
+                      Flexible(
+                        child: Text(
+                          '${post.neighborhood} · '
+                          '${Formats.relativeTime(post.createdAt)}',
+                          style: type.metaSmall,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    '${post.neighborhood} · '
+                    '${Formats.relativeTime(post.createdAt)}',
+                    style: type.metaSmall,
+                  ),
+              ],
+            ),
+          ),
+          if (tint != null && post.postKind != null) ...[
+            const SizedBox(width: Space.s8),
+            StatusPill(
+              label: post.postKind!.label,
+              background: tint.tint,
+              foreground: tint.foreground,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   static CategoryTint _kindTint(QuartierPostKind kind) => switch (kind) {
         QuartierPostKind.question => CategoryTints.at(4),
         QuartierPostKind.prestataire => CategoryTints.at(0),
         QuartierPostKind.recommandation => CategoryTints.at(3),
       };
+}
+
+/// « Demander la même chose » — the path from a finished job to a request.
+///
+/// It opens an ordinary request with the trade and the photo already filled in,
+/// which still goes out to tender. A direct quote would hand the client one
+/// price with nothing to compare it against, and the whole product is built so
+/// they get three.
+class _AskTheSame extends StatelessWidget {
+  const _AskTheSame({required this.post});
+
+  final StreamPost post;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => NewRequestScreen(fromPost: post),
+          ),
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: brand.soft,
+            borderRadius: BorderRadius.circular(13),
+            border: Border.all(color: brand.soft.withValues(alpha: 1)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              MaterialSymbol('request_quote', size: 19, color: brand.link),
+              const SizedBox(width: Space.s8),
+              Text('Demander la même chose',
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: brand.link)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// « Utile », the replies, and the way in — identical on both kinds but for the
+/// verb, which is not the same act.
+class _Footer extends StatelessWidget {
+  const _Footer({required this.post, required this.onMarkFailed});
+
+  final StreamPost post;
+  final VoidCallback onMarkFailed;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = context.type;
+
+    return Container(
+      padding: const EdgeInsets.only(top: 11),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: PanergoColors.borderFaint)),
+      ),
+      child: Row(
+        children: [
+          UsefulButton(
+            kind: post.markKind,
+            postId: post.id,
+            initial: PostMark(marked: post.marked, count: post.markCount),
+            onFailed: onMarkFailed,
+          ),
+          const SizedBox(width: Space.s16),
+          const MaterialSymbol('chat_bubble',
+              size: 19, color: PanergoColors.subtle),
+          const SizedBox(width: Space.s6),
+          Text(
+            post.replyCount == 0 ? '' : '${post.replyCount}',
+            style: type.metaSmall.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const Spacer(),
+          Flexible(
+            child: Text(
+              // A neighbour answers a question; a client writes to the artisan
+              // whose work they are looking at. Different acts, different words.
+              post.isRealisation
+                  ? 'Écrire à ${post.authorName.split(' ').first}'
+                  : 'Répondre',
+              style: type.metaSmall.copyWith(
+                fontWeight: FontWeight.w800,
+                color: context.brand.link,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _EmptyStream extends StatelessWidget {
@@ -448,6 +603,53 @@ class _ComposeButton extends StatelessWidget {
         child: const Center(
           child: MaterialSymbol('edit', size: 20, color: Colors.white),
         ),
+      ),
+    );
+  }
+}
+
+
+/// « Votre utile n'est pas parti » — said inside the card, not in a toast.
+///
+/// A toast leaves while the thumb still reads as unmarked, so the reader is
+/// left with a silent contradiction. This sits where the vote was cast, and
+/// stays until a retry succeeds.
+class _MarkFailedBanner extends StatelessWidget {
+  const _MarkFailedBanner({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: PanergoColors.warningBg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: PanergoColors.warningBorder),
+      ),
+      child: Row(
+        children: [
+          const MaterialSymbol('cloud_off',
+              size: 18, color: PanergoColors.warningIcon),
+          const SizedBox(width: Space.s8),
+          const Expanded(
+            child: Text('Votre « utile » n’est pas parti',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: PanergoColors.warningInk)),
+          ),
+          GestureDetector(
+            onTap: onRetry,
+            child: const Text('Réessayer',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    decoration: TextDecoration.underline,
+                    color: PanergoColors.warningInk)),
+          ),
+        ],
       ),
     );
   }

@@ -21,6 +21,9 @@ final myRequestsProvider =
 });
 
 /// Mes demandes — everything the client has asked for.
+///
+/// A pushed route rather than a tab body since the bar dropped to four
+/// destinations, so it carries its own Scaffold and its own way back.
 class RequestsScreen extends ConsumerWidget {
   const RequestsScreen({super.key});
 
@@ -36,13 +39,20 @@ class RequestsScreen extends ConsumerWidget {
             r.status == RequestStatus.offerSelected)
         .length;
 
-    return FadeUp(
+    return Scaffold(
+      backgroundColor: PanergoColors.page,
+      body: SafeArea(
+        child: FadeUp(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          ScreenHeader(
+            title: 'Mes demandes',
+            onBack: () => Navigator.of(context).pop(),
+          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
-                Space.gutter, Space.s12, Space.gutter, 0),
+                Space.gutter, 0, Space.gutter, 0),
             child: Row(
               children: [
                 Expanded(
@@ -100,6 +110,8 @@ class RequestsScreen extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+        ),
       ),
     );
   }

@@ -14,14 +14,20 @@ import 'material_symbol.dart';
 /// refuses. A signal this small should never make anyone wait for a round trip
 /// to know whether it registered.
 ///
-/// Marked state is carried by the filled icon *and* the word, never by colour
-/// alone (RM-16).
+/// Marked state is carried by the filled icon *and* the count, never by colour
+/// alone (RM-16). At zero no number shows at all: a "0" beside a thumb on a
+/// neighbour's post is discouragement rendered in type.
+///
+/// A failure must be *said*, not merely undone. Reverting in silence looks
+/// identical to a vote that landed, so [onFailed] lets the card carrying this
+/// button raise a banner the reader can retry from.
 class UsefulButton extends ConsumerStatefulWidget {
   const UsefulButton({
     super.key,
     required this.kind,
     required this.postId,
     this.initial,
+    this.onFailed,
   });
 
   /// `QUARTIER` or `PROVIDER` — the same gesture on either board.
@@ -30,6 +36,9 @@ class UsefulButton extends ConsumerStatefulWidget {
 
   /// What the list already knew, so the button renders right on first paint.
   final PostMark? initial;
+
+  /// Raised when the mark did not reach the server, so the card can say so.
+  final VoidCallback? onFailed;
 
   @override
   ConsumerState<UsefulButton> createState() => _UsefulButtonState();
@@ -63,13 +72,14 @@ class _UsefulButtonState extends ConsumerState<UsefulButton> {
         });
       }
     } catch (_) {
-      // Put it back. A mark that appears to land and silently did not is worse
-      // than one that visibly bounces.
+      // Put it back, and tell the card so it can say why. A mark that appears
+      // to land and silently did not is a false vote.
       if (mounted) {
         setState(() {
           _marked = wasMarked;
           _count = wasCount;
         });
+        widget.onFailed?.call();
       }
     } finally {
       if (mounted) setState(() => _busy = false);

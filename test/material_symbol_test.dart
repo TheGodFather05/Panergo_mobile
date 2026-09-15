@@ -24,6 +24,8 @@ void main() {
       // found the first batch missed every one of these.
       'block', 'calendar_month', 'chat', 'chevron_left', 'equalizer',
       'flashlight_on', 'insights', 'phone', 'search_off', 'swap_horiz', 'tune',
+      // The merged feed's own glyphs.
+      'request_quote', 'cloud_off', 'add', 'close',
     ];
 
     for (final name in names) {

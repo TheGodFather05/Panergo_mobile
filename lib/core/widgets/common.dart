@@ -14,11 +14,17 @@ class ScreenHeader extends StatelessWidget {
   const ScreenHeader({
     super.key,
     required this.title,
+    this.subtitle,
     this.onBack,
     this.trailing,
   });
 
   final String title;
+
+  /// A line under the title saying where this screen came from, when that is
+  /// not obvious from the title alone.
+  final String? subtitle;
+
   final VoidCallback? onBack;
   final Widget? trailing;
 
@@ -37,7 +43,22 @@ class ScreenHeader extends StatelessWidget {
             ),
             const SizedBox(width: Space.s12),
           ],
-          Expanded(child: Text(title, style: context.type.title)),
+          Expanded(
+            child: subtitle == null
+                ? Text(title, style: context.type.title)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(title, style: context.type.title),
+                      Text(subtitle!,
+                          style: const TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: PanergoColors.faint)),
+                    ],
+                  ),
+          ),
           if (trailing != null) trailing!,
         ],
       ),

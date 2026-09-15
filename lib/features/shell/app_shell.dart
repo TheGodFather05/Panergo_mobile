@@ -7,33 +7,13 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../client/home_screen.dart';
-import '../client/requests_screen.dart';
+import '../client/new_request_screen.dart';
 import '../deals/deals_screen.dart';
 import '../messages/messages_screen.dart';
 import '../profile/profile_screen.dart';
 import '../provider/my_jobs_screen.dart';
 import '../provider/provider_inbox_screen.dart';
 import '../stream/stream_screen.dart';
-
-/// A request to show one of the bottom tabs.
-///
-/// Addressed by label rather than by index: the client and provider tab lists
-/// are different screens at the same positions, so an index means two different
-/// things depending on the mode, and would silently land on the wrong one.
-///
-/// Consumed once and cleared, so returning to the shell later does not replay an
-/// old jump.
-class TabRequest extends Notifier<String?> {
-  @override
-  String? build() => null;
-
-  void show(String label) => state = label;
-
-  void consume() => state = null;
-}
-
-final tabRequestProvider =
-    NotifierProvider<TabRequest, String?>(TabRequest.new);
 
 /// A bottom-tab destination.
 class AppTab {
@@ -52,13 +32,18 @@ class AppTab {
 
 /// The tabbed frame around the app.
 ///
-/// Which tabs exist follows the account's role: a client gets
-/// Accueil · Demandes · Feed · Messages · Profil, a provider gets
-/// Demandes · Missions · Feed · Messages · Profil.
+/// A client gets Accueil · Le fil · Messages · Profil; a provider gets
+/// Demandes · Missions · Le fil · Messages · Profil.
 ///
-/// Feed sits at the centre of both, and means the same screen on both — the
-/// merged stream of neighbours' posts and artisans' work. It used to be two
-/// screens that each hid what the other needed.
+/// The client bar holds four destinations, not five, because asking for work is
+/// an act rather than a place. An act in a tab bar misbehaves twice: it would
+/// have cost Messages its seat — where a mission in progress actually lives —
+/// and a tab keeps a lit state, so it would sit highlighted over a screen the
+/// person had already left. It rides above the bar as a floating button
+/// instead, reachable from every tab rather than only Accueil.
+///
+/// « Mes demandes » keeps its row in the profile, which is where the count of
+/// what is in flight already lived.
 ///
 /// Missions is where a won offer becomes work the provider can open — without
 /// it their road ended at "offre envoyée".
@@ -80,21 +65,15 @@ class _AppShellState extends ConsumerState<AppShell> {
       builder: (_) => const HomeScreen(),
     ),
     AppTab(
-      label: 'Demandes',
-      icon: 'receipt_long',
-      activeIcon: 'receipt_long',
-      builder: (_) => const RequestsScreen(),
-    ),
-    AppTab(
-      label: 'Feed',
+      label: 'Le fil',
       icon: 'dynamic_feed',
       activeIcon: 'dynamic_feed',
       builder: (_) => const StreamScreen(),
     ),
     AppTab(
       label: 'Messages',
-      icon: 'campaign',
-      activeIcon: 'campaign',
+      icon: 'chat_bubble',
+      activeIcon: 'chat_bubble',
       builder: (_) => const MessagesScreen(),
     ),
     AppTab(
@@ -119,7 +98,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       builder: (_) => const MyJobsScreen(),
     ),
     AppTab(
-      label: 'Feed',
+      label: 'Le fil',
       icon: 'dynamic_feed',
       activeIcon: 'dynamic_feed',
       builder: (_) => const StreamScreen(),
@@ -143,18 +122,6 @@ class _AppShellState extends ConsumerState<AppShell> {
     final mode = ref.watch(effectiveModeProvider);
     final tabs = mode == AppMode.provider ? _providerTabs : _clientTabs;
 
-    // Somewhere else asked for a tab by name — honour it, then clear it so the
-    // jump does not repeat on a later rebuild.
-    final requested = ref.watch(tabRequestProvider);
-    if (requested != null) {
-      final target = tabs.indexWhere((t) => t.label == requested);
-      if (target != -1) _index = target;
-      // A label with no tab in this mode is dropped rather than throwing: the
-      // caller asked for somewhere this account cannot go.
-      WidgetsBinding.instance.addPostFrameCallback(
-          (_) => ref.read(tabRequestProvider.notifier).consume());
-    }
-
     // Switching roles can leave the old index out of range.
     final index = _index.clamp(0, tabs.length - 1);
 
@@ -173,10 +140,31 @@ class _AppShellState extends ConsumerState<AppShell> {
           ],
         ),
       ),
-      bottomNavigationBar: _TabBar(
-        tabs: tabs,
-        index: index,
-        onSelected: (next) => setState(() => _index = next),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Asking for work rides above the bar rather than sitting in it, so
+          // it is reachable from every tab without costing a destination. Only
+          // a client orders, so a provider's bar stays bare.
+          if (mode == AppMode.client)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, 0, Space.s14, Space.s10),
+                child: _AskButton(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                        builder: (_) => const NewRequestScreen()),
+                  ),
+                ),
+              ),
+            ),
+          _TabBar(
+            tabs: tabs,
+            index: index,
+            onSelected: (next) => setState(() => _index = next),
+          ),
+        ],
       ),
     );
   }
@@ -279,3 +267,46 @@ class _TabItem extends StatelessWidget {
 /// back button (RM-03).
 Route<void> dealsRoute() =>
     MaterialPageRoute(builder: (_) => const DealsScreen());
+
+
+/// « Demander » — the act, floating clear of the destinations.
+class _AskButton extends StatelessWidget {
+  const _AskButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.brand;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 11),
+        decoration: BoxDecoration(
+          color: brand.fill,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: [
+            BoxShadow(
+              color: brand.fill.withValues(alpha: 0.42),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            MaterialSymbol('add', size: 20, color: Colors.white),
+            SizedBox(width: Space.s8),
+            Text('Demander',
+                style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white)),
+          ],
+        ),
+      ),
+    );
+  }
+}

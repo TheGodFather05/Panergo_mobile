@@ -10,13 +10,12 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
-import '../client/requests_screen.dart' show myRequestsProvider;
+import '../client/requests_screen.dart';
 import '../deals/deals_screen.dart';
 import '../onboarding/become_provider_screen.dart';
 import 'edit_profile_screen.dart';
 import 'support_screen.dart';
 import 'settings_screen.dart';
-import '../shell/app_shell.dart';
 import '../provider/agenda_screen.dart';
 import '../provider/availability_screen.dart';
 import '../provider/clients_screen.dart';
@@ -164,11 +163,11 @@ class ProfileScreen extends ConsumerWidget {
             icon: 'receipt_long',
             label: 'Mes demandes',
             detail: activeCount == null ? null : '$activeCount en cours',
-            // Demandes is already a tab; pushing the same widget as a route
-            // rendered it without the shell's Scaffold — a black screen — and
-            // would have duplicated a destination the user already has.
-            onTap: () =>
-                ref.read(tabRequestProvider.notifier).show('Demandes'),
+            // Demandes left the tab bar when asking for work became a floating
+            // act rather than a destination, so this is the way in again.
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const RequestsScreen()),
+            ),
           ),
           _MenuRow(
             icon: 'local_offer',
