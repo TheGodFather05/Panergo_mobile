@@ -53,8 +53,8 @@ class PriceCard extends StatelessWidget {
       return const _CardTone(
         head: 'Prix verrouillé',
         icon: 'lock',
-        fg: Color(0xFF0F4A61),
-        bg: Color(0xFFE6EFF3),
+        fg: PanergoColors.statusCoolInk,
+        bg: PanergoColors.statusCoolTint,
         note: 'L’arrivée est confirmée : le prix ne change plus.',
         muted: false,
       );
@@ -63,15 +63,15 @@ class PriceCard extends StatelessWidget {
       ProposalStatus.accepted => const _CardTone(
           head: 'Prix convenu',
           icon: 'check_circle',
-          fg: Color(0xFF1F7A55),
-          bg: Color(0xFFE6F1EA),
+          fg: PanergoColors.statusDoneInk,
+          bg: PanergoColors.statusDoneTint,
           note: 'C’est ce montant qui compte comme valeur de mission.',
           muted: false,
         ),
       ProposalStatus.countered => const _CardTone(
           head: 'Proposition contrée',
           icon: 'swap_horiz',
-          fg: Color(0xFF8B8175),
+          fg: PanergoColors.subtle,
           bg: Color(0xFFF2ECE4),
           note: 'Une autre proposition a pris sa place.',
           muted: true,
@@ -79,7 +79,7 @@ class PriceCard extends StatelessWidget {
       ProposalStatus.withdrawn => const _CardTone(
           head: 'Proposition retirée',
           icon: 'schedule',
-          fg: Color(0xFF8B8175),
+          fg: PanergoColors.subtle,
           bg: Color(0xFFF2ECE4),
           // Not "refusée". Nobody turned it down.
           note: 'Sans réponse avant l’arrivée. Personne n’a refusé.',

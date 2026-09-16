@@ -99,7 +99,7 @@ class _ScanArrivalScreenState extends ConsumerState<ScanArrivalScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF17120E),
+      backgroundColor: PanergoColors.scannerBg,
       body: Stack(
         fit: StackFit.expand,
         children: [
@@ -239,7 +239,7 @@ class _DarkIconButton extends StatelessWidget {
               child: MaterialSymbol(
                 icon,
                 size: 21,
-                color: active ? const Color(0xFF17120E) : Colors.white,
+                color: active ? PanergoColors.scannerBg : Colors.white,
               ),
             ),
           ),
@@ -326,7 +326,7 @@ class _CameraUnavailable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: const Color(0xFF17120E),
+      color: PanergoColors.scannerBg,
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(28),
@@ -534,8 +534,8 @@ class _FailureSheet extends StatelessWidget {
         ),
       ScanFailure.invalid => const _FailureCopy(
           icon: 'block',
-          tint: Color(0xFFFCE5DE),
-          foreground: Color(0xFFC2451F),
+          tint: PanergoColors.statusWarmTint,
+          foreground: PanergoColors.statusWarmInk,
           title: 'Ce n’est pas un code Panergo',
           body: 'Le code lu ne correspond à aucune mission. Vérifiez que vous '
               'visez bien le code que le client vous présente, et non un '
@@ -547,8 +547,8 @@ class _FailureSheet extends StatelessWidget {
         ),
       ScanFailure.mismatch => const _FailureCopy(
           icon: 'swap_horiz',
-          tint: Color(0xFFE6EFF3),
-          foreground: Color(0xFF0F4A61),
+          tint: PanergoColors.statusCoolTint,
+          foreground: PanergoColors.statusCoolInk,
           title: 'Ce code est celui d’une autre mission',
           body: 'Il appartient à une autre de vos missions. Ouvrez celle-ci '
               'pour y confirmer l’arrivée, ou scannez le bon code ici.',
@@ -559,7 +559,7 @@ class _FailureSheet extends StatelessWidget {
         ),
       ScanFailure.alreadyConfirmed => _FailureCopy(
           icon: 'check_circle',
-          tint: const Color(0xFFE6F1EA),
+          tint: PanergoColors.statusDoneTint,
           foreground: PanergoColors.online,
           title: 'Arrivée déjà confirmée',
           body: 'Vous avez déjà confirmé votre arrivée. '
@@ -584,8 +584,8 @@ class _FailureSheet extends StatelessWidget {
         ),
       ScanFailure.unknown => _FailureCopy(
           icon: 'error_outline',
-          tint: const Color(0xFFFCE5DE),
-          foreground: const Color(0xFFC2451F),
+          tint: PanergoColors.statusWarmTint,
+          foreground: PanergoColors.statusWarmInk,
           title: 'La confirmation a échoué',
           body: detail ??
               'Une erreur inattendue est survenue. Réessayez, ou saisissez le '

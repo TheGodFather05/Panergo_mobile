@@ -287,7 +287,7 @@ class _StateCard extends StatelessWidget {
               ? 'Intervention en cours.'
               : 'Arrivée confirmée à ${Formats.conversationTime(booking.arrivedAt!)}. '
                   'Intervention en cours.',
-          foreground: const Color(0xFF1A6E8E),
+          foreground: PanergoColors.statusCoolInk,
         ),
       BookingStatus.completed => const _StatusStyle(
           label: 'Mission terminée',

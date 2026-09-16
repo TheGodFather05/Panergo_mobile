@@ -237,7 +237,7 @@ class _RequestCard extends StatelessWidget {
 
   static CategoryTint _urgencyStyle(UrgencyLabel label) => switch (label) {
         UrgencyLabel.urgent =>
-          const CategoryTint(Color(0xFFFCE5DE), Color(0xFFC2451F)),
+          const CategoryTint(PanergoColors.statusWarmTint, PanergoColors.statusWarmInk),
         UrgencyLabel.recent =>
           const CategoryTint(Color(0xFFFAF0D8), Color(0xFFA9781A)),
         UrgencyLabel.standard =>

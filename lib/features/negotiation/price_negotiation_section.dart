@@ -114,7 +114,7 @@ class _SettledRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const MaterialSymbol('lock', size: 17, color: Color(0xFF0F4A61)),
+          const MaterialSymbol('lock', size: 17, color: PanergoColors.statusCoolInk),
           const SizedBox(width: Space.s10),
           Expanded(
             child: Text(

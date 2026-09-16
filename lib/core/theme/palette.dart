@@ -39,11 +39,11 @@ class BrandPalette {
   final Color link;
 
   static const braise = BrandPalette(
-    fill: Color(0xFFE0552B),
-    dark: Color(0xFFC2451F),
-    accent: Color(0xFFF2A341),
-    soft: Color(0xFFFBEAE3),
-    link: Color(0xFFA83A17),
+    fill: Color(0xFFC24E00),
+    dark: Color(0xFFA03F00),
+    accent: Color(0xFFFF6A00),
+    soft: Color(0xFFFFF0E5),
+    link: Color(0xFFA84300),
   );
 
   static const kola = BrandPalette(
@@ -54,14 +54,15 @@ class BrandPalette {
     link: Color(0xFF14513A),
   );
 
-  /// The provider side of the app runs on its own teal identity, so a
-  /// prestataire never mistakes their screens for the client's.
+  /// The provider side runs on its own blue identity, so a prestataire never
+  /// mistakes their screens for the client's. Warm against cool: the two sides
+  /// are told apart by hue before either is read.
   static const provider = BrandPalette(
-    fill: Color(0xFF1A6E8E),
-    dark: Color(0xFF134F66),
-    accent: Color(0xFF46A6C4),
-    soft: Color(0xFFE6EFF3),
-    link: Color(0xFF0F4A61),
+    fill: Color(0xFF0068CC),
+    dark: Color(0xFF004F99),
+    accent: Color(0xFF0081FF),
+    soft: Color(0xFFE8F2FF),
+    link: Color(0xFF0060BF),
   );
 
   static BrandPalette of(BrandDirection direction) => switch (direction) {
@@ -74,50 +75,55 @@ class BrandPalette {
 /// Colours that do not change with the brand direction.
 abstract final class PanergoColors {
   /// The paper the whole app is printed on.
-  static const page = Color(0xFFFBF7F2);
+  ///
+  /// A cool near-white rather than the warm cream it was. The brand carries the
+  /// warmth now; the ground stays out of its way, which is what lets the same
+  /// neutrals sit under the client's orange and the provider's blue without
+  /// either looking tinted.
+  static const page = Color(0xFFF7F7F5);
   static const surface = Color(0xFFFFFFFF);
 
   // Ink ramp, darkest to lightest.
-  static const ink = Color(0xFF241F1A);
-  static const inkAlt = Color(0xFF211C18);
-  static const ink2 = Color(0xFF3C342C);
-  static const body = Color(0xFF52493F);
-  static const muted = Color(0xFF6E655B);
-  static const subtle = Color(0xFF8B8175);
-  static const faint = Color(0xFFA99F92);
-  static const placeholder = Color(0xFF9A9085);
-  static const disabled = Color(0xFFC9C0B5);
+  static const ink = Color(0xFF0F1113);
+  static const inkAlt = Color(0xFF0A0C0E);
+  static const ink2 = Color(0xFF2A2E32);
+  static const body = Color(0xFF3E4246);
+  static const muted = Color(0xFF5A5F64);
+  static const subtle = Color(0xFF5E646A);
+  static const faint = Color(0xFF8A9096);
+  static const placeholder = Color(0xFF9AA0A6);
+  static const disabled = Color(0xFFC2C6CB);
 
   // Hairlines.
-  static const border = Color(0xFFEFE9E1);
-  static const borderStrong = Color(0xFFE7E0D7);
-  static const borderSoft = Color(0xFFEBE9E4);
-  static const borderDashed = Color(0xFFD8CFC2);
-  static const borderInput = Color(0xFFE3DCD2);
+  static const border = Color(0xFFE9E9E6);
+  static const borderStrong = Color(0xFFDEDEDA);
+  static const borderSoft = Color(0xFFEFEFEC);
+  static const borderDashed = Color(0xFFD6D6D2);
+  static const borderInput = Color(0xFFDEDEDA);
 
   /// The hairline inside a card, between a post's body and its footer. Fainter
   /// than [border], which separates the card from the page — a rule inside an
   /// object should read as lighter than the object's own edge.
-  static const borderFaint = Color(0xFFF2ECE4);
+  static const borderFaint = Color(0xFFF2F2EF);
 
   // Quiet filled surfaces.
-  static const fill = Color(0xFFF5F0E9);
-  static const fillAlt = Color(0xFFF2ECE4);
-  static const fillWarm = Color(0xFFF3EEE6);
+  static const fill = Color(0xFFF3F3F0);
+  static const fillAlt = Color(0xFFEDEDEA);
+  static const fillWarm = Color(0xFFF2F2EF);
 
   // Skeleton bones.
-  static const skeleton = Color(0xFFF1ECE4);
-  static const skeletonLight = Color(0xFFF4F0EA);
+  static const skeleton = Color(0xFFEDEDEA);
+  static const skeletonLight = Color(0xFFF3F3F0);
 
   /// The muted background a primary button wears while its form is invalid,
   /// with [disabledLabel] as its text (RM-07).
-  static const disabledButton = Color(0xFFE7E1D8);
-  static const disabledLabel = Color(0xFFA99F92);
+  static const disabledButton = Color(0xFFE4E4E0);
+  static const disabledLabel = Color(0xFF9AA0A6);
 
   // Semantic.
-  static const star = Color(0xFFF2A341);
+  static const star = Color(0xFFFFB400);
   static const online = Color(0xFF1F9D55);
-  static const danger = Color(0xFFA83A17);
+  static const danger = Color(0xFFC0351B);
   static const errorIcon = Color(0xFFD08C6E);
 
   // Warning / offline banners.
@@ -127,9 +133,29 @@ abstract final class PanergoColors {
   static const warningBody = Color(0xFF8B7A5C);
   static const warningIcon = Color(0xFFA9781A);
 
+  // Status tints. These were hardcoded hexes of the old braise and teal
+  // scattered across seven screens, which is how they survived a palette change
+  // without following it. Named here so the next one cannot leave them behind.
+
+  /// A pending or in-progress state — the warm end of the brand.
+  static const statusWarmTint = Color(0xFFFFF0E5);
+  static const statusWarmInk = Color(0xFFA84300);
+
+  /// A confirmed or scheduled state — the cool end.
+  static const statusCoolTint = Color(0xFFE8F2FF);
+  static const statusCoolInk = Color(0xFF0060BF);
+
+  /// A settled, finished state.
+  static const statusDoneTint = Color(0xFFE6F1EA);
+  static const statusDoneInk = Color(0xFF1F7A55);
+
+  /// The near-black a camera or scanner screen is painted on, where the page
+  /// colour would wash out the viewfinder.
+  static const scannerBg = Color(0xFF0A0C0E);
+
   /// The dark bar shown under the status bar while offline.
-  static const offlineBarBg = Color(0xFF3C342C);
-  static const offlineBarInk = Color(0xFFF6EFE2);
+  static const offlineBarBg = Color(0xFF2A2E32);
+  static const offlineBarInk = Color(0xFFF3F3F0);
 }
 
 /// The tint/icon pair a category tile is drawn with.
@@ -144,12 +170,16 @@ class CategoryTint {
 /// Category tiles cycle through five tints so a grid of them reads as varied
 /// without assigning a fixed colour to any one trade.
 abstract final class CategoryTints {
+  /// Restated for the cool ground, and for contrast: two of the old five sat
+  /// under 4.5:1 against their own tint — the amber at 3.44 — which on a trade
+  /// tile is a label nobody can read in daylight. The first and fourth are the
+  /// client and provider brand hues, so a grid stays recognisably Panergo.
   static const values = <CategoryTint>[
-    CategoryTint(Color(0xFFFBEAE3), Color(0xFFC2451F)),
-    CategoryTint(Color(0xFFFAF0D8), Color(0xFFA9781A)),
-    CategoryTint(Color(0xFFE6F1EA), Color(0xFF1F7A55)),
-    CategoryTint(Color(0xFFE6EFF3), Color(0xFF1A6E8E)),
-    CategoryTint(Color(0xFFF0E9F4), Color(0xFF7A4E96)),
+    CategoryTint(Color(0xFFFFF0E5), Color(0xFFA84300)),
+    CategoryTint(Color(0xFFFBF0D6), Color(0xFF8A6000)),
+    CategoryTint(Color(0xFFE6F1EA), Color(0xFF1A6B49)),
+    CategoryTint(Color(0xFFE8F2FF), Color(0xFF0060BF)),
+    CategoryTint(Color(0xFFF0EAF6), Color(0xFF6A3F88)),
   ];
 
   /// Stable per index, so a category keeps the same colour everywhere it appears.

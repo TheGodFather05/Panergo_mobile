@@ -42,7 +42,7 @@ void main() {
   });
 
   group('theme', () {
-    testWidgets('the provider flow runs on its own teal identity',
+    testWidgets('the provider flow runs on its own blue identity',
         (tester) async {
       late BuildContext captured;
       await tester.pumpWidget(wrap(
@@ -54,6 +54,50 @@ void main() {
       ));
 
       expect(captured.brand.fill, BrandPalette.provider.fill);
+    });
+
+    test('text on a brand surface stays readable in daylight', () {
+      // The accent is bright enough that white on it fails outright — the
+      // « Demander » button measured 2.87:1 before it was painted in ink.
+      // Whatever sits on a brand surface has to clear 4.5:1 against it.
+      double ratio(Color a, Color b) {
+        final la = a.computeLuminance(), lb = b.computeLuminance();
+        final hi = la > lb ? la : lb, lo = la > lb ? lb : la;
+        return (hi + 0.05) / (lo + 0.05);
+      }
+
+      for (final direction in BrandDirection.values) {
+        final palette = BrandPalette.of(direction);
+
+        // White on the solid fill, which is what a primary button uses.
+        expect(ratio(const Color(0xFFFFFFFF), palette.fill),
+            greaterThanOrEqualTo(4.5),
+            reason: '${direction.name}: white on fill');
+
+        // Ink on the accent, which is what the floating action uses.
+        expect(ratio(PanergoColors.ink, palette.accent),
+            greaterThanOrEqualTo(4.5),
+            reason: '${direction.name}: ink on accent');
+
+        // The link ink against the page it is read on.
+        expect(ratio(palette.link, PanergoColors.page),
+            greaterThanOrEqualTo(4.5),
+            reason: '${direction.name}: link on page');
+      }
+    });
+
+    test('every category tint can be read on its own tile', () {
+      double ratio(Color a, Color b) {
+        final la = a.computeLuminance(), lb = b.computeLuminance();
+        final hi = la > lb ? la : lb, lo = la > lb ? lb : la;
+        return (hi + 0.05) / (lo + 0.05);
+      }
+
+      for (var i = 0; i < CategoryTints.values.length; i++) {
+        final t = CategoryTints.values[i];
+        expect(ratio(t.foreground, t.tint), greaterThanOrEqualTo(4.5),
+            reason: 'category tint $i');
+      }
     });
 
     test('links use a darker ink than the brand fill (RM-15/16)', () {

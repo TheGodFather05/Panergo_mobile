@@ -223,7 +223,7 @@ class _RequiredLabel extends StatelessWidget {
           TextSpan(text: '$label '),
           const TextSpan(
             text: '*',
-            style: TextStyle(color: Color(0xFFC2451F)),
+            style: TextStyle(color: PanergoColors.statusWarmInk),
           ),
         ],
       ),
@@ -389,7 +389,7 @@ class _AlreadyRatedScreen extends StatelessWidget {
                             height: 44,
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: const Color(0xFFE6F1EA),
+                              color: PanergoColors.statusDoneTint,
                               borderRadius:
                                   BorderRadius.circular(Radii.card),
                             ),

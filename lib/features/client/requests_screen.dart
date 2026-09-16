@@ -212,8 +212,8 @@ class _RequestCard extends StatelessWidget {
     return switch (request.status) {
       RequestStatus.open when offers > 0 => _StatusStyle(
           label: '$offers offre${offers > 1 ? 's' : ''}',
-          background: const Color(0xFFFBEAE3),
-          foreground: const Color(0xFFC2451F),
+          background: PanergoColors.statusWarmTint,
+          foreground: PanergoColors.statusWarmInk,
           icon: 'local_offer',
           meta: '$offers offre${offers > 1 ? 's' : ''} reçue${offers > 1 ? 's' : ''} · en attente de votre choix',
         ),
@@ -226,15 +226,15 @@ class _RequestCard extends StatelessWidget {
         ),
       RequestStatus.offerSelected => const _StatusStyle(
           label: 'En cours',
-          background: Color(0xFFE6EFF3),
-          foreground: Color(0xFF1A6E8E),
+          background: PanergoColors.statusCoolTint,
+          foreground: PanergoColors.statusCoolInk,
           icon: 'check_circle',
           meta: 'Prestataire choisi · intervention à venir',
         ),
       RequestStatus.completed => const _StatusStyle(
           label: 'Terminée',
-          background: Color(0xFFE6F1EA),
-          foreground: Color(0xFF1F7A55),
+          background: PanergoColors.statusDoneTint,
+          foreground: PanergoColors.statusDoneInk,
           icon: 'check_circle',
           meta: 'Mission terminée',
         ),

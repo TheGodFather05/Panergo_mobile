@@ -262,7 +262,7 @@ class _RequiredLabel extends StatelessWidget {
               TextSpan(text: '$label '),
               const TextSpan(
                 text: '*',
-                style: TextStyle(color: Color(0xFFC2451F)),
+                style: TextStyle(color: PanergoColors.statusWarmInk),
               ),
             ],
           ),
