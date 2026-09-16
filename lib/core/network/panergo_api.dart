@@ -126,6 +126,7 @@ class PanergoApi {
     required Urgency urgency,
     BudgetBracket? budget,
     String? photoUrl,
+    String? originProviderId,
     String? idempotencyKey,
   }) async {
     final data = await _client.post<Map<String, dynamic>>(
@@ -139,6 +140,8 @@ class PanergoApi {
         'urgency': urgency.wire,
         if (budget != null) 'budget_bracket': budget.wire,
         if (photoUrl != null) 'photo_url': photoUrl,
+        // The artisan whose work prompted this, so they hear about it first.
+        if (originProviderId != null) 'origin_provider_id': originProviderId,
       },
     );
     return Json.str(data['request_id']);

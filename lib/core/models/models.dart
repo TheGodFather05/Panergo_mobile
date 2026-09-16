@@ -1358,6 +1358,7 @@ class StreamPost {
     this.photoUrl,
     this.postKind,
     this.category,
+    this.providerId,
   });
 
   final String id;
@@ -1378,6 +1379,12 @@ class StreamPost {
 
   /// The artisan's trade, on a réalisation.
   final ServiceCategory? category;
+
+  /// The provider row behind a réalisation.
+  ///
+  /// Distinct from [authorId], which is a user id: naming a request's origin
+  /// needs the provider, and passing the user id would match nothing.
+  final String? providerId;
 
   final int replyCount;
   final int markCount;
@@ -1410,6 +1417,7 @@ class StreamPost {
           ? Json.enumOf(json['category'], ServiceCategory.values,
               ServiceCategory.values.first)
           : null,
+      providerId: json['provider_id'] as String?,
       replyCount: Json.intOf(json['reply_count']),
       markCount: Json.intOf(json['mark_count']),
       marked: Json.boolOf(json['marked']),

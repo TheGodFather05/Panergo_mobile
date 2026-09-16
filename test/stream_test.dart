@@ -19,6 +19,7 @@ void main() {
        "author_id":"82013e3e-6181-4262-aad2-77b23178a29f","author_name":"Jean Plombier",
        "neighborhood":"Bonapriso","body":"Salle de bain refaite a neuf",
        "photo_url":"/uploads/12c882c3.jpg","category":"PLOMBERIE",
+       "provider_id":"aaaa1111-2222-3333-4444-555566667777",
        "reply_count":2,"mark_count":1,"marked":true,
        "created_at":"2026-09-11T22:40:04.412676Z"}],
      "page":0,"total_pages":1,"total_posts":2,
@@ -51,6 +52,21 @@ void main() {
       expect(work.marked, isTrue);
       expect(work.markCount, 1);
       expect(work.replyCount, 2);
+    });
+
+    test('a réalisation carries its provider id, distinct from the author', () {
+      final page =
+          StreamPage.fromJson(jsonDecode(payload) as Map<String, dynamic>);
+      final work = page.content.last;
+
+      // Naming a request's origin needs the provider row, not the user behind
+      // it. Passing author_id would match no provider and lose the promise
+      // silently — nothing errors, the artisan simply never hears.
+      expect(work.providerId, isNotNull);
+      expect(work.providerId, isNot(work.authorId));
+
+      // A neighbour's post has no provider at all.
+      expect(page.content.first.providerId, isNull);
     });
 
     test('each kind marks under its own name', () {

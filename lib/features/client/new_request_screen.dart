@@ -125,9 +125,11 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
           description: _description,
           urgency: _urgency!,
           budget: _budget,
-          // The photo that convinced them travels with the request, so the
-          // artisan who took it knows why they are being called.
+          // The photo that convinced them travels with the request, and the
+          // artisan who took it is notified ahead of the others — the promise
+          // the origin card makes to the client.
           photoUrl: _origin?.photoUrl,
+          originProviderId: _origin?.providerId,
         );
         if (!mounted) return;
         Navigator.of(context).pushReplacement(MaterialPageRoute(
