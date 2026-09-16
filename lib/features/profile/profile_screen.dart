@@ -16,7 +16,7 @@ import '../onboarding/become_provider_screen.dart';
 import 'edit_profile_screen.dart';
 import 'support_screen.dart';
 import 'settings_screen.dart';
-import '../provider/agenda_screen.dart';
+import '../provider/my_jobs_screen.dart';
 import '../provider/availability_screen.dart';
 import '../provider/clients_screen.dart';
 import '../provider/missed_opportunities_screen.dart';
@@ -97,12 +97,15 @@ class ProfileScreen extends ConsumerWidget {
           // using the app.
           if (user?.isProvider == true) ...[
             const _SectionLabel('Mon activité'),
+            // Agenda is a tab now, so this row would have been a second door to
+            // the same room. Missions took its place here: the jobs you have won
+            // are a list you consult, not a place you live.
             _MenuRow(
-              icon: 'calendar_month',
-              label: 'Agenda',
-              detail: 'Vos missions, jour par jour',
+              icon: 'handyman',
+              label: 'Mes missions',
+              detail: 'Les demandes que vous avez remportées',
               onTap: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(builder: (_) => const AgendaScreen()),
+                MaterialPageRoute<void>(builder: (_) => const MyJobsScreen()),
               ),
             ),
             _MenuRow(

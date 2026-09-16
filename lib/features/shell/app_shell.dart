@@ -11,7 +11,7 @@ import '../client/new_request_screen.dart';
 import '../deals/deals_screen.dart';
 import '../messages/messages_screen.dart';
 import '../profile/profile_screen.dart';
-import '../provider/my_jobs_screen.dart';
+import '../provider/agenda_screen.dart';
 import '../provider/provider_inbox_screen.dart';
 import '../stream/stream_screen.dart';
 
@@ -33,7 +33,12 @@ class AppTab {
 /// The tabbed frame around the app.
 ///
 /// A client gets Accueil · Le fil · Messages · Profil; a provider gets
-/// Demandes · Missions · Le fil · Messages · Profil.
+/// Demandes · Agenda · Le fil · Messages · Profil.
+///
+/// Agenda took the seat Missions held. A provider opens the app to find out
+/// where they must be, which is a question about time; the jobs they have won
+/// are a list they consult, not a place they live, so it moved to the profile
+/// beside their other tools.
 ///
 /// The client bar holds four destinations, not five, because asking for work is
 /// an act rather than a place. An act in a tab bar misbehaves twice: it would
@@ -92,10 +97,10 @@ class _AppShellState extends ConsumerState<AppShell> {
       builder: (_) => const ProviderInboxScreen(),
     ),
     AppTab(
-      label: 'Missions',
-      icon: 'handyman',
-      activeIcon: 'handyman',
-      builder: (_) => const MyJobsScreen(),
+      label: 'Agenda',
+      icon: 'calendar_month',
+      activeIcon: 'calendar_month',
+      builder: (_) => const AgendaScreen(),
     ),
     AppTab(
       label: 'Le fil',
@@ -284,7 +289,7 @@ class _AskButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 11),
         decoration: BoxDecoration(
-          color: brand.fill,
+          color: brand.accent,
           borderRadius: BorderRadius.circular(26),
           boxShadow: [
             BoxShadow(
@@ -294,16 +299,19 @@ class _AskButton extends StatelessWidget {
             ),
           ],
         ),
+        // Dark ink on the bright accent, not white: white on #FF6A00 measures
+        // 2.87:1 and fails, while the near-black reaches 6.59:1 — and this
+        // button sits over a scrolling feed in Douala daylight.
         child: const Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            MaterialSymbol('add', size: 20, color: Colors.white),
+            MaterialSymbol('add', size: 20, color: PanergoColors.ink),
             SizedBox(width: Space.s8),
             Text('Demander',
                 style: TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white)),
+                    color: PanergoColors.ink)),
           ],
         ),
       ),
