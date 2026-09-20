@@ -202,7 +202,9 @@ final brandDirectionProvider = Provider<BrandDirection>((ref) {
   // The whole app repaints with the mode, so the teal is not decoration — it is
   // the clearest signal of which half you are in. Not the only one, though:
   // colour alone never is, so the profile header names the mode in words too.
-  return ref.watch(effectiveModeProvider) == AppMode.provider
-      ? BrandDirection.provider
-      : BrandDirection.braise;
+  return switch (ref.watch(effectiveModeProvider)) {
+    AppMode.provider => BrandDirection.provider,
+    AppMode.business => BrandDirection.business,
+    AppMode.client => BrandDirection.braise,
+  };
 });

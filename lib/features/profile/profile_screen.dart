@@ -204,15 +204,24 @@ class ProfileScreen extends ConsumerWidget {
                     builder: (_) => const BecomeProviderScreen()),
               ),
             )
-          else
+          else if (ref.watch(availableModesProvider).length == 2)
             // Instant, free and undone in one tap — so no confirmation sheet.
             // The label always names where you are going, never where you are.
             PanergoOutlinedButton(
-              label: ref.watch(effectiveModeProvider) == AppMode.provider
-                  ? 'Passer en mode client'
-                  : 'Passer en mode prestataire',
+              label: _goingTo(ref.watch(availableModesProvider),
+                  ref.watch(effectiveModeProvider)),
               icon: 'swap_horiz',
-              onPressed: () => ref.read(activeModeProvider.notifier).toggle(),
+              onPressed: () => ref
+                  .read(activeModeProvider.notifier)
+                  .cycle(ref.read(availableModesProvider)),
+            )
+          else
+            // Three faces: naming the destination no longer works, because there
+            // is no single "other one". A list is the honest shape.
+            _ModePicker(
+              available: ref.watch(availableModesProvider),
+              current: ref.watch(effectiveModeProvider),
+              onPick: (mode) => ref.read(activeModeProvider.notifier).set(mode),
             ),
           const SizedBox(height: Space.gutter),
           TextButton(
@@ -352,6 +361,89 @@ class _BecomeProviderCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+
+/// Which face of the app to wear, when the account has more than two.
+/// Where the single switch would take you, when there are exactly two faces.
+String _goingTo(List<AppMode> available, AppMode current) {
+  final other = available.firstWhere((m) => m != current, orElse: () => current);
+  return 'Passer en mode ${_ModePicker.label(other).toLowerCase()}';
+}
+
+class _ModePicker extends StatelessWidget {
+  const _ModePicker({
+    required this.available,
+    required this.current,
+    required this.onPick,
+  });
+
+  final List<AppMode> available;
+  final AppMode current;
+  final ValueChanged<AppMode> onPick;
+
+  static String label(AppMode mode) => switch (mode) {
+        AppMode.client => 'Client',
+        AppMode.provider => 'Prestataire',
+        AppMode.business => 'Mon commerce',
+      };
+
+  static String icon(AppMode mode) => switch (mode) {
+        AppMode.client => 'person',
+        AppMode.provider => 'handyman',
+        AppMode.business => 'storefront',
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionLabel('Mode'),
+        for (final mode in available)
+          GestureDetector(
+            onTap: mode == current ? null : () => onPick(mode),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: Space.s8),
+              padding: const EdgeInsets.all(Space.s14),
+              decoration: BoxDecoration(
+                color: mode == current
+                    ? context.brand.soft
+                    : PanergoColors.surface,
+                borderRadius: Radii.brCard,
+                border: Border.all(
+                    color: mode == current
+                        ? context.brand.link
+                        : PanergoColors.border),
+              ),
+              child: Row(
+                children: [
+                  MaterialSymbol(icon(mode),
+                      size: 20,
+                      color: mode == current
+                          ? context.brand.link
+                          : PanergoColors.subtle),
+                  const SizedBox(width: Space.s12),
+                  Expanded(
+                    child: Text(label(mode),
+                        style: TextStyle(
+                            fontSize: 14.5,
+                            // The current mode is carried by weight and a tick
+                            // as well as by fill, never by colour alone (RM-16).
+                            fontWeight: mode == current
+                                ? FontWeight.w800
+                                : FontWeight.w600,
+                            color: PanergoColors.ink)),
+                  ),
+                  if (mode == current)
+                    MaterialSymbol('check', size: 19, color: context.brand.link),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -26,6 +26,13 @@ void main() {
       'flashlight_on', 'insights', 'phone', 'search_off', 'swap_horiz', 'tune',
       // The merged feed's own glyphs.
       'request_quote', 'cloud_off', 'add', 'close',
+      // The directory: every icon the seeded business taxonomy names, because a
+      // category whose glyph is a blank circle looks like a bug in the data.
+      'storefront', 'inventory_2', 'visibility', 'pause_circle',
+      'local_pharmacy', 'medical_services', 'hardware', 'restaurant',
+      'bakery_dining', 'car_repair', 'local_gas_station', 'smartphone',
+      'menu_book', 'checkroom', 'local_laundry_service', 'store', 'content_cut',
+      'computer', 'local_shipping',
     ];
 
     for (final name in names) {

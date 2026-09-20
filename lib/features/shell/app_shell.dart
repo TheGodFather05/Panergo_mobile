@@ -13,6 +13,7 @@ import '../messages/messages_screen.dart';
 import '../profile/profile_screen.dart';
 import '../provider/agenda_screen.dart';
 import '../provider/provider_inbox_screen.dart';
+import '../business/workspace/business_workspace_screen.dart';
 import '../stream/stream_screen.dart';
 
 /// A bottom-tab destination.
@@ -122,10 +123,41 @@ class _AppShellState extends ConsumerState<AppShell> {
     ),
   ];
 
+  static final _businessTabs = <AppTab>[
+    AppTab(
+      label: 'Ma boutique',
+      icon: 'storefront',
+      activeIcon: 'storefront',
+      builder: (_) => const BusinessWorkspaceScreen(),
+    ),
+    AppTab(
+      label: 'Le fil',
+      icon: 'dynamic_feed',
+      activeIcon: 'dynamic_feed',
+      builder: (_) => const StreamScreen(),
+    ),
+    AppTab(
+      label: 'Messages',
+      icon: 'chat_bubble',
+      activeIcon: 'chat_bubble',
+      builder: (_) => const MessagesScreen(),
+    ),
+    AppTab(
+      label: 'Profil',
+      icon: 'person',
+      activeIcon: 'person',
+      builder: (_) => const ProfileScreen(),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final mode = ref.watch(effectiveModeProvider);
-    final tabs = mode == AppMode.provider ? _providerTabs : _clientTabs;
+    final tabs = switch (mode) {
+      AppMode.provider => _providerTabs,
+      AppMode.business => _businessTabs,
+      AppMode.client => _clientTabs,
+    };
 
     // Switching roles can leave the old index out of range.
     final index = _index.clamp(0, tabs.length - 1);
@@ -151,6 +183,8 @@ class _AppShellState extends ConsumerState<AppShell> {
           // Asking for work rides above the bar rather than sitting in it, so
           // it is reachable from every tab without costing a destination. Only
           // a client orders, so a provider's bar stays bare.
+          // Only a client orders, so neither an artisan's nor a shopkeeper's
+          // bar carries the ask.
           if (mode == AppMode.client)
             Align(
               alignment: Alignment.centerRight,

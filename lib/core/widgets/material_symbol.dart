@@ -156,6 +156,22 @@ class MaterialSymbol extends StatelessWidget {
     'swap_horiz': Icons.swap_horiz,
     'tune': Icons.tune_outlined,
     'request_quote': Icons.request_quote_outlined,
+
+    // The directory and a shopkeeper's workspace.
+    'storefront': Icons.storefront_outlined,
+    'inventory_2': Icons.inventory_2_outlined,
+    'visibility': Icons.visibility_outlined,
+    'pause_circle': Icons.pause_circle_outline,
+    'local_pharmacy': Icons.local_pharmacy_outlined,
+    'medical_services': Icons.medical_services_outlined,
+    'restaurant': Icons.restaurant_outlined,
+    'bakery_dining': Icons.bakery_dining_outlined,
+    'car_repair': Icons.car_repair_outlined,
+    'local_gas_station': Icons.local_gas_station_outlined,
+    'smartphone': Icons.smartphone_outlined,
+    'menu_book': Icons.menu_book_outlined,
+    'local_laundry_service': Icons.local_laundry_service_outlined,
+    'store': Icons.store_outlined,
   };
 
   static const _filled = <String, IconData>{
@@ -176,6 +192,8 @@ class MaterialSymbol extends StatelessWidget {
     // « Utile » uses the filled thumb to carry the marked state alongside the
     // word, so the filled variant has to exist or marking changes nothing.
     'thumb_up': Icons.thumb_up,
+    'storefront': Icons.storefront,
+    'visibility': Icons.visibility,
     'dynamic_feed': Icons.dynamic_feed,
     'forum': Icons.forum,
     'task_alt': Icons.task_alt,

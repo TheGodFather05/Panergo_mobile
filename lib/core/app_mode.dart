@@ -1,10 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../features/business/business_providers.dart';
 import 'providers.dart';
 
-/// Which half of the app someone is looking at.
-enum AppMode { client, provider }
+/// Which face of the app someone is looking at.
+///
+/// Three now, not two. A person may hire, work a trade, and keep a shop, and
+/// those are three different sets of screens rather than two sides of one coin.
+enum AppMode { client, provider, business }
 
 /// The mode the person asked for.
 ///
@@ -28,8 +32,12 @@ class ActiveModeNotifier extends Notifier<AppMode> {
 
   Future<void> _restore() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getString(_key) == AppMode.provider.name) {
-      state = AppMode.provider;
+    final stored = prefs.getString(_key);
+    for (final mode in AppMode.values) {
+      if (mode.name == stored) {
+        state = mode;
+        return;
+      }
     }
   }
 
@@ -39,8 +47,16 @@ class ActiveModeNotifier extends Notifier<AppMode> {
     await prefs.setString(_key, mode.name);
   }
 
-  void toggle() =>
-      set(state == AppMode.client ? AppMode.provider : AppMode.client);
+  /// Moves to the next mode the account can actually wear.
+  ///
+  /// Not a toggle any more: with three faces there is no "the other one", and a
+  /// switch that cycled through a mode whose every endpoint refuses you would
+  /// be a door onto a wall.
+  void cycle(List<AppMode> available) {
+    if (available.length < 2) return;
+    final here = available.indexOf(state);
+    set(available[(here + 1) % available.length]);
+  }
 }
 
 /// What the app is actually wearing.
@@ -51,7 +67,26 @@ class ActiveModeNotifier extends Notifier<AppMode> {
 /// someone who no longer has a profile would otherwise show tabs whose every
 /// endpoint refuses them.
 final effectiveModeProvider = Provider<AppMode>((ref) {
+  final available = ref.watch(availableModesProvider);
+  final asked = ref.watch(activeModeProvider);
+  return available.contains(asked) ? asked : AppMode.client;
+});
+
+/// The faces this account may wear, in a stable order.
+///
+/// Client is always first and always present: everyone can hire. The other two
+/// are capabilities — a provider profile, a published listing — and asking here
+/// rather than trusting the stored preference is what stops a remembered mode
+/// from outliving the thing that justified it.
+final availableModesProvider = Provider<List<AppMode>>((ref) {
   final user = ref.watch(currentUserProvider);
-  if (user?.isProvider != true) return AppMode.client;
-  return ref.watch(activeModeProvider);
+  final businesses = ref.watch(myBusinessesProvider).value ?? const [];
+
+  return [
+    AppMode.client,
+    if (user?.isProvider == true) AppMode.provider,
+    // A pending listing is not yet a shop to run: its catalogue is editable but
+    // nobody can see it, so the workspace only opens once it is published.
+    if (businesses.any((b) => b.isPublished)) AppMode.business,
+  ];
 });

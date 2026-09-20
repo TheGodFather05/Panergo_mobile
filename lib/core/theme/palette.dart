@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 /// The design ships two candidate directions for the client experience — Braise
 /// (orange) and Kola (green) — plus a separate teal identity for the provider
 /// side. Braise is the default; the client picks between the two before launch.
-enum BrandDirection { braise, kola, provider }
+enum BrandDirection { braise, kola, provider, business }
 
 /// The five brand colours a direction is made of.
 ///
@@ -65,10 +65,30 @@ class BrandPalette {
     link: Color(0xFF0060BF),
   );
 
+  /// A shopkeeper's screens, in green.
+  ///
+  /// Three faces now need three hues, and green is what is left once the client
+  /// holds warm and the provider holds cool — a shopkeeper must not mistake
+  /// their catalogue for either.
+  ///
+  /// Derived rather than drawn: the designer has not given the business face an
+  /// identity yet, so these are chosen to satisfy the constraints the repaint
+  /// established — white on the fill, ink on the accent, and the link ink
+  /// against the page all clear 4.5:1, and the link stays darker than the fill.
+  /// Expect the designer to replace the exact values.
+  static const business = BrandPalette(
+    fill: Color(0xFF1F7A55),
+    dark: Color(0xFF18603F),
+    accent: Color(0xFF2FA873),
+    soft: Color(0xFFE6F1EA),
+    link: Color(0xFF14603F),
+  );
+
   static BrandPalette of(BrandDirection direction) => switch (direction) {
         BrandDirection.braise => braise,
         BrandDirection.kola => kola,
         BrandDirection.provider => provider,
+        BrandDirection.business => business,
       };
 }
 
