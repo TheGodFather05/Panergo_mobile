@@ -1455,3 +1455,242 @@ class StreamPage {
         onlyMine: Json.boolOf(json['only_mine']),
       );
 }
+
+
+// ---------------------------------------------------------- the directory ---
+
+/// A kind of business — pharmacy, garage, hardware shop.
+///
+/// A class rather than an enum, unlike [ServiceCategory]: this list comes from
+/// the server and grows sideways for years. The next person to read this will
+/// want to "fix" it into a `WireEnum`; that would put a release between the
+/// business and every new category.
+class BusinessCategory {
+  const BusinessCategory({
+    required this.code,
+    required this.label,
+    required this.iconName,
+  });
+
+  final String code;
+  final String label;
+
+  /// A Material Symbols name chosen server-side, so it may be one this build
+  /// has never heard of. [MaterialSymbol] falls back rather than failing.
+  final String iconName;
+
+  factory BusinessCategory.fromJson(Map<String, dynamic> json) => BusinessCategory(
+        code: Json.str(json['code']),
+        label: Json.str(json['label']),
+        iconName: Json.str(json['icon_name']),
+      );
+}
+
+/// Where a listing stands with review.
+enum BusinessStatus implements WireEnum {
+  pending('PENDING', 'En attente'),
+  published('PUBLISHED', 'Publié'),
+  rejected('REJECTED', 'Refusé'),
+  suspended('SUSPENDED', 'Suspendu');
+
+  const BusinessStatus(this.wire, this.label);
+
+  @override
+  final String wire;
+
+  final String label;
+}
+
+/// One opening interval. [dayOfWeek] is ISO — 1 is Monday.
+class BusinessHours {
+  const BusinessHours({
+    required this.dayOfWeek,
+    required this.opensAt,
+    required this.closesAt,
+  });
+
+  final int dayOfWeek;
+  final String opensAt;
+  final String closesAt;
+
+  factory BusinessHours.fromJson(Map<String, dynamic> json) => BusinessHours(
+        dayOfWeek: Json.intOf(json['day_of_week']),
+        opensAt: Json.str(json['opens_at']),
+        closesAt: Json.str(json['closes_at']),
+      );
+}
+
+/// A business in a list.
+class BusinessSummary {
+  const BusinessSummary({
+    required this.id,
+    required this.name,
+    required this.categoryCode,
+    required this.categoryLabel,
+    required this.categoryIconName,
+    required this.neighborhood,
+    required this.openNow,
+    this.photoUrl,
+  });
+
+  final String id;
+  final String name;
+  final String categoryCode;
+  final String categoryLabel;
+  final String categoryIconName;
+  final String neighborhood;
+
+  /// The fact a reader is actually after. Does the work a rating does on a
+  /// provider card.
+  final bool openNow;
+
+  final String? photoUrl;
+
+  factory BusinessSummary.fromJson(Map<String, dynamic> json) => BusinessSummary(
+        id: Json.str(json['id']),
+        name: Json.str(json['name']),
+        categoryCode: Json.str(json['category_code']),
+        categoryLabel: Json.str(json['category_label']),
+        categoryIconName: Json.str(json['category_icon_name']),
+        neighborhood: Json.str(json['neighborhood']),
+        openNow: Json.boolOf(json['open_now']),
+        photoUrl: Json.strOrNull(json['photo_url']),
+      );
+}
+
+/// One line of a price list.
+class BusinessProduct {
+  const BusinessProduct({
+    required this.id,
+    required this.name,
+    required this.available,
+    this.description,
+    this.photoUrl,
+    this.price,
+    this.unit,
+    this.groupId,
+    this.groupLabel,
+  });
+
+  final String id;
+  final String name;
+  final String? description;
+  final String? photoUrl;
+
+  /// Whole CFA francs. Null means « prix sur demande » — not free, and not
+  /// zero, which would be a different claim.
+  final int? price;
+
+  final String? unit;
+  final bool available;
+  final String? groupId;
+  final String? groupLabel;
+
+  factory BusinessProduct.fromJson(Map<String, dynamic> json) => BusinessProduct(
+        id: Json.str(json['id']),
+        name: Json.str(json['name']),
+        description: Json.strOrNull(json['description']),
+        photoUrl: Json.strOrNull(json['photo_url']),
+        price: json['price'] == null ? null : Json.intOf(json['price']),
+        unit: Json.strOrNull(json['unit']),
+        available: Json.boolOf(json['available']),
+        groupId: Json.strOrNull(json['group_id']),
+        groupLabel: Json.strOrNull(json['group_label']),
+      );
+}
+
+/// The whole listing.
+class BusinessDetail {
+  const BusinessDetail({
+    required this.id,
+    required this.name,
+    required this.categoryCode,
+    required this.categoryLabel,
+    required this.categoryIconName,
+    required this.neighborhood,
+    required this.status,
+    required this.openNow,
+    required this.canMessage,
+    required this.services,
+    required this.hours,
+    this.description,
+    this.addressLine,
+    this.phoneNumber,
+    this.whatsappNumber,
+    this.photoUrl,
+    this.rejectionReason,
+  });
+
+  final String id;
+  final String name;
+  final String categoryCode;
+  final String categoryLabel;
+  final String categoryIconName;
+  final String neighborhood;
+  final String? description;
+  final String? addressLine;
+  final String? phoneNumber;
+  final String? whatsappNumber;
+  final String? photoUrl;
+  final BusinessStatus status;
+  final String? rejectionReason;
+  final bool openNow;
+
+  /// Whether anyone is there to answer. A listing nobody has claimed has no
+  /// owner, and offering to message it would reach nobody.
+  final bool canMessage;
+
+  final List<String> services;
+  final List<BusinessHours> hours;
+
+  bool get isPublished => status == BusinessStatus.published;
+
+  factory BusinessDetail.fromJson(Map<String, dynamic> json) => BusinessDetail(
+        id: Json.str(json['id']),
+        name: Json.str(json['name']),
+        categoryCode: Json.str(json['category_code']),
+        categoryLabel: Json.str(json['category_label']),
+        categoryIconName: Json.str(json['category_icon_name']),
+        neighborhood: Json.str(json['neighborhood']),
+        description: Json.strOrNull(json['description']),
+        addressLine: Json.strOrNull(json['address_line']),
+        phoneNumber: Json.strOrNull(json['phone_number']),
+        whatsappNumber: Json.strOrNull(json['whatsapp_number']),
+        photoUrl: Json.strOrNull(json['photo_url']),
+        status: Json.enumOf(json['status'], BusinessStatus.values,
+            BusinessStatus.pending),
+        rejectionReason: Json.strOrNull(json['rejection_reason']),
+        openNow: Json.boolOf(json['open_now']),
+        canMessage: Json.boolOf(json['can_message']),
+        services: (json['services'] as List<dynamic>? ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+        hours: (json['hours'] as List<dynamic>? ?? const [])
+            .map((e) => BusinessHours.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// A page of the directory.
+class BusinessPage {
+  const BusinessPage({
+    required this.content,
+    required this.page,
+    required this.totalPages,
+    required this.totalBusinesses,
+  });
+
+  final List<BusinessSummary> content;
+  final int page;
+  final int totalPages;
+  final int totalBusinesses;
+
+  factory BusinessPage.fromJson(Map<String, dynamic> json) => BusinessPage(
+        content: (json['content'] as List<dynamic>? ?? const [])
+            .map((e) => BusinessSummary.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        page: Json.intOf(json['page']),
+        totalPages: Json.intOf(json['total_pages']),
+        totalBusinesses: Json.intOf(json['total_businesses']),
+      );
+}

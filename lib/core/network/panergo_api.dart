@@ -375,6 +375,178 @@ class PanergoApi {
     return QuartierReply.fromJson(data);
   }
 
+  // ---------------------------------------------------------- businesses ---
+
+  /// The business taxonomy, served rather than hardcoded.
+  ///
+  /// Unlike [ServiceCategory]'s eighteen trades, this list grows without an app
+  /// release, so it is fetched rather than compiled in.
+  Future<List<BusinessCategory>> businessCategories() async {
+    final data = await _client.get<List<dynamic>>('/api/business-categories');
+    return data
+        .map((e) => BusinessCategory.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// The directory: published listings, the reader's quartier first.
+  Future<BusinessPage> businesses({
+    String? category,
+    String? neighborhood,
+    int page = 0,
+  }) async {
+    final data = await _client.get<Map<String, dynamic>>(
+      '/api/businesses',
+      query: {
+        if (category != null) 'category': category,
+        if (neighborhood != null) 'neighborhood': neighborhood,
+        'page': page,
+      },
+    );
+    return BusinessPage.fromJson(data);
+  }
+
+  Future<BusinessDetail> business(String id) async {
+    final data = await _client.get<Map<String, dynamic>>('/api/businesses/$id');
+    return BusinessDetail.fromJson(data);
+  }
+
+  /// A published business's price list.
+  Future<List<BusinessProduct>> businessProducts(String businessId) async {
+    final data =
+        await _client.get<List<dynamic>>('/api/businesses/$businessId/products');
+    return data
+        .map((e) => BusinessProduct.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ------------------------------------------------- businesses I manage ---
+
+  Future<List<BusinessDetail>> myBusinesses() async {
+    final data = await _client.get<List<dynamic>>('/api/businesses/me');
+    return data
+        .map((e) => BusinessDetail.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<BusinessDetail> registerBusiness({
+    required String name,
+    required String categoryCode,
+    required String neighborhood,
+    String? description,
+    String? addressLine,
+    String? phoneNumber,
+    String? whatsappNumber,
+    String? photoUrl,
+    List<String> services = const [],
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/api/businesses/me',
+      body: {
+        'name': name,
+        'category_code': categoryCode,
+        'neighborhood': neighborhood,
+        if (description != null) 'description': description,
+        if (addressLine != null) 'address_line': addressLine,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+        if (whatsappNumber != null) 'whatsapp_number': whatsappNumber,
+        if (photoUrl != null) 'photo_url': photoUrl,
+        'services': services,
+      },
+    );
+    return BusinessDetail.fromJson(data);
+  }
+
+  Future<BusinessDetail> updateBusiness(
+    String id, {
+    required String name,
+    String? description,
+    String? addressLine,
+    String? phoneNumber,
+    String? whatsappNumber,
+    String? photoUrl,
+    List<String> services = const [],
+  }) async {
+    final data = await _client.put<Map<String, dynamic>>(
+      '/api/businesses/me/$id',
+      body: {
+        'name': name,
+        if (description != null) 'description': description,
+        if (addressLine != null) 'address_line': addressLine,
+        if (phoneNumber != null) 'phone_number': phoneNumber,
+        if (whatsappNumber != null) 'whatsapp_number': whatsappNumber,
+        if (photoUrl != null) 'photo_url': photoUrl,
+        'services': services,
+      },
+    );
+    return BusinessDetail.fromJson(data);
+  }
+
+  /// The whole week at once — editing hours is "here is when I am open".
+  Future<List<BusinessHours>> setBusinessHours(
+      String id, List<BusinessHours> slots) async {
+    final data = await _client.put<List<dynamic>>(
+      '/api/businesses/me/$id/hours',
+      body: {
+        'slots': slots
+            .map((s) => {
+                  'day_of_week': s.dayOfWeek,
+                  'opens_at': s.opensAt,
+                  'closes_at': s.closesAt,
+                })
+            .toList(),
+      },
+    );
+    return data
+        .map((e) => BusinessHours.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// The owner's own catalogue, including what is out of stock.
+  Future<List<BusinessProduct>> myProducts(String businessId) async {
+    final data = await _client
+        .get<List<dynamic>>('/api/businesses/me/$businessId/products');
+    return data
+        .map((e) => BusinessProduct.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<BusinessProduct> saveProduct(
+    String businessId, {
+    String? productId,
+    required String name,
+    String? description,
+    String? photoUrl,
+    int? price,
+    String? unit,
+    bool? available,
+    String? groupId,
+  }) async {
+    final body = <String, dynamic>{
+      'name': name,
+      if (description != null) 'description': description,
+      if (photoUrl != null) 'photo_url': photoUrl,
+      // Sent explicitly as null rather than omitted: absent means "leave it",
+      // and « prix sur demande » has to be settable on a product that had one.
+      'price': price,
+      if (unit != null) 'unit': unit,
+      if (available != null) 'available': available,
+      if (groupId != null) 'group_id': groupId,
+    };
+
+    final path = productId == null
+        ? '/api/businesses/me/$businessId/products'
+        : '/api/businesses/me/$businessId/products/$productId';
+
+    final data = productId == null
+        ? await _client.post<Map<String, dynamic>>(path, body: body)
+        : await _client.put<Map<String, dynamic>>(path, body: body);
+
+    return BusinessProduct.fromJson(data);
+  }
+
+  Future<void> deleteProduct(String businessId, String productId) =>
+      _client.delete<dynamic>('/api/businesses/me/$businessId/products/$productId');
+
   // -------------------------------------------------------------- stream ---
 
   /// The merged stream: neighbours' posts and artisans' work together.

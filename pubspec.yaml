@@ -42,7 +42,10 @@ dependencies:
   connectivity_plus: ^7.3.1
   image_picker: ^1.2.1
   google_fonts: ^6.3.2
-  intl: 0.19.0
+  # Tracks flutter_localizations, which requires ^0.20.3 as of Flutter 3.29.
+  # Pinned exactly at 0.19.0 when the app was first built; the SDK moved and the
+  # exact pin became unresolvable.
+  intl: ^0.20.3
   shared_preferences: ^2.5.3
   freezed_annotation: ^3.1.0
   json_annotation: ^4.9.0
