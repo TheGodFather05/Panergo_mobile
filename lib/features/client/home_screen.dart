@@ -8,6 +8,7 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../business/directory_screen.dart';
 import '../assistant/assistant_screen.dart';
 import 'categories_screen.dart';
 import 'new_request_screen.dart';
@@ -62,6 +63,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _CategoryStrip(onSelected: _openRequestFor, onSeeAll: _openCategories),
           const SizedBox(height: Space.s10),
           const _CoverageNote(),
+          const SizedBox(height: Space.s16),
+          // The directory sits after the trades rather than beside them: the
+          // two answer different questions, and a reader who has scrolled past
+          // "who comes to me" is the one asking "where do I go".
+          const _DirectoryEntry(),
         ],
       ),
     );
@@ -594,6 +600,63 @@ class _CoverageNote extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+
+/// The way into the directory.
+class _DirectoryEntry extends StatelessWidget {
+  const _DirectoryEntry();
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(builder: (_) => const DirectoryScreen()),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(Space.s14),
+        decoration: BoxDecoration(
+          color: PanergoColors.surface,
+          borderRadius: Radii.brCard,
+          border: Border.all(color: PanergoColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: PanergoColors.fill,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Center(
+                child: MaterialSymbol('storefront',
+                    size: 20, color: PanergoColors.body),
+              ),
+            ),
+            const SizedBox(width: Space.s12),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Annuaire des commerces',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: PanergoColors.ink)),
+                  Text('Où aller, pas qui appeler',
+                      style: TextStyle(
+                          fontSize: 12, color: PanergoColors.muted)),
+                ],
+              ),
+            ),
+            const MaterialSymbol('chevron_right',
+                size: 20, color: PanergoColors.subtle),
+          ],
+        ),
+      ),
     );
   }
 }

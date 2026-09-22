@@ -11,6 +11,7 @@ import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
 import '../client/requests_screen.dart';
+import '../business/my_businesses_screen.dart';
 import '../deals/deals_screen.dart';
 import '../onboarding/become_provider_screen.dart';
 import 'edit_profile_screen.dart';
@@ -170,6 +171,15 @@ class ProfileScreen extends ConsumerWidget {
             // act rather than a destination, so this is the way in again.
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const RequestsScreen()),
+            ),
+          ),
+          _MenuRow(
+            icon: 'storefront',
+            label: 'Mon commerce',
+            detail: 'Votre fiche dans l’annuaire',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const MyBusinessesScreen()),
             ),
           ),
           _MenuRow(

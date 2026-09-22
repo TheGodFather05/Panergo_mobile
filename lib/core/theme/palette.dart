@@ -65,23 +65,22 @@ class BrandPalette {
     link: Color(0xFF0060BF),
   );
 
-  /// A shopkeeper's screens, in green.
+  /// A shopkeeper's screens, in purple.
   ///
-  /// Three faces now need three hues, and green is what is left once the client
-  /// holds warm and the provider holds cool — a shopkeeper must not mistake
-  /// their catalogue for either.
+  /// Drawn, not guessed: I had put green here as a placeholder and the designer
+  /// chose purple instead, which is the better call — green was already doing
+  /// work as the « ouvert » tint, and a face that shares its hue with a status
+  /// makes both harder to read.
   ///
-  /// Derived rather than drawn: the designer has not given the business face an
-  /// identity yet, so these are chosen to satisfy the constraints the repaint
-  /// established — white on the fill, ink on the accent, and the link ink
-  /// against the page all clear 4.5:1, and the link stays darker than the fill.
-  /// Expect the designer to replace the exact values.
+  /// Measures well: white on the fill reaches 7.38:1 and the link ink 9.23:1 on
+  /// the page. The accent is the one value they did not draw, taken as the
+  /// lightest purple that still clears 4.5:1 under near-black.
   static const business = BrandPalette(
-    fill: Color(0xFF1F7A55),
-    dark: Color(0xFF18603F),
-    accent: Color(0xFF2FA873),
-    soft: Color(0xFFE6F1EA),
-    link: Color(0xFF14603F),
+    fill: Color(0xFF6B3FA0),
+    dark: Color(0xFF553080),
+    accent: Color(0xFF9B6FD0),
+    soft: Color(0xFFF1E9FB),
+    link: Color(0xFF553080),
   );
 
   static BrandPalette of(BrandDirection direction) => switch (direction) {

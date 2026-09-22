@@ -32,7 +32,7 @@ void main() {
       'local_pharmacy', 'medical_services', 'hardware', 'restaurant',
       'bakery_dining', 'car_repair', 'local_gas_station', 'smartphone',
       'menu_book', 'checkroom', 'local_laundry_service', 'store', 'content_cut',
-      'computer', 'local_shipping',
+      'computer', 'local_shipping', 'add_business', 'near_me', 'panorama',
     ];
 
     for (final name in names) {
