@@ -10,6 +10,9 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/material_symbol.dart';
 import '../business_providers.dart';
 import 'catalogue_screen.dart';
+import 'edit_info_screen.dart';
+import 'edit_media_screen.dart';
+import 'hours_screen.dart';
 
 /// Ma boutique — what an owner opens the app to check.
 ///
@@ -94,11 +97,44 @@ class _BusinessBlock extends StatelessWidget {
           const SizedBox(height: Space.s10),
           _ToolRow(
             icon: 'inventory_2',
-            label: 'Catalogue',
+            label: 'Mon catalogue',
             detail: 'Vos articles et leurs prix',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => CatalogueScreen(business: business),
+              ),
+            ),
+          ),
+          const SizedBox(height: Space.s8),
+          _ToolRow(
+            icon: 'schedule',
+            label: 'Mes horaires',
+            detail: '« Ouvert » se calcule à partir d’ici',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => BusinessHoursScreen(business: business),
+              ),
+            ),
+          ),
+          const SizedBox(height: Space.s8),
+          _ToolRow(
+            icon: 'edit',
+            label: 'Nom, adresse, liens',
+            detail: 'Ce qui identifie votre commerce',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => EditInfoScreen(business: business),
+              ),
+            ),
+          ),
+          const SizedBox(height: Space.s8),
+          _ToolRow(
+            icon: 'add_a_photo',
+            label: 'Photo et bannière',
+            detail: 'Facultatif · votre fiche vit sans',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => EditMediaScreen(business: business),
               ),
             ),
           ),

@@ -1501,6 +1501,44 @@ enum BusinessStatus implements WireEnum {
   final String label;
 }
 
+/// Where a business already lives online.
+///
+/// Facebook leads deliberately: in this market a great many shops keep an
+/// active page and no website at all, and for those the page is the shopfront.
+enum BusinessLinkKind implements WireEnum {
+  facebook('FACEBOOK', 'Facebook', 'public', 'facebook.com/votre-page'),
+  whatsapp('WHATSAPP', 'WhatsApp', 'forum', 'wa.me/237…'),
+  instagram('INSTAGRAM', 'Instagram', 'photo_camera', 'instagram.com/votre-compte'),
+  tiktok('TIKTOK', 'TikTok', 'play_circle', 'tiktok.com/@votre-compte'),
+  website('WEBSITE', 'Site web', 'language', 'votre-site.cm'),
+  autre('AUTRE', 'Autre', 'add_link', 'adresse de la page');
+
+  const BusinessLinkKind(this.wire, this.label, this.icon, this.placeholder);
+
+  @override
+  final String wire;
+
+  final String label;
+  final String icon;
+
+  /// What the field shows — never with a scheme, since the server adds one.
+  final String placeholder;
+}
+
+/// One link on a listing.
+class BusinessLink {
+  const BusinessLink({required this.kind, required this.url});
+
+  final BusinessLinkKind kind;
+  final String url;
+
+  factory BusinessLink.fromJson(Map<String, dynamic> json) => BusinessLink(
+        kind: Json.enumOf(json['kind'], BusinessLinkKind.values,
+            BusinessLinkKind.autre),
+        url: Json.str(json['url']),
+      );
+}
+
 /// One opening interval. [dayOfWeek] is ISO — 1 is Monday.
 class BusinessHours {
   const BusinessHours({
@@ -1612,12 +1650,14 @@ class BusinessDetail {
     required this.openNow,
     required this.canMessage,
     required this.services,
+    required this.links,
     required this.hours,
     this.description,
     this.addressLine,
     this.phoneNumber,
     this.whatsappNumber,
     this.photoUrl,
+    this.bannerUrl,
     this.rejectionReason,
   });
 
@@ -1632,6 +1672,11 @@ class BusinessDetail {
   final String? phoneNumber;
   final String? whatsappNumber;
   final String? photoUrl;
+
+  /// A wide photograph of the shopfront — a different crop from [photoUrl],
+  /// which is the identity shown small beside the name.
+  final String? bannerUrl;
+
   final BusinessStatus status;
   final String? rejectionReason;
   final bool openNow;
@@ -1641,6 +1686,7 @@ class BusinessDetail {
   final bool canMessage;
 
   final List<String> services;
+  final List<BusinessLink> links;
   final List<BusinessHours> hours;
 
   bool get isPublished => status == BusinessStatus.published;
@@ -1657,6 +1703,7 @@ class BusinessDetail {
         phoneNumber: Json.strOrNull(json['phone_number']),
         whatsappNumber: Json.strOrNull(json['whatsapp_number']),
         photoUrl: Json.strOrNull(json['photo_url']),
+        bannerUrl: Json.strOrNull(json['banner_url']),
         status: Json.enumOf(json['status'], BusinessStatus.values,
             BusinessStatus.pending),
         rejectionReason: Json.strOrNull(json['rejection_reason']),
@@ -1664,6 +1711,9 @@ class BusinessDetail {
         canMessage: Json.boolOf(json['can_message']),
         services: (json['services'] as List<dynamic>? ?? const [])
             .map((e) => e.toString())
+            .toList(),
+        links: (json['links'] as List<dynamic>? ?? const [])
+            .map((e) => BusinessLink.fromJson(e as Map<String, dynamic>))
             .toList(),
         hours: (json['hours'] as List<dynamic>? ?? const [])
             .map((e) => BusinessHours.fromJson(e as Map<String, dynamic>))

@@ -160,6 +160,11 @@ class MaterialSymbol extends StatelessWidget {
     // The directory and a shopkeeper's workspace.
     'storefront': Icons.storefront_outlined,
     'add_business': Icons.add_business_outlined,
+    'date_range': Icons.date_range_outlined,
+    'add_link': Icons.add_link,
+    'language': Icons.language_outlined,
+    'play_circle': Icons.play_circle_outline,
+    'remove_shopping_cart': Icons.remove_shopping_cart_outlined,
     'near_me': Icons.near_me_outlined,
     'panorama': Icons.panorama_outlined,
     'inventory_2': Icons.inventory_2_outlined,

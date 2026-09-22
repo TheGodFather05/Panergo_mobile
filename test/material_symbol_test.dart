@@ -33,6 +33,8 @@ void main() {
       'bakery_dining', 'car_repair', 'local_gas_station', 'smartphone',
       'menu_book', 'checkroom', 'local_laundry_service', 'store', 'content_cut',
       'computer', 'local_shipping', 'add_business', 'near_me', 'panorama',
+      'date_range', 'add_link', 'language', 'play_circle',
+      'remove_shopping_cart',
     ];
 
     for (final name in names) {

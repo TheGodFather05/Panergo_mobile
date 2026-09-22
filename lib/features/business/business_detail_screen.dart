@@ -11,6 +11,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import 'business_providers.dart';
 import 'contact_actions.dart';
+import 'product_detail_screen.dart';
 
 /// One business, in the order somebody actually reads it.
 ///
@@ -225,20 +226,31 @@ class _Catalogue extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const _SectionLabel('Au rayon'),
-        for (final product in products) _ProductRow(product: product),
+        for (final product in products)
+          _ProductRow(product: product, businessId: businessId),
       ],
     );
   }
 }
 
-class _ProductRow extends StatelessWidget {
-  const _ProductRow({required this.product});
+class _ProductRow extends ConsumerWidget {
+  const _ProductRow({required this.product, required this.businessId});
 
   final BusinessProduct product;
+  final String businessId;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
+  Widget build(BuildContext context, WidgetRef ref) {
+    return GestureDetector(
+      onTap: () {
+        final business = ref.read(businessProvider(businessId)).value;
+        if (business == null) return;
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) =>
+              ProductDetailScreen(product: product, business: business),
+        ));
+      },
+      child: Container(
       margin: const EdgeInsets.only(bottom: Space.s8),
       padding: const EdgeInsets.all(Space.s10),
       decoration: BoxDecoration(
@@ -295,6 +307,7 @@ class _ProductRow extends StatelessWidget {
                     : PanergoColors.ink),
           ),
         ],
+      ),
       ),
     );
   }

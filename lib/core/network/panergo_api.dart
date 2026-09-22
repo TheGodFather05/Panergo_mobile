@@ -464,7 +464,9 @@ class PanergoApi {
     String? phoneNumber,
     String? whatsappNumber,
     String? photoUrl,
+    String? bannerUrl,
     List<String> services = const [],
+    List<BusinessLink> links = const [],
   }) async {
     final data = await _client.put<Map<String, dynamic>>(
       '/api/businesses/me/$id',
@@ -475,7 +477,11 @@ class PanergoApi {
         if (phoneNumber != null) 'phone_number': phoneNumber,
         if (whatsappNumber != null) 'whatsapp_number': whatsappNumber,
         if (photoUrl != null) 'photo_url': photoUrl,
+        if (bannerUrl != null) 'banner_url': bannerUrl,
         'services': services,
+        'links': [
+          for (final link in links) {'kind': link.kind.wire, 'url': link.url}
+        ],
       },
     );
     return BusinessDetail.fromJson(data);
