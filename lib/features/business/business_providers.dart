@@ -46,3 +46,14 @@ final myProductsProvider = FutureProvider.autoDispose
     .family<List<BusinessProduct>, String>((ref, businessId) async {
   return ref.read(apiProvider).myProducts(businessId);
 });
+
+
+/// The review queue, for the few accounts that may see it.
+final moderationQueueProvider =
+    FutureProvider.autoDispose<List<BusinessDetail>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  // Asked rather than assumed: the flag can be withdrawn between refreshes, and
+  // a queue that kept loading afterwards would only produce 403s.
+  if (user?.isAdmin != true) return const [];
+  return ref.read(apiProvider).moderationQueue();
+});

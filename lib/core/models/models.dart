@@ -9,6 +9,7 @@ class AppUser {
     required this.phoneNumber,
     required this.neighborhood,
     required this.isProvider,
+    this.isAdmin = false,
     this.countryCode,
     this.city,
     this.photoUrl,
@@ -29,6 +30,13 @@ class AppUser {
   /// someone and an artisan when it works. Read from the server, which checks
   /// the database — the token stopped claiming to know.
   final bool isProvider;
+
+  /// May review business listings.
+  ///
+  /// Read from the server on every profile load rather than remembered, so
+  /// withdrawing it takes effect on the next refresh rather than the next
+  /// sign-in.
+  final bool isAdmin;
 
   /// The server's answer to whether they have introduced themselves. Null only
   /// for a session stored before the server could say.
@@ -67,6 +75,7 @@ class AppUser {
         city: Json.strOrNull(json['city']),
         photoUrl: Json.strOrNull(json['photo_url']),
         isProvider: Json.boolOf(json['is_provider']),
+        isAdmin: Json.boolOf(json['is_admin']),
         profileComplete: json['profile_complete'] == null
             ? null
             : Json.boolOf(json['profile_complete']),

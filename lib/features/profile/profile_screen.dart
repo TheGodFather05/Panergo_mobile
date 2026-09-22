@@ -11,6 +11,7 @@ import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
 import '../client/requests_screen.dart';
+import '../business/moderation_screen.dart';
 import '../business/my_businesses_screen.dart';
 import '../deals/deals_screen.dart';
 import '../onboarding/become_provider_screen.dart';
@@ -173,6 +174,19 @@ class ProfileScreen extends ConsumerWidget {
               MaterialPageRoute<void>(builder: (_) => const RequestsScreen()),
             ),
           ),
+          // Only for the handful of accounts that may review. Hidden rather
+          // than disabled: a row that exists and refuses is an invitation to
+          // wonder what is behind it.
+          if (user?.isAdmin == true)
+            _MenuRow(
+              icon: 'task_alt',
+              label: 'Modération',
+              detail: 'Fiches en attente de publication',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                    builder: (_) => const ModerationScreen()),
+              ),
+            ),
           _MenuRow(
             icon: 'storefront',
             label: 'Mon commerce',

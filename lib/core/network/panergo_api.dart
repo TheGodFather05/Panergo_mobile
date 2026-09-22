@@ -553,6 +553,35 @@ class PanergoApi {
   Future<void> deleteProduct(String businessId, String productId) =>
       _client.delete<dynamic>('/api/businesses/me/$businessId/products/$productId');
 
+  // ------------------------------------------------------- moderation ---
+
+  /// Listings waiting to be reviewed, oldest first.
+  Future<List<BusinessDetail>> moderationQueue({BusinessStatus? status}) async {
+    final data = await _client.get<List<dynamic>>(
+      '/api/admin/businesses',
+      query: {if (status != null) 'status': status.wire},
+    );
+    return data
+        .map((e) => BusinessDetail.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<BusinessDetail> publishBusiness(String id) async {
+    final data = await _client
+        .post<Map<String, dynamic>>('/api/admin/businesses/$id/publish');
+    return BusinessDetail.fromJson(data);
+  }
+
+  /// @param reason required — a refusal the owner cannot read leaves them with
+  /// nothing to correct.
+  Future<BusinessDetail> rejectBusiness(String id, String reason) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/api/admin/businesses/$id/reject',
+      body: {'reason': reason},
+    );
+    return BusinessDetail.fromJson(data);
+  }
+
   // -------------------------------------------------------------- stream ---
 
   /// The merged stream: neighbours' posts and artisans' work together.
