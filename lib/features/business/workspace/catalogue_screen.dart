@@ -19,24 +19,29 @@ import 'edit_product_screen.dart';
 /// hides those, and an owner who could not see a hidden line would have no way
 /// to bring it back.
 class CatalogueScreen extends ConsumerWidget {
-  const CatalogueScreen({super.key, required this.business});
+  const CatalogueScreen({
+    super.key,
+    required this.business,
+    this.embedded = false,
+  });
 
   final BusinessDetail business;
+
+  /// True when it is a tab: the shell owns the Scaffold, and there is nowhere
+  /// to go back to.
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myProductsProvider(business.id));
     final products = async.value ?? const <BusinessProduct>[];
 
-    return Scaffold(
-      backgroundColor: PanergoColors.page,
-      body: SafeArea(
-        child: Column(
+    final body = Column(
           children: [
             ScreenHeader(
               title: 'Catalogue',
               subtitle: business.name,
-              onBack: () => Navigator.of(context).pop(),
+              onBack: embedded ? null : () => Navigator.of(context).pop(),
               trailing: _AddButton(
                 onTap: () => _edit(context, ref, null),
               ),
@@ -75,9 +80,14 @@ class CatalogueScreen extends ConsumerWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
+        );
+
+    return embedded
+        ? FadeUp(child: body)
+        : Scaffold(
+            backgroundColor: PanergoColors.page,
+            body: SafeArea(child: body),
+          );
   }
 
   /// Grouped by rayon, ungrouped last — the same order the server sends, kept

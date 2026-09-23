@@ -47,16 +47,6 @@ class ActiveModeNotifier extends Notifier<AppMode> {
     await prefs.setString(_key, mode.name);
   }
 
-  /// Moves to the next mode the account can actually wear.
-  ///
-  /// Not a toggle any more: with three faces there is no "the other one", and a
-  /// switch that cycled through a mode whose every endpoint refuses you would
-  /// be a door onto a wall.
-  void cycle(List<AppMode> available) {
-    if (available.length < 2) return;
-    final here = available.indexOf(state);
-    set(available[(here + 1) % available.length]);
-  }
 }
 
 /// What the app is actually wearing.

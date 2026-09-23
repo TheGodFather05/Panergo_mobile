@@ -19,21 +19,24 @@ import 'register_business_screen.dart';
 /// pharmacy expecting a quote, and one sentence at the top is cheaper than
 /// discovering it halfway through a request.
 class DirectoryScreen extends ConsumerWidget {
-  const DirectoryScreen({super.key});
+  const DirectoryScreen({super.key, this.embedded = false});
+
+  /// True when it is a tab rather than a pushed route.
+  ///
+  /// A tab has nowhere to go back to, so it carries no back arrow and no
+  /// Scaffold — the shell owns both.
+  final bool embedded;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(businessCategoriesProvider);
     final categories = async.value ?? const <BusinessCategory>[];
 
-    return Scaffold(
-      backgroundColor: PanergoColors.page,
-      body: SafeArea(
-        child: Column(
+    final body = Column(
           children: [
             ScreenHeader(
               title: 'Annuaire',
-              onBack: () => Navigator.of(context).pop(),
+              onBack: embedded ? null : () => Navigator.of(context).pop(),
             ),
             Expanded(
               child: AsyncView<List<BusinessCategory>>(
@@ -74,9 +77,14 @@ class DirectoryScreen extends ConsumerWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
+        );
+
+    return embedded
+        ? FadeUp(child: body)
+        : Scaffold(
+            backgroundColor: PanergoColors.page,
+            body: SafeArea(child: body),
+          );
   }
 }
 

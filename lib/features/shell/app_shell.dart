@@ -10,10 +10,13 @@ import '../client/home_screen.dart';
 import '../client/new_request_screen.dart';
 import '../deals/deals_screen.dart';
 import '../messages/messages_screen.dart';
+import '../profile/mode_screen.dart';
 import '../profile/profile_screen.dart';
 import '../provider/agenda_screen.dart';
 import '../provider/provider_inbox_screen.dart';
+import '../business/directory_screen.dart';
 import '../business/workspace/business_workspace_screen.dart';
+import '../business/workspace/my_catalogue_tab.dart';
 import '../stream/stream_screen.dart';
 
 /// A bottom-tab destination.
@@ -76,6 +79,15 @@ class _AppShellState extends ConsumerState<AppShell> {
       activeIcon: 'dynamic_feed',
       builder: (_) => const StreamScreen(),
     ),
+    // The directory is a destination, not a card on Accueil. It answers a whole
+    // question of its own — where do I go — and burying it under the trades
+    // made it the one thing you had to already know about to find.
+    AppTab(
+      label: 'Annuaire',
+      icon: 'storefront',
+      activeIcon: 'storefront',
+      builder: (_) => const DirectoryScreen(embedded: true),
+    ),
     AppTab(
       label: 'Messages',
       icon: 'chat_bubble',
@@ -123,6 +135,15 @@ class _AppShellState extends ConsumerState<AppShell> {
     ),
   ];
 
+  /// A shopkeeper's four.
+  ///
+  /// Catalogue earns a seat because it is the thing a shopkeeper actually
+  /// maintains — prices change weekly and a tool you open that often should not
+  /// be two taps inside a workspace.
+  ///
+  /// The fourth is the mode switch rather than Profil. A merchant reaching for
+  /// « Profil » wants their shop, which is already the first tab; what they
+  /// genuinely need from here is the way back to being a client.
   static final _businessTabs = <AppTab>[
     AppTab(
       label: 'Ma boutique',
@@ -131,10 +152,10 @@ class _AppShellState extends ConsumerState<AppShell> {
       builder: (_) => const BusinessWorkspaceScreen(),
     ),
     AppTab(
-      label: 'Le fil',
-      icon: 'dynamic_feed',
-      activeIcon: 'dynamic_feed',
-      builder: (_) => const StreamScreen(),
+      label: 'Catalogue',
+      icon: 'inventory_2',
+      activeIcon: 'inventory_2',
+      builder: (_) => const MyCatalogueTab(),
     ),
     AppTab(
       label: 'Messages',
@@ -143,10 +164,10 @@ class _AppShellState extends ConsumerState<AppShell> {
       builder: (_) => const MessagesScreen(),
     ),
     AppTab(
-      label: 'Profil',
-      icon: 'person',
-      activeIcon: 'person',
-      builder: (_) => const ProfileScreen(),
+      label: 'Mode',
+      icon: 'swap_horiz',
+      activeIcon: 'swap_horiz',
+      builder: (_) => const ModeScreen(embedded: true),
     ),
   ];
 
