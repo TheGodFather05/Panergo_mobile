@@ -10,6 +10,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import 'contact_actions.dart';
+import 'opening_pill.dart';
 
 /// One article, opened from a shop's « Au rayon ».
 ///
@@ -265,7 +266,7 @@ class _BackToShop extends StatelessWidget {
                   const SizedBox(height: 2),
                   Row(
                     children: [
-                      OpenStatePill(open: business.openNow),
+                      OpeningPill(label: business.statusLabel, open: business.openNow),
                       const SizedBox(width: Space.s6),
                       Flexible(
                         child: Text(business.neighborhood,

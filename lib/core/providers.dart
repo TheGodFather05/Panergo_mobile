@@ -208,3 +208,30 @@ final brandDirectionProvider = Provider<BrandDirection>((ref) {
     AppMode.client => BrandDirection.braise,
   };
 });
+
+/// The signed-in artisan's own posts — « Mes publications » on their profile.
+final myPostsProvider = FutureProvider.autoDispose<List<FeedPost>>(
+  (ref) => ref.read(apiProvider).myFeedPosts(),
+);
+
+/// The signed-in artisan's own provider record, for the trade in their header.
+final myProviderProfileProvider = FutureProvider.autoDispose<ProviderProfile>(
+  (ref) => ref.read(apiProvider).myProviderProfile(),
+);
+
+/// Public groups, the caller's own quartier first.
+final groupsProvider =
+    FutureProvider.autoDispose.family<List<GroupSummary>, String>(
+  (ref, query) => ref.read(apiProvider).groups(query: query),
+);
+
+/// The owner's queue for one group.
+final groupJoinRequestsProvider =
+    FutureProvider.autoDispose.family<List<GroupPerson>, String>(
+  (ref, groupId) => ref.read(apiProvider).groupJoinRequests(groupId),
+);
+
+final groupMembersProvider =
+    FutureProvider.autoDispose.family<List<GroupPerson>, String>(
+  (ref, groupId) => ref.read(apiProvider).groupMembers(groupId),
+);

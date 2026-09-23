@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/models/models.dart';
+import '../../../core/providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/palette.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/async_view.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/material_symbol.dart';
+import '../business_detail_screen.dart';
 import '../business_providers.dart';
 import '../../profile/settings_screen.dart';
 import '../../profile/support_screen.dart';
@@ -33,24 +35,9 @@ class BusinessWorkspaceScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                Space.gutter, Space.s12, Space.gutter, Space.s12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Ma boutique', style: context.type.h1),
-                const SizedBox(height: Space.xs),
-                Text(
-                  businesses.length > 1
-                      ? '${businesses.length} commerces'
-                      : businesses.isEmpty
-                          ? ''
-                          : businesses.first.categoryLabel,
-                  style: context.type.meta,
-                ),
-              ],
-            ),
+          _ShopHeader(
+            businesses: businesses,
+            name: ref.watch(currentUserProvider)?.name ?? '',
           ),
           Expanded(
             child: AsyncView<List<BusinessDetail>>(
@@ -83,13 +70,13 @@ class BusinessWorkspaceScreen extends ConsumerWidget {
   }
 }
 
-class _BusinessBlock extends StatelessWidget {
+class _BusinessBlock extends ConsumerWidget {
   const _BusinessBlock({required this.business});
 
   final BusinessDetail business;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.only(bottom: Space.s18),
       child: Column(
@@ -100,7 +87,7 @@ class _BusinessBlock extends StatelessWidget {
           _ToolRow(
             icon: 'inventory_2',
             label: 'Mon catalogue',
-            detail: 'Vos articles et leurs prix',
+            detail: _itemsSummary(ref, business),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => CatalogueScreen(business: business),
@@ -111,7 +98,7 @@ class _BusinessBlock extends StatelessWidget {
           _ToolRow(
             icon: 'schedule',
             label: 'Mes horaires',
-            detail: '« Ouvert » se calcule à partir d’ici',
+            detail: _hoursSummary(business),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => BusinessHoursScreen(business: business),
@@ -122,7 +109,7 @@ class _BusinessBlock extends StatelessWidget {
           _ToolRow(
             icon: 'edit',
             label: 'Nom, adresse, liens',
-            detail: 'Ce qui identifie votre commerce',
+            detail: _infoSummary(business),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => EditInfoScreen(business: business),
@@ -133,7 +120,7 @@ class _BusinessBlock extends StatelessWidget {
           _ToolRow(
             icon: 'add_a_photo',
             label: 'Photo et bannière',
-            detail: 'Facultatif · votre fiche vit sans',
+            detail: _mediaSummary(business),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => EditMediaScreen(business: business),
@@ -160,6 +147,148 @@ class _BusinessBlock extends StatelessWidget {
             detail: 'Notifications, langue, compte',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// « 12 articles » — counted from the catalogue itself, never a stored figure,
+/// so the row and the screen it opens cannot disagree.
+String _itemsSummary(WidgetRef ref, BusinessDetail business) {
+  final products = ref.watch(myProductsProvider(business.id)).value;
+  if (products == null) return 'Vos articles et leurs prix';
+  if (products.isEmpty) return 'Aucun article pour l’instant';
+  return products.length == 1 ? '1 article' : '${products.length} articles';
+}
+
+/// « 6 jours déclarés » — or the plain truth that none are.
+String _hoursSummary(BusinessDetail business) {
+  final days = business.hours.map((h) => h.dayOfWeek).toSet().length;
+  if (days == 0) return 'Aucun horaire — « ouvert » ne peut pas s’afficher';
+  return days == 1 ? '1 jour déclaré' : '$days jours déclarés';
+}
+
+String _infoSummary(BusinessDetail business) {
+  final services = business.services.length;
+  final links = business.links.length;
+  final a = services == 0
+      ? 'aucun service'
+      : services == 1
+          ? '1 service'
+          : '$services services';
+  final b = links == 0
+      ? 'aucun lien'
+      : links == 1
+          ? '1 lien'
+          : '$links liens';
+  return '$a · $b';
+}
+
+/// Says which of the two images are missing, because a shopkeeper cannot tell
+/// from the row otherwise.
+String _mediaSummary(BusinessDetail business) {
+  final photo = business.photoUrl != null && business.photoUrl!.isNotEmpty;
+  final banner = business.bannerUrl != null && business.bannerUrl!.isNotEmpty;
+  if (photo && banner) return 'Photo et bannière ajoutées';
+  if (photo) return 'Bannière manquante';
+  if (banner) return 'Photo manquante';
+  return 'Facultatif · votre fiche vit sans';
+}
+
+/// The purple block at the top of the shopkeeper's own space.
+///
+/// Painted in the merchant brand for the same reason the client and artisan
+/// profiles are painted in theirs: the whole top of the screen changes colour
+/// with the mode, so you can see which half of the app you are in before
+/// reading a word.
+class _ShopHeader extends StatelessWidget {
+  const _ShopHeader({required this.businesses, required this.name});
+
+  final List<BusinessDetail> businesses;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = (businesses.isNotEmpty ? businesses.first.name : name)
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((p) => p.isNotEmpty)
+        .take(2)
+        .map((p) => p[0].toUpperCase())
+        .join();
+
+    final subtitle = businesses.isEmpty
+        ? 'Aucun commerce inscrit'
+        : businesses.length == 1
+            ? businesses.first.name
+            : '${businesses.length} commerces';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 22),
+      decoration: BoxDecoration(
+        color: context.brand.fill,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Center(
+              child: Text(initials.isEmpty ? '?' : initials,
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white)),
+            ),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: Space.s8,
+                  runSpacing: 5,
+                  children: [
+                    const Text('Ma boutique',
+                        style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            color: Colors.white)),
+                    Container(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.22),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: const Text('Commerçant',
+                          style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.3,
+                              color: Colors.white)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(subtitle,
+                    style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.85))),
+              ],
             ),
           ),
         ],
@@ -240,6 +369,34 @@ class _StatusCard extends StatelessWidget {
           Text(body,
               style: const TextStyle(
                   fontSize: 12.5, height: 1.45, color: PanergoColors.body)),
+
+          // Once published, the thing an owner most wants is to see what a
+          // client sees — the same page, from the outside.
+          if (business.status == BusinessStatus.published) ...[
+            const SizedBox(height: Space.s12),
+            GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => BusinessDetailScreen(businessId: business.id),
+                ),
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: PanergoColors.surface,
+                  borderRadius: BorderRadius.circular(13),
+                  border: Border.all(color: ink.withValues(alpha: 0.25)),
+                ),
+                child: Text('Voir ma fiche comme un client',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: ink)),
+              ),
+            ),
+          ],
         ],
       ),
     );

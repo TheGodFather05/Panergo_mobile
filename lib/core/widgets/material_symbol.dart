@@ -72,6 +72,10 @@ class MaterialSymbol extends StatelessWidget {
     'notifications_active': Icons.notifications_active_outlined,
     'campaign': Icons.campaign_outlined,
     'groups': Icons.groups_outlined,
+    'group_add': Icons.group_add_outlined,
+    'delete': Icons.delete_outline,
+    'how_to_reg': Icons.how_to_reg_outlined,
+    'home_work': Icons.home_work_outlined,
     'person': Icons.person_outline,
     'logout': Icons.logout,
     'star': Icons.star_border,
@@ -195,6 +199,10 @@ class MaterialSymbol extends StatelessWidget {
     'favorite': Icons.favorite,
     'campaign': Icons.campaign,
     'groups': Icons.groups,
+    'group_add': Icons.group_add,
+    'delete': Icons.delete,
+    'how_to_reg': Icons.how_to_reg,
+    'home_work': Icons.home_work,
     'person': Icons.person,
 
     // « Utile » uses the filled thumb to carry the marked state alongside the

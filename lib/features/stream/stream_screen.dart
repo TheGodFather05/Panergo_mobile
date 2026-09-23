@@ -309,6 +309,10 @@ class _StreamCardState extends State<_StreamCard> {
             caption: post.body,
             postType: PostType.realisation,
             createdAt: post.createdAt,
+            // The stream already knows both; passing zeros would make the
+            // thread screen disagree with the card it was opened from.
+            likesCount: post.markCount,
+            commentsCount: post.replyCount,
           ),
         ),
       ));

@@ -658,6 +658,8 @@ class FeedPost {
     required this.caption,
     required this.postType,
     required this.createdAt,
+    required this.likesCount,
+    required this.commentsCount,
   });
 
   final String id;
@@ -670,6 +672,12 @@ class FeedPost {
   final String? caption;
   final PostType postType;
   final DateTime createdAt;
+
+  /// « Utile » marks and replies. Both were hardcoded to zero on the server
+  /// until the profile needed them, so a card showing a figure here is now
+  /// showing a real one.
+  final int likesCount;
+  final int commentsCount;
 
   factory FeedPost.fromJson(Map<String, dynamic> json) {
     final provider = Json.obj(json['provider']);
@@ -685,6 +693,8 @@ class FeedPost {
       caption: Json.strOrNull(json['caption']),
       postType: Json.enumOf(json['post_type'], PostType.values, PostType.realisation),
       createdAt: Json.dateTime(json['created_at']),
+      likesCount: Json.intOf(json['likes_count']),
+      commentsCount: Json.intOf(json['comments_count']),
     );
   }
 }
@@ -1017,6 +1027,34 @@ class Availability {
   final bool declared;
 
   final List<TimeOff> timeOff;
+
+  /// Today's hours, or null when the artisan is not working today.
+  ///
+  /// Three cases, and the order matters. Declaring nothing is not declaring
+  /// unavailable — an artisan who has never opened the availability screen
+  /// still receives requests at any hour, so [declared] false answers null and
+  /// the caller says nothing rather than saying "fermé". A recorded absence
+  /// beats the weekly pattern: someone away this week still has Tuesday in
+  /// their week, and it would be a lie to show it.
+  WorkingDay? today([DateTime? now]) {
+    if (!declared) return null;
+
+    final date = now ?? DateTime.now();
+    final day = DateTime(date.year, date.month, date.day);
+
+    for (final off in timeOff) {
+      final from = DateTime(
+          off.startDate.year, off.startDate.month, off.startDate.day);
+      // Both ends inclusive, per TimeOff.
+      final to = DateTime(off.endDate.year, off.endDate.month, off.endDate.day);
+      if (!day.isBefore(from) && !day.isAfter(to)) return null;
+    }
+
+    for (final d in days) {
+      if (d.dayOfWeek == date.weekday) return d;
+    }
+    return null;
+  }
 
   factory Availability.fromJson(Map<String, dynamic> json) => Availability(
         days: Json.list(json['days']).map(WorkingDay.fromJson).toList(),
@@ -1479,10 +1517,18 @@ class BusinessCategory {
     required this.code,
     required this.label,
     required this.iconName,
+    required this.totalCount,
+    required this.nearCount,
   });
 
   final String code;
   final String label;
+
+  /// How many published businesses sit behind this category, and how many of
+  /// those are in the reader's own quartier. Most categories are empty for
+  /// now, and saying so is what stops somebody tapping into a blank list.
+  final int totalCount;
+  final int nearCount;
 
   /// A Material Symbols name chosen server-side, so it may be one this build
   /// has never heard of. [MaterialSymbol] falls back rather than failing.
@@ -1492,6 +1538,8 @@ class BusinessCategory {
         code: Json.str(json['code']),
         label: Json.str(json['label']),
         iconName: Json.str(json['icon_name']),
+        totalCount: Json.intOf(json['total_count']),
+        nearCount: Json.intOf(json['near_count']),
       );
 }
 
@@ -1577,6 +1625,9 @@ class BusinessSummary {
     required this.categoryIconName,
     required this.neighborhood,
     required this.openNow,
+    required this.statusLabel,
+    required this.statusMeta,
+    this.addressLine,
     this.photoUrl,
   });
 
@@ -1591,6 +1642,13 @@ class BusinessSummary {
   /// provider card.
   final bool openNow;
 
+  /// « Ouvert » / « Fermé » / « Horaires non précisés », and the line that says
+  /// what happens next. Both come from the server so two screens can never
+  /// compute a different answer from the same week.
+  final String statusLabel;
+  final String statusMeta;
+  final String? addressLine;
+
   final String? photoUrl;
 
   factory BusinessSummary.fromJson(Map<String, dynamic> json) => BusinessSummary(
@@ -1601,6 +1659,9 @@ class BusinessSummary {
         categoryIconName: Json.str(json['category_icon_name']),
         neighborhood: Json.str(json['neighborhood']),
         openNow: Json.boolOf(json['open_now']),
+      statusLabel: Json.str(json['status_label']),
+      statusMeta: Json.str(json['status_meta']),
+      addressLine: Json.strOrNull(json['address_line']),
         photoUrl: Json.strOrNull(json['photo_url']),
       );
 }
@@ -1657,6 +1718,8 @@ class BusinessDetail {
     required this.neighborhood,
     required this.status,
     required this.openNow,
+    required this.statusLabel,
+    required this.statusMeta,
     required this.canMessage,
     required this.services,
     required this.links,
@@ -1689,6 +1752,8 @@ class BusinessDetail {
   final BusinessStatus status;
   final String? rejectionReason;
   final bool openNow;
+  final String statusLabel;
+  final String statusMeta;
 
   /// Whether anyone is there to answer. A listing nobody has claimed has no
   /// owner, and offering to message it would reach nobody.
@@ -1717,6 +1782,8 @@ class BusinessDetail {
             BusinessStatus.pending),
         rejectionReason: Json.strOrNull(json['rejection_reason']),
         openNow: Json.boolOf(json['open_now']),
+      statusLabel: Json.str(json['status_label']),
+      statusMeta: Json.str(json['status_meta']),
         canMessage: Json.boolOf(json['can_message']),
         services: (json['services'] as List<dynamic>? ?? const [])
             .map((e) => e.toString())
@@ -1760,7 +1827,8 @@ class BusinessPage {
 /// What a thread is about.
 enum ConversationKind implements WireEnum {
   booking('BOOKING', 'Mission'),
-  business('BUSINESS', 'Commerce');
+  business('BUSINESS', 'Commerce'),
+  group('GROUP', 'Groupe');
 
   const ConversationKind(this.wire, this.label);
 
@@ -1784,6 +1852,8 @@ class Conversation {
     this.subtitle,
     this.bookingId,
     this.businessId,
+    this.groupId,
+    this.iconName,
     this.lastMessageAt,
   });
 
@@ -1797,6 +1867,11 @@ class Conversation {
 
   final String? bookingId;
   final String? businessId;
+  final String? groupId;
+
+  /// A Material Symbols name for a group, which has no photograph to show.
+  final String? iconName;
+
   final DateTime? lastMessageAt;
 
   factory Conversation.fromJson(Map<String, dynamic> json) => Conversation(
@@ -1808,8 +1883,98 @@ class Conversation {
         subtitle: Json.strOrNull(json['subtitle']),
         bookingId: Json.strOrNull(json['booking_id']),
         businessId: Json.strOrNull(json['business_id']),
+        groupId: Json.strOrNull(json['group_id']),
+        iconName: Json.strOrNull(json['icon_name']),
         lastMessageAt: json['last_message_at'] == null
             ? null
             : Json.dateTime(json['last_message_at']),
+      );
+}
+
+// ----------------------------------------------------------------- groups ---
+
+/// A group, and the caller's own standing in it.
+///
+/// [joined], [requested] and [owner] come from the server rather than being
+/// worked out here: the button is the whole point of the row, and deriving it
+/// client-side would mean a query per row to answer.
+class GroupSummary {
+  const GroupSummary({
+    required this.id,
+    required this.name,
+    required this.iconName,
+    required this.memberCount,
+    required this.joined,
+    required this.requested,
+    required this.owner,
+    required this.pendingCount,
+    this.description,
+    this.neighborhood,
+    this.conversationId,
+  });
+
+  final String id;
+  final String name;
+  final String? description;
+  final String? neighborhood;
+  final String iconName;
+  final int memberCount;
+
+  final bool joined;
+  final bool requested;
+  final bool owner;
+
+  /// Requests waiting on you, when you own it.
+  final int pendingCount;
+
+  /// Only a member gets one — there is nothing to open otherwise.
+  final String? conversationId;
+
+  factory GroupSummary.fromJson(Map<String, dynamic> json) => GroupSummary(
+        id: Json.str(json['id']),
+        name: Json.str(json['name']),
+        description: Json.strOrNull(json['description']),
+        neighborhood: Json.strOrNull(json['neighborhood']),
+        iconName: Json.str(json['icon_name']),
+        memberCount: Json.intOf(json['member_count']),
+        joined: Json.boolOf(json['joined']),
+        requested: Json.boolOf(json['requested']),
+        owner: Json.boolOf(json['owner']),
+        pendingCount: Json.intOf(json['pending_count']),
+        conversationId: Json.strOrNull(json['conversation_id']),
+      );
+}
+
+/// Somebody waiting in an owner's queue, or already seated.
+class GroupPerson {
+  const GroupPerson({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.createdAt,
+    this.userPhotoUrl,
+    this.userNeighborhood,
+    this.message,
+  });
+
+  final String id;
+  final String userId;
+  final String userName;
+  final String? userPhotoUrl;
+  final String? userNeighborhood;
+
+  /// Their note when asking; « Créateur » on a roster row.
+  final String? message;
+
+  final DateTime createdAt;
+
+  factory GroupPerson.fromJson(Map<String, dynamic> json) => GroupPerson(
+        id: Json.str(json['id']),
+        userId: Json.str(json['user_id']),
+        userName: Json.str(json['user_name']),
+        userPhotoUrl: Json.strOrNull(json['user_photo_url']),
+        userNeighborhood: Json.strOrNull(json['user_neighborhood']),
+        message: Json.strOrNull(json['message']),
+        createdAt: Json.dateTime(json['created_at']),
       );
 }

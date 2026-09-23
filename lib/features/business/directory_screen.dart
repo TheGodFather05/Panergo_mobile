@@ -7,6 +7,7 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/dashed_border.dart';
 import '../../core/widgets/material_symbol.dart';
 import 'business_providers.dart';
 import 'category_screen.dart';
@@ -33,9 +34,10 @@ class DirectoryScreen extends ConsumerWidget {
     final categories = async.value ?? const <BusinessCategory>[];
 
     final body = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            ScreenHeader(
-              title: 'Annuaire',
+            _Title(
+              categories: categories,
               onBack: embedded ? null : () => Navigator.of(context).pop(),
             ),
             Expanded(
@@ -88,49 +90,128 @@ class DirectoryScreen extends ConsumerWidget {
   }
 }
 
+/// « Annuaire », and how much is actually in it.
+///
+/// A back arrow only when there is somewhere to go back to — as a tab it is the
+/// root of its own stack.
+class _Title extends StatelessWidget {
+  const _Title({required this.categories, required this.onBack});
+
+  final List<BusinessCategory> categories;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    // Counted from the categories themselves, so the line can never claim more
+    // than the list below it holds.
+    final total = categories.fold<int>(0, (sum, c) => sum + c.totalCount);
+    final live = categories.where((c) => c.totalCount > 0).length;
+
+    final subtitle = categories.isEmpty
+        ? ''
+        : total == 0
+            ? 'Aucun commerce vérifié pour l’instant'
+            : '$total commerce${total > 1 ? 's' : ''} '
+                'dans $live catégorie${live > 1 ? 's' : ''}';
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          Space.gutter, onBack == null ? Space.s10 : Space.s6, Space.gutter, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (onBack != null) ...[
+            GestureDetector(
+              onTap: onBack,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: PanergoColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: PanergoColors.border),
+                ),
+                child: const Center(
+                  child: MaterialSymbol('arrow_back',
+                      size: 22, color: PanergoColors.ink),
+                ),
+              ),
+            ),
+            const SizedBox(width: Space.s12),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Annuaire',
+                    style: TextStyle(
+                        fontSize: 24,
+                        height: 1.1,
+                        letterSpacing: -0.5,
+                        fontWeight: FontWeight.w800,
+                        color: PanergoColors.ink)),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: PanergoColors.muted)),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// The sentence that keeps the two halves of the product apart.
 class _WhereNotWho extends StatelessWidget {
   const _WhereNotWho();
 
   @override
   Widget build(BuildContext context) {
+    final brand = context.brand;
+
     return Container(
-      padding: const EdgeInsets.all(Space.s14),
+      padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
       decoration: BoxDecoration(
-        color: PanergoColors.fill,
-        borderRadius: Radii.brCard,
+        color: brand.soft,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const MaterialSymbol('near_me', size: 20, color: PanergoColors.muted),
+          MaterialSymbol('near_me',
+              size: 21, color: brand.link, filled: true),
           const SizedBox(width: Space.s10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Où aller, pas qui appeler',
+                Text('Où aller, pas qui appeler',
                     style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w800,
-                        color: PanergoColors.ink)),
+                        color: brand.link)),
                 const SizedBox(height: 3),
                 Text.rich(
                   TextSpan(
-                    style: const TextStyle(
-                        fontSize: 12.5,
+                    style: TextStyle(
+                        fontSize: 12,
                         height: 1.45,
-                        color: PanergoColors.body),
+                        color: brand.link),
                     children: [
                       const TextSpan(
                           text: 'Ici vous trouvez une adresse et des horaires. '
                               'Pour faire intervenir quelqu’un chez vous, passez '
                               'par '),
-                      TextSpan(
+                      const TextSpan(
                           text: 'Demander',
-                          style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: context.brand.link)),
+                          style: TextStyle(fontWeight: FontWeight.w800)),
                       const TextSpan(text: '.'),
                     ],
                   ),
@@ -154,13 +235,23 @@ class _CategoryRow extends StatelessWidget {
   final BusinessCategory category;
   final VoidCallback onTap;
 
+  /// « 2 commerces · 1 à Logpom » — the near figure is the one that decides
+  /// whether the tap is worth it, so it is said whenever it differs.
+  static String _count(BusinessCategory c) {
+    if (c.totalCount == 0) return 'Aucun commerce inscrit';
+    final total =
+        c.totalCount == 1 ? '1 commerce' : '${c.totalCount} commerces';
+    if (c.nearCount == 0 || c.nearCount == c.totalCount) return total;
+    return '$total · ${c.nearCount} près de vous';
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: Space.s8),
-        padding: const EdgeInsets.all(Space.s12),
+        margin: const EdgeInsets.only(bottom: 9),
+        padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
         decoration: BoxDecoration(
           color: PanergoColors.surface,
           borderRadius: Radii.brCard,
@@ -169,8 +260,8 @@ class _CategoryRow extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 42,
-              height: 42,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
                 color: context.brand.soft,
                 borderRadius: BorderRadius.circular(13),
@@ -179,16 +270,27 @@ class _CategoryRow extends StatelessWidget {
               // has never heard of; MaterialSymbol falls back rather than fails.
               child: Center(
                 child: MaterialSymbol(category.iconName,
-                    size: 21, color: context.brand.link),
+                    size: 23, color: context.brand.link),
               ),
             ),
-            const SizedBox(width: Space.s12),
+            const SizedBox(width: 13),
             Expanded(
-              child: Text(category.label,
-                  style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: PanergoColors.ink)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(category.label,
+                      style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: PanergoColors.ink)),
+                  const SizedBox(height: 2),
+                  Text(_count(category),
+                      style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: PanergoColors.muted)),
+                ],
+              ),
             ),
             const MaterialSymbol('chevron_right',
                 size: 20, color: PanergoColors.subtle),
@@ -208,16 +310,24 @@ class _RegisterRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(Space.s14),
-        decoration: BoxDecoration(
-          color: PanergoColors.surface,
-          borderRadius: Radii.brCard,
-          border: Border.all(color: PanergoColors.borderStrong),
-        ),
+      // Dashed rather than solid: it is an invitation to add something, not
+      // another category to browse, and the broken edge says so before the
+      // words are read.
+      child: DashedBorder(
         child: Row(
           children: [
-            MaterialSymbol('add_business', size: 21, color: context.brand.link),
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: context.brand.soft,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Center(
+                child: MaterialSymbol('add_business',
+                    size: 21, color: context.brand.link),
+              ),
+            ),
             const SizedBox(width: Space.s12),
             const Expanded(
               child: Column(
@@ -228,9 +338,12 @@ class _RegisterRow extends StatelessWidget {
                           fontSize: 13.5,
                           fontWeight: FontWeight.w800,
                           color: PanergoColors.ink)),
+                  SizedBox(height: 2),
                   Text('Inscrivez-le dans l’annuaire',
                       style: TextStyle(
-                          fontSize: 12, color: PanergoColors.muted)),
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: PanergoColors.muted)),
                 ],
               ),
             ),
@@ -268,12 +381,58 @@ class _Skeleton extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(
           Space.gutterTight, 0, Space.gutterTight, Space.gutter),
       itemCount: 8,
-      separatorBuilder: (_, __) => const SizedBox(height: Space.s8),
+      separatorBuilder: (_, __) => const SizedBox(height: 9),
+      // Shaped like the rows it precedes, so the list does not visibly
+      // rearrange itself the moment it loads.
       itemBuilder: (_, __) => Container(
-        height: 66,
+        padding: const EdgeInsets.fromLTRB(15, 13, 15, 13),
         decoration: BoxDecoration(
-          color: PanergoColors.skeleton,
+          color: PanergoColors.surface,
           borderRadius: Radii.brCard,
+          border: Border.all(color: PanergoColors.border),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: PanergoColors.skeleton,
+                borderRadius: BorderRadius.circular(13),
+              ),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: 0.45,
+                    child: Container(
+                      height: 13,
+                      decoration: BoxDecoration(
+                        color: PanergoColors.skeleton,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: 0.28,
+                    child: Container(
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: PanergoColors.skeleton,
+                        borderRadius: BorderRadius.circular(5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

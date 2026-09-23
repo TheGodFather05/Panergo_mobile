@@ -553,6 +553,60 @@ class PanergoApi {
   Future<void> deleteProduct(String businessId, String productId) =>
       _client.delete<dynamic>('/api/businesses/me/$businessId/products/$productId');
 
+  // ------------------------------------------------------------- groups ---
+
+  Future<List<GroupSummary>> groups({String? query}) async {
+    final data = await _client.get<List<dynamic>>(
+      '/api/groups',
+      query: {if (query != null && query.isNotEmpty) 'q': query},
+    );
+    return data.map((e) => GroupSummary.fromJson(Json.obj(e))).toList();
+  }
+
+  Future<GroupSummary> createGroup({
+    required String name,
+    String? description,
+    String? neighborhood,
+    String? iconName,
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>('/api/groups', body: {
+      'name': name,
+      if (description != null && description.isNotEmpty) 'description': description,
+      if (neighborhood != null && neighborhood.isNotEmpty) 'neighborhood': neighborhood,
+      if (iconName != null && iconName.isNotEmpty) 'icon_name': iconName,
+    });
+    return GroupSummary.fromJson(data);
+  }
+
+  Future<void> requestToJoinGroup(String groupId, {String? message}) =>
+      _client.post<dynamic>('/api/groups/$groupId/join-requests', body: {
+        if (message != null && message.isNotEmpty) 'message': message,
+      });
+
+  Future<List<GroupPerson>> groupJoinRequests(String groupId) async {
+    final data = await _client
+        .get<List<dynamic>>('/api/groups/$groupId/join-requests');
+    return data.map((e) => GroupPerson.fromJson(Json.obj(e))).toList();
+  }
+
+  Future<void> decideGroupJoinRequest(
+    String groupId,
+    String requestId, {
+    required bool accept,
+  }) =>
+      _client.post<dynamic>(
+          '/api/groups/$groupId/join-requests/$requestId/'
+          '${accept ? 'accept' : 'decline'}');
+
+  Future<List<GroupPerson>> groupMembers(String groupId) async {
+    final data =
+        await _client.get<List<dynamic>>('/api/groups/$groupId/members');
+    return data.map((e) => GroupPerson.fromJson(Json.obj(e))).toList();
+  }
+
+  Future<void> leaveGroup(String groupId) =>
+      _client.delete<dynamic>('/api/groups/$groupId/membership');
+
   // ------------------------------------------------------ conversations ---
 
   /// Every thread the caller can see, newest activity first.
@@ -562,6 +616,13 @@ class PanergoApi {
         .map((e) => Conversation.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  /// Clears a thread from your own inbox.
+  ///
+  /// Not a delete: the other side keeps the exchange, and a new message brings
+  /// it back.
+  Future<void> hideConversation(String conversationId) =>
+      _client.delete<dynamic>('/api/conversations/$conversationId');
 
   /// Opens a thread with a shop, or returns the one already open.
   Future<Conversation> openBusinessConversation(String businessId) async {
@@ -669,6 +730,23 @@ class PanergoApi {
       page: Json.intOf(data['page']),
       totalPages: Json.intOf(data['total_pages']),
     );
+  }
+
+  /// « Mes publications » — the signed-in artisan's own posts, newest first.
+  Future<List<FeedPost>> myFeedPosts({int size = 20}) async {
+    final data = await _client.get<Map<String, dynamic>>(
+      '/api/feed/posts/mine',
+      query: {'page': 0, 'size': size},
+    );
+    return Json.list(data['content']).map(FeedPost.fromJson).toList();
+  }
+
+  /// The signed-in artisan's own provider record — their trade and quartier,
+  /// which the account itself does not carry.
+  Future<ProviderProfile> myProviderProfile() async {
+    final data =
+        await _client.get<Map<String, dynamic>>('/api/provider/me');
+    return ProviderProfile.fromJson(data);
   }
 
   Future<void> createFeedPost({

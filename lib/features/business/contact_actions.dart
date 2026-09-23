@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../messages/chat_screen.dart';
@@ -16,31 +15,6 @@ import 'business_providers.dart';
 /// The fact a directory card exists to deliver. Carried by the word first —
 /// a dot alone says nothing to someone who cannot tell the two greens apart,
 /// and this is the one line that decides whether a person crosses town (RM-16).
-class OpenStatePill extends StatelessWidget {
-  const OpenStatePill({super.key, required this.open});
-
-  final bool open;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: open ? PanergoColors.statusDoneTint : PanergoColors.fill,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        open ? 'Ouvert' : 'Fermé',
-        style: TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
-          color: open ? PanergoColors.statusDoneInk : PanergoColors.muted,
-        ),
-      ),
-    );
-  }
-}
-
 /// Appeler · WhatsApp — the two ways a Douala business already takes enquiries.
 ///
 /// Only the buttons the listing can actually honour are drawn. A dead "Appeler"
@@ -70,41 +44,39 @@ class ContactRow extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
+    // Two actions, never three. The design gives the shop page a pair of
+    // full-width buttons, and a third squeezes all of them below the width a
+    // label needs. WhatsApp is therefore the *fallback* for « Écrire » rather
+    // than a button of its own: a business with nobody watching the in-app
+    // inbox is better reached on the number they already read.
+    final canWrite = detail.canMessage || whatsapp != null;
+
     return Row(
       children: [
-        // In-app first when there is somebody to answer: it keeps the exchange
-        // where both sides can find it again, which a phone call does not.
-        if (detail.canMessage)
+        if (canWrite)
           Expanded(
             child: _Action(
               icon: 'forum',
-              label: 'Écrire',
+              // Named for where it lands, so nobody taps expecting WhatsApp
+              // and finds a Panergo thread, or the reverse.
+              label: detail.canMessage ? 'Écrire' : 'WhatsApp',
               primary: true,
               compact: compact,
-              onTap: () => _write(context, ref, businessId),
+              onTap: detail.canMessage
+                  ? () => _write(context, ref, businessId)
+                  : () => _open(Uri.parse(
+                      'https://wa.me/${whatsapp!.replaceAll(RegExp(r'[^0-9]'), '')}')),
             ),
           ),
-        if (detail.canMessage && phone != null) const SizedBox(width: Space.s8),
+        if (canWrite && phone != null) SizedBox(width: compact ? Space.s8 : 10),
         if (phone != null)
           Expanded(
             child: _Action(
               icon: 'call',
               label: 'Appeler',
-              primary: !detail.canMessage,
+              primary: true,
               compact: compact,
               onTap: () => _open(Uri.parse('tel:$phone')),
-            ),
-          ),
-        if (phone != null && whatsapp != null) const SizedBox(width: Space.s8),
-        if (whatsapp != null)
-          Expanded(
-            child: _Action(
-              icon: 'forum',
-              label: 'WhatsApp',
-              primary: false,
-              compact: compact,
-              onTap: () => _open(Uri.parse(
-                  'https://wa.me/${whatsapp.replaceAll(RegExp(r'[^0-9]'), '')}')),
             ),
           ),
       ],
@@ -161,28 +133,30 @@ class _Action extends StatelessWidget {
   Widget build(BuildContext context) {
     final brand = context.brand;
 
+    // On the shop page these are the page's main act, so they are solid brand
+    // with white on them. On a list card the same pair must not outshout the
+    // name of the business, so they take the soft tint instead.
+    final solid = !compact;
+    final ink = solid ? Colors.white : brand.link;
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: EdgeInsets.symmetric(vertical: compact ? 9 : 12),
+        padding: EdgeInsets.symmetric(vertical: compact ? 10 : 14),
         decoration: BoxDecoration(
-          color: primary ? brand.soft : PanergoColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-              color: primary ? brand.soft : PanergoColors.borderStrong),
+          color: solid ? brand.fill : brand.soft,
+          borderRadius: BorderRadius.circular(compact ? 11 : 14),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            MaterialSymbol(icon,
-                size: compact ? 17 : 19,
-                color: primary ? brand.link : PanergoColors.body),
-            const SizedBox(width: Space.s6),
+            MaterialSymbol(icon, size: compact ? 18 : 20, color: ink),
+            SizedBox(width: compact ? Space.s6 : Space.s8),
             Text(label,
                 style: TextStyle(
-                    fontSize: compact ? 12.5 : 13.5,
+                    fontSize: compact ? 12.5 : 14,
                     fontWeight: FontWeight.w800,
-                    color: primary ? brand.link : PanergoColors.body)),
+                    color: ink)),
           ],
         ),
       ),
