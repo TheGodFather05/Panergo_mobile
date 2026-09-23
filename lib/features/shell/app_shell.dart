@@ -10,8 +10,9 @@ import '../client/home_screen.dart';
 import '../client/new_request_screen.dart';
 import '../deals/deals_screen.dart';
 import '../messages/messages_screen.dart';
-import '../profile/mode_screen.dart';
-import '../profile/profile_screen.dart';
+import '../profile/client_profile_screen.dart';
+import '../profile/mode_sheet.dart';
+import '../profile/provider_profile_screen.dart';
 import '../provider/agenda_screen.dart';
 import '../provider/provider_inbox_screen.dart';
 import '../business/directory_screen.dart';
@@ -98,7 +99,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       label: 'Profil',
       icon: 'person',
       activeIcon: 'person',
-      builder: (_) => const ProfileScreen(),
+      builder: (_) => const ClientProfileScreen(),
     ),
   ];
 
@@ -131,7 +132,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       label: 'Profil',
       icon: 'person',
       activeIcon: 'person',
-      builder: (_) => const ProfileScreen(),
+      builder: (_) => const ProviderProfileScreen(),
     ),
   ];
 
@@ -167,7 +168,9 @@ class _AppShellState extends ConsumerState<AppShell> {
       label: 'Mode',
       icon: 'swap_horiz',
       activeIcon: 'swap_horiz',
-      builder: (_) => const ModeScreen(embedded: true),
+      // Never rendered: selecting this seat opens the sheet and stays put, so
+      // switching does not cost the tab the shopkeeper was on.
+      builder: (_) => const SizedBox.shrink(),
     ),
   ];
 
@@ -222,7 +225,15 @@ class _AppShellState extends ConsumerState<AppShell> {
           _TabBar(
             tabs: tabs,
             index: index,
-            onSelected: (next) => setState(() => _index = next),
+            onSelected: (next) {
+              // The Mode seat is an action, not a destination: it opens the
+              // sheet and leaves the shopkeeper on the tab they were using.
+              if (tabs[next].label == 'Mode') {
+                ModeSheet.show(context);
+                return;
+              }
+              setState(() => _index = next);
+            },
           ),
         ],
       ),

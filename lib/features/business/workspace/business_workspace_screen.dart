@@ -9,6 +9,8 @@ import '../../../core/widgets/async_view.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/material_symbol.dart';
 import '../business_providers.dart';
+import '../../profile/settings_screen.dart';
+import '../../profile/support_screen.dart';
 import 'catalogue_screen.dart';
 import 'edit_info_screen.dart';
 import 'edit_media_screen.dart';
@@ -136,6 +138,28 @@ class _BusinessBlock extends StatelessWidget {
               MaterialPageRoute<void>(
                 builder: (_) => EditMediaScreen(business: business),
               ),
+            ),
+          ),
+          const SizedBox(height: Space.s8),
+          // The design's Ma boutique carries only shop tools, and its bar has
+          // no Profil seat — which would leave a shopkeeper with no way to
+          // reach settings or sign out without first switching mode. Two rows
+          // rather than a page, since neither is a shop tool.
+          _ToolRow(
+            icon: 'help',
+            label: 'Aide & support',
+            detail: 'Questions fréquentes, nous joindre',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SupportScreen()),
+            ),
+          ),
+          const SizedBox(height: Space.s8),
+          _ToolRow(
+            icon: 'settings',
+            label: 'Paramètres',
+            detail: 'Notifications, langue, compte',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SettingsScreen()),
             ),
           ),
         ],
