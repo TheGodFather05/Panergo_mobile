@@ -187,7 +187,7 @@ void main() {
     ChatMessage said(String id, String who, String text, DateTime at) =>
         ChatMessage(
           id: id,
-          bookingId: 'b1',
+          conversationId: 'b1',
           senderId: who,
           senderRole: who == 'me' ? PartyRole.user : PartyRole.provider,
           content: text,
@@ -203,7 +203,7 @@ void main() {
       tester,
       'chat',
       const ChatScreen(
-        bookingId: 'b1',
+        conversationId: 'b1',
         peerName: 'Jean-Pierre Mbarga',
         category: ServiceCategory.plomberie,
       ),

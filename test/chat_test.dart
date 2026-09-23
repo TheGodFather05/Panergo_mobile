@@ -10,7 +10,6 @@ import 'package:panergo_mobile/core/models/models.dart';
 import 'package:panergo_mobile/core/network/api_exception.dart';
 import 'package:panergo_mobile/core/network/chat_socket.dart';
 import 'package:panergo_mobile/features/messages/chat_providers.dart';
-import 'package:panergo_mobile/features/messages/messages_screen.dart';
 
 ChatMessage message(
   String id, {
@@ -22,7 +21,7 @@ ChatMessage message(
 }) =>
     ChatMessage(
       id: id,
-      bookingId: 'booking-1',
+      conversationId: 'booking-1',
       senderId: sender,
       senderRole: role,
       content: content,
@@ -35,7 +34,7 @@ void main() {
     test('parses a message off the topic', () {
       final parsed = ChatMessage.fromJson(const {
         'message_id': 'm-1',
-        'booking_id': 'b-1',
+        'conversation_id': 'c-1',
         'sender_id': 'u-1',
         'sender_role': 'USER',
         'content': 'Je suis devant le portail',
@@ -44,7 +43,7 @@ void main() {
       });
 
       expect(parsed.id, 'm-1');
-      expect(parsed.bookingId, 'b-1');
+      expect(parsed.conversationId, 'c-1');
       expect(parsed.senderRole, PartyRole.user);
       expect(parsed.content, 'Je suis devant le portail');
       expect(parsed.isPhoto, isFalse);
@@ -53,7 +52,7 @@ void main() {
     test('a photo message carries no content', () {
       final parsed = ChatMessage.fromJson(const {
         'message_id': 'm-2',
-        'booking_id': 'b-1',
+        'conversation_id': 'b-1',
         'sender_id': 'u-1',
         'sender_role': 'PROVIDER',
         'content': null,
@@ -100,24 +99,40 @@ void main() {
   });
 
   group('Conversation', () {
-    Conversation conversation({String? bookingId}) => Conversation(
-          requestId: 'r-1',
-          bookingId: bookingId,
-          peerName: 'Jean-Pierre Mballa',
-          peerPhotoUrl: null,
-          category: ServiceCategory.plomberie,
-          lastActivity: DateTime(2026, 9, 3, 16, 4),
-        );
+    // isOpenable is gone with the concept behind it. A thread used to be keyed
+    // by booking, so a row could exist before there was anything to open; a
+    // conversation exists because somebody opened it, and every row navigates.
+    test('parses a business thread', () {
+      final conversation = Conversation.fromJson({
+        'conversation_id': 'c-1',
+        'kind': 'BUSINESS',
+        'peer_name': 'Quincaillerie Bonanjo',
+        'subtitle': 'Quincaillerie',
+        'business_id': 'b-9',
+        'last_message_at': '2026-09-22T16:04:00Z',
+      });
 
-    test('a booked conversation can be opened', () {
-      expect(conversation(bookingId: 'b-1').isOpenable, isTrue);
+      expect(conversation.kind, ConversationKind.business);
+      expect(conversation.businessId, 'b-9');
+      expect(conversation.bookingId, isNull);
+      expect(conversation.subtitle, 'Quincaillerie');
     });
 
-    test('a conversation without a booking cannot be opened', () {
-      // The thread is keyed by booking; until the server reports one there is
-      // nothing to open, so the row must not navigate into a dead screen.
-      expect(conversation().isOpenable, isFalse);
-      expect(conversation(bookingId: '').isOpenable, isFalse);
+    test('parses a booking thread', () {
+      final conversation = Conversation.fromJson({
+        'conversation_id': 'c-2',
+        'kind': 'BOOKING',
+        'peer_name': 'Jean-Pierre Mballa',
+        'subtitle': 'PLOMBERIE',
+        'booking_id': 'bk-3',
+      });
+
+      expect(conversation.kind, ConversationKind.booking);
+      expect(conversation.bookingId, 'bk-3');
+      expect(conversation.businessId, isNull);
+      // A thread nobody has spoken in yet: the inbox sorts these last rather
+      // than first, which a null would otherwise do.
+      expect(conversation.lastMessageAt, isNull);
     });
   });
 
@@ -132,7 +147,7 @@ void main() {
           child: MaterialApp(
             theme: AppTheme.build(BrandDirection.braise),
             locale: const Locale('fr', 'FR'),
-            home: const ChatScreen(bookingId: 'b1', peerName: 'Jean-Pierre'),
+            home: const ChatScreen(conversationId: 'b1', peerName: 'Jean-Pierre'),
           ),
         );
 

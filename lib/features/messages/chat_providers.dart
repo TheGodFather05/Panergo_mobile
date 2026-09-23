@@ -58,11 +58,11 @@ class ChatThread {
 /// overlap — a message can land on the topic while the history request is in
 /// flight — so messages are merged by id rather than appended blindly.
 class ChatController extends AsyncNotifier<ChatThread> {
-  ChatController(this._bookingId);
+  ChatController(this._conversationId);
 
   static const _pageSize = 50;
 
-  final String _bookingId;
+  final String _conversationId;
 
   ChatSocket? _socket;
   StreamSubscription<ChatMessage>? _messageSub;
@@ -85,7 +85,7 @@ class ChatController extends AsyncNotifier<ChatThread> {
     try {
       final history = await ref
           .read(apiProvider)
-          .chatHistory(_bookingId, limit: _pageSize);
+          .chatHistory(_conversationId, limit: _pageSize);
       return ChatThread(
         messages: history,
         isLoading: false,
@@ -100,7 +100,7 @@ class ChatController extends AsyncNotifier<ChatThread> {
     final token = await ref.read(tokenStoreProvider).readToken();
     if (token == null || token.isEmpty) return;
 
-    final socket = ChatSocket(bookingId: _bookingId, token: token);
+    final socket = ChatSocket(conversationId: _conversationId, token: token);
     _socket = socket;
 
     _messageSub = socket.messages.listen(_onLiveMessage);
@@ -139,7 +139,7 @@ class ChatController extends AsyncNotifier<ChatThread> {
 
     try {
       final older = await ref.read(apiProvider).chatHistory(
-            _bookingId,
+            _conversationId,
             before: thread.messages.first.sentAt,
             limit: _pageSize,
           );

@@ -22,7 +22,7 @@ enum ChatConnection { connecting, connected, disconnected }
 /// * connect to `{base}/ws` with SockJS, carrying `Authorization: Bearer {jwt}`
 ///   on the CONNECT frame — the handshake itself is unauthenticated, so the
 ///   token has to ride on the frame rather than the URL,
-/// * subscribe to `/topic/chat.{bookingId}`,
+/// * subscribe to `/topic/chat.{conversationId}`,
 /// * send to `/app/chat.send` as `{booking_id, content?, photo_url?}`.
 ///
 /// The sender is taken from the authenticated session server-side, so nothing
@@ -30,13 +30,13 @@ enum ChatConnection { connecting, connected, disconnected }
 /// waiting to happen.
 class ChatSocket {
   ChatSocket({
-    required this.bookingId,
+    required this.conversationId,
     required this.token,
     @visibleForTesting StompClient Function(StompConfig)? clientFactory,
   }) : _clientFactory =
             clientFactory ?? ((config) => StompClient(config: config));
 
-  final String bookingId;
+  final String conversationId;
   final String token;
   final StompClient Function(StompConfig) _clientFactory;
 
@@ -91,7 +91,7 @@ class ChatSocket {
     if (_disposed) return;
 
     _client?.subscribe(
-      destination: '/topic/chat.$bookingId',
+      destination: '/topic/chat.$conversationId',
       callback: (frame) {
         final body = frame.body;
         if (body == null || body.isEmpty) return;
@@ -118,7 +118,7 @@ class ChatSocket {
     client.send(
       destination: '/app/chat.send',
       body: jsonEncode({
-        'booking_id': bookingId,
+        'conversation_id': conversationId,
         if (content != null && content.isNotEmpty) 'content': content,
         if (photoUrl != null && photoUrl.isNotEmpty) 'photo_url': photoUrl,
       }),

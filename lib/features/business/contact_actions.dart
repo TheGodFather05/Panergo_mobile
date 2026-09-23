@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/network/api_exception.dart';
+import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../messages/chat_screen.dart';
 import 'business_providers.dart';
 
 /// Ouvert / Fermé.
@@ -69,12 +72,25 @@ class ContactRow extends ConsumerWidget {
 
     return Row(
       children: [
+        // In-app first when there is somebody to answer: it keeps the exchange
+        // where both sides can find it again, which a phone call does not.
+        if (detail.canMessage)
+          Expanded(
+            child: _Action(
+              icon: 'forum',
+              label: 'Écrire',
+              primary: true,
+              compact: compact,
+              onTap: () => _write(context, ref, businessId),
+            ),
+          ),
+        if (detail.canMessage && phone != null) const SizedBox(width: Space.s8),
         if (phone != null)
           Expanded(
             child: _Action(
               icon: 'call',
               label: 'Appeler',
-              primary: true,
+              primary: !detail.canMessage,
               compact: compact,
               onTap: () => _open(Uri.parse('tel:$phone')),
             ),
@@ -93,6 +109,27 @@ class ContactRow extends ConsumerWidget {
           ),
       ],
     );
+  }
+
+  /// Opens the thread, or the one already open, and goes to it.
+  Future<void> _write(BuildContext context, WidgetRef ref, String id) async {
+    try {
+      final conversation =
+          await ref.read(apiProvider).openBusinessConversation(id);
+      if (!context.mounted) return;
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => ChatScreen(
+          conversationId: conversation.conversationId,
+          peerName: conversation.peerName,
+          peerPhotoUrl: conversation.peerPhotoUrl,
+        ),
+      ));
+    } on ApiException catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
   }
 
   Future<void> _open(Uri uri) async {

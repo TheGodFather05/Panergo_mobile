@@ -311,12 +311,12 @@ class PanergoApi {
 
   /// Messages for a booking, oldest first. Omit [before] for the latest window.
   Future<List<ChatMessage>> chatHistory(
-    String bookingId, {
+    String conversationId, {
     DateTime? before,
     int? limit,
   }) async {
     final data = await _client.get<List<dynamic>>(
-      '/api/chat/$bookingId/messages',
+      '/api/chat/$conversationId/messages',
       query: {
         if (before != null) 'before': before.toUtc().toIso8601String(),
         if (limit != null) 'limit': limit,
@@ -552,6 +552,34 @@ class PanergoApi {
 
   Future<void> deleteProduct(String businessId, String productId) =>
       _client.delete<dynamic>('/api/businesses/me/$businessId/products/$productId');
+
+  // ------------------------------------------------------ conversations ---
+
+  /// Every thread the caller can see, newest activity first.
+  Future<List<Conversation>> conversations() async {
+    final data = await _client.get<List<dynamic>>('/api/conversations');
+    return data
+        .map((e) => Conversation.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// Opens a thread with a shop, or returns the one already open.
+  Future<Conversation> openBusinessConversation(String businessId) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/api/conversations',
+      body: {'business_id': businessId},
+    );
+    return Conversation.fromJson(data);
+  }
+
+  /// The thread for a booking, created the first time anyone opens it.
+  Future<Conversation> openBookingConversation(String bookingId) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/api/conversations',
+      body: {'booking_id': bookingId},
+    );
+    return Conversation.fromJson(data);
+  }
 
   // ------------------------------------------------------- moderation ---
 

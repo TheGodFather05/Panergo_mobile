@@ -21,14 +21,14 @@ import 'chat_providers.dart';
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({
     super.key,
-    required this.bookingId,
+    required this.conversationId,
     required this.peerName,
     this.peerPhotoUrl,
     this.category,
     this.confirmedAt,
   });
 
-  final String bookingId;
+  final String conversationId;
   final String peerName;
   final String? peerPhotoUrl;
 
@@ -37,7 +37,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   final DateTime? confirmedAt;
 
   static Route<void> route({
-    required String bookingId,
+    required String conversationId,
     required String peerName,
     String? peerPhotoUrl,
     ServiceCategory? category,
@@ -45,7 +45,7 @@ class ChatScreen extends ConsumerStatefulWidget {
   }) =>
       MaterialPageRoute(
         builder: (_) => ChatScreen(
-          bookingId: bookingId,
+          conversationId: conversationId,
           peerName: peerName,
           peerPhotoUrl: peerPhotoUrl,
           category: category,
@@ -82,7 +82,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // The list is reversed, so "further back in time" is the far end.
     if (_scroll.position.pixels >=
         _scroll.position.maxScrollExtent - 200) {
-      ref.read(chatControllerProvider(widget.bookingId).notifier).loadMore();
+      ref.read(chatControllerProvider(widget.conversationId).notifier).loadMore();
     }
   }
 
@@ -91,7 +91,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (text.isEmpty) return;
 
     final sent =
-        ref.read(chatControllerProvider(widget.bookingId).notifier).send(text);
+        ref.read(chatControllerProvider(widget.conversationId).notifier).send(text);
 
     if (sent) {
       _composer.clear();
@@ -113,7 +113,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final async = ref.watch(chatControllerProvider(widget.bookingId));
+    final async = ref.watch(chatControllerProvider(widget.conversationId));
     final thread = async.value;
     final currentUserId = ref.watch(currentUserProvider)?.id;
 
@@ -140,7 +140,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 currentUserId: currentUserId,
                 scroll: _scroll,
                 onRetry: () => ref
-                    .read(chatControllerProvider(widget.bookingId).notifier)
+                    .read(chatControllerProvider(widget.conversationId).notifier)
                     .retry(),
               ),
             ),

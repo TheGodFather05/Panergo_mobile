@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/formats.dart';
-import '../../core/models/enums.dart';
+import '../../core/models/models.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
@@ -17,64 +17,19 @@ import 'chat_screen.dart';
 /// The API has no "list my conversations" endpoint: a chat exists per booking,
 /// and a booking exists once an offer is accepted. So the client's threads come
 /// from their own requests with a selected offer.
+/// Every thread this person can see.
+///
+/// Read from the server rather than rebuilt here. The old version derived
+/// threads from the caller's own requests, which sorted by when the request was
+/// made rather than when anyone last spoke — and returned nothing at all for a
+/// provider, who has no endpoint listing the jobs they won.
 final conversationsProvider =
     FutureProvider.autoDispose<List<Conversation>>((ref) async {
-  final api = ref.watch(apiProvider);
   final user = ref.watch(currentUserProvider);
-
   if (user == null) return const [];
-
-  // Providers have no endpoint listing the jobs they won, so their threads
-  // cannot be reconstructed this way — see the note in the empty state.
-  if (user.isProvider) return const [];
-
-  final requests = await api.myRequests();
-  return requests
-      .where((r) => r.status == RequestStatus.offerSelected)
-      .map((r) {
-        final accepted = r.offers.firstWhere(
-          (o) => o.status == OfferStatus.selected,
-          orElse: () => r.offers.first,
-        );
-        return Conversation(
-          requestId: r.id,
-          bookingId: r.bookingId,
-          peerName: accepted.providerName,
-          peerPhotoUrl: accepted.providerPhotoUrl,
-          category: r.category,
-          lastActivity: r.createdAt,
-        );
-      })
-      .toList();
+  return ref.read(apiProvider).conversations();
 });
 
-class Conversation {
-  const Conversation({
-    required this.requestId,
-    required this.bookingId,
-    required this.peerName,
-    required this.peerPhotoUrl,
-    required this.category,
-    required this.lastActivity,
-  });
-
-  final String requestId;
-
-  /// The thread is keyed by booking, not by request — accepting an offer is
-  /// what creates it. A null id means the booking has not landed yet, so the
-  /// row still shows but cannot be opened.
-  final String? bookingId;
-
-  final String peerName;
-
-  /// The artisan's photo, so the list shows a face rather than initials.
-  final String? peerPhotoUrl;
-
-  final ServiceCategory category;
-  final DateTime lastActivity;
-
-  bool get isOpenable => bookingId != null && bookingId!.isNotEmpty;
-}
 
 /// Messages — the list of active discussions.
 class MessagesScreen extends ConsumerWidget {
@@ -142,11 +97,9 @@ class _ConversationRow extends StatelessWidget {
   void _open(BuildContext context) {
     Navigator.of(context).push(
       ChatScreen.route(
-        bookingId: conversation.bookingId!,
+        conversationId: conversation.conversationId,
         peerName: conversation.peerName,
         peerPhotoUrl: conversation.peerPhotoUrl,
-        category: conversation.category,
-        confirmedAt: conversation.lastActivity,
       ),
     );
   }
@@ -156,7 +109,7 @@ class _ConversationRow extends StatelessWidget {
     return PanergoCard(
       padding: const EdgeInsets.all(13),
       radius: Radii.card,
-      onTap: conversation.isOpenable ? () => _open(context) : null,
+      onTap: () => _open(context),
       child: Row(
         children: [
           InitialsAvatar(
@@ -171,13 +124,15 @@ class _ConversationRow extends StatelessWidget {
               children: [
                 Text(conversation.peerName, style: context.type.cardTitleSmall),
                 const SizedBox(height: 2),
-                Text(conversation.category.label,
+                Text(conversation.subtitle ?? conversation.kind.label,
                     style: context.type.metaSmall),
               ],
             ),
           ),
           Text(
-            Formats.conversationTime(conversation.lastActivity),
+            conversation.lastMessageAt == null
+                ? ''
+                : Formats.conversationTime(conversation.lastMessageAt!),
             style: context.type.metaSmall,
           ),
           const SizedBox(width: Space.s6),

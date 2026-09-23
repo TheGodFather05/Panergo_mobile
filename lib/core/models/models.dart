@@ -519,7 +519,7 @@ class Booking {
 class ChatMessage {
   const ChatMessage({
     required this.id,
-    required this.bookingId,
+    required this.conversationId,
     required this.senderId,
     required this.senderRole,
     required this.content,
@@ -528,7 +528,7 @@ class ChatMessage {
   });
 
   final String id;
-  final String bookingId;
+  final String conversationId;
   final String senderId;
   final PartyRole senderRole;
   final String? content;
@@ -539,7 +539,7 @@ class ChatMessage {
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
         id: Json.str(json['message_id']),
-        bookingId: Json.str(json['booking_id']),
+        conversationId: Json.str(json['conversation_id']),
         senderId: Json.str(json['sender_id']),
         senderRole:
             Json.enumOf(json['sender_role'], PartyRole.values, PartyRole.user),
@@ -1751,5 +1751,65 @@ class BusinessPage {
         page: Json.intOf(json['page']),
         totalPages: Json.intOf(json['total_pages']),
         totalBusinesses: Json.intOf(json['total_businesses']),
+      );
+}
+
+
+// ------------------------------------------------------------ conversations ---
+
+/// What a thread is about.
+enum ConversationKind implements WireEnum {
+  booking('BOOKING', 'Mission'),
+  business('BUSINESS', 'Commerce');
+
+  const ConversationKind(this.wire, this.label);
+
+  @override
+  final String wire;
+
+  final String label;
+}
+
+/// A row in the inbox.
+///
+/// The peer is whoever is not you, which differs per reader: the same thread is
+/// "Jean-Pierre" to a client and "Murielle" to the artisan. The server resolves
+/// that rather than shipping both sides and making the app choose.
+class Conversation {
+  const Conversation({
+    required this.conversationId,
+    required this.kind,
+    required this.peerName,
+    this.peerPhotoUrl,
+    this.subtitle,
+    this.bookingId,
+    this.businessId,
+    this.lastMessageAt,
+  });
+
+  final String conversationId;
+  final ConversationKind kind;
+  final String peerName;
+  final String? peerPhotoUrl;
+
+  /// The trade for a mission, the category for a shop.
+  final String? subtitle;
+
+  final String? bookingId;
+  final String? businessId;
+  final DateTime? lastMessageAt;
+
+  factory Conversation.fromJson(Map<String, dynamic> json) => Conversation(
+        conversationId: Json.str(json['conversation_id']),
+        kind: Json.enumOf(json['kind'], ConversationKind.values,
+            ConversationKind.booking),
+        peerName: Json.str(json['peer_name']),
+        peerPhotoUrl: Json.strOrNull(json['peer_photo_url']),
+        subtitle: Json.strOrNull(json['subtitle']),
+        bookingId: Json.strOrNull(json['booking_id']),
+        businessId: Json.strOrNull(json['business_id']),
+        lastMessageAt: json['last_message_at'] == null
+            ? null
+            : Json.dateTime(json['last_message_at']),
       );
 }
