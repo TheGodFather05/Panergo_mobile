@@ -86,6 +86,25 @@ class PanergoApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      // Tapping away from a field puts the keyboard away, everywhere.
+      //
+      // In `builder` rather than on each screen: it wraps pushed routes and
+      // sheets too, and a rule applied per screen is one that gets forgotten
+      // on the next screen somebody adds a field to.
+      builder: (context, child) => Listener(
+        // Listener, not GestureDetector: a tap on a button is claimed by that
+        // button, and a gesture detector above it never fires. Listener sees
+        // the pointer either way, so the keyboard goes whether the tap landed
+        // on blank page or on a control — and the control still gets it.
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) {
+          final focus = FocusManager.instance.primaryFocus;
+          // Only when something is actually focused, so an ordinary tap on a
+          // screen with no field does no work at all.
+          if (focus != null && focus.hasPrimaryFocus) focus.unfocus();
+        },
+        child: child,
+      ),
       home: const _Root(),
     );
   }
