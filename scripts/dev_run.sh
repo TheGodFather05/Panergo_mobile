@@ -40,4 +40,12 @@ elif [ "$1" = "build" ] && [ $# -eq 1 ]; then
   set -- build ios --release
 fi
 
-exec flutter "$@" --dart-define=PANERGO_API_BASE_URL="$BASE"
+# The shared links point at the same Mac while panergo.cm is not serving, so
+# a link copied out of the app opens in a browser instead of going nowhere.
+# Override with PANERGO_SHARE_BASE_URL once the domain is live.
+SHARE="${PANERGO_SHARE_BASE_URL:-$BASE}"
+echo "Share links: $SHARE"
+
+exec flutter "$@" \
+  --dart-define=PANERGO_API_BASE_URL="$BASE" \
+  --dart-define=PANERGO_SHARE_BASE_URL="$SHARE"
