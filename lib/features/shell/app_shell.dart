@@ -67,6 +67,14 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
 
+  /// The mode the current [_index] belongs to.
+  ///
+  /// Kept so a switch can reset the tab. The three lists hold different
+  /// screens at the same positions, so carrying position 3 from a client's
+  /// Messages into a merchant's bar lands on Mode — a seat the shopkeeper did
+  /// not ask for and that does nothing.
+  AppMode? _indexMode;
+
   static final _clientTabs = <AppTab>[
     AppTab(
       label: 'Accueil',
@@ -183,7 +191,17 @@ class _AppShellState extends ConsumerState<AppShell> {
       AppMode.client => _clientTabs,
     };
 
-    // Switching roles can leave the old index out of range.
+    // A new mode opens on its own first tab — Ma boutique for a shopkeeper,
+    // Accueil for a client. Done during build rather than in a listener
+    // because the mode is derived state, and the alternative is one frame
+    // rendered on the wrong tab.
+    if (_indexMode != mode) {
+      _indexMode = mode;
+      _index = 0;
+    }
+
+    // Still clamped: the reset above covers a switch, and this covers a list
+    // that shrinks under a stale index for any other reason.
     final index = _index.clamp(0, tabs.length - 1);
 
     return Scaffold(

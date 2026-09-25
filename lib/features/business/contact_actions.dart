@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../messages/chat_screen.dart';
+import '../messages/messages_screen.dart';
 import 'business_providers.dart';
 
 /// Ouvert / Fermé.
@@ -88,6 +89,12 @@ class ContactRow extends ConsumerWidget {
     try {
       final conversation =
           await ref.read(apiProvider).openBusinessConversation(id);
+
+      // The inbox is now a thread out of date. Invalidated the moment the
+      // thread exists rather than on the way back, so it is already there if
+      // the reader switches tabs instead of using the back arrow.
+      ref.invalidate(conversationsProvider);
+
       if (!context.mounted) return;
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => ChatScreen(
@@ -96,6 +103,10 @@ class ContactRow extends ConsumerWidget {
           peerPhotoUrl: conversation.peerPhotoUrl,
         ),
       ));
+
+      // And again on the way out: a message sent in there moves the thread to
+      // the top, which the list cannot know by itself.
+      ref.invalidate(conversationsProvider);
     } on ApiException catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)
