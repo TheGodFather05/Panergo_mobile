@@ -10,7 +10,9 @@ import '../../../core/theme/palette.dart';
 import '../../../core/theme/tokens.dart';
 import '../../../core/widgets/common.dart';
 import '../../../core/widgets/confirm_sheet.dart';
+import '../../../core/widgets/material_symbol.dart';
 import '../../../core/widgets/panergo_button.dart';
+import '../share_sheet.dart';
 
 /// Adding or changing one line of the price list.
 class EditProductScreen extends ConsumerStatefulWidget {
@@ -115,6 +117,32 @@ class _EditProductScreenState extends ConsumerState<EditProductScreen> {
             ScreenHeader(
               title: _isNew ? 'Nouvel article' : 'Modifier',
               onBack: () => Navigator.of(context).pop(),
+              // Only for an article that exists: there is nothing to link to
+              // until it has been saved and has a slug of its own.
+              trailing: _isNew
+                  ? null
+                  : GestureDetector(
+                      onTap: () => ShareSheet.show(
+                        context,
+                        business: widget.business,
+                        origin: ShareScope.product,
+                        product: widget.product,
+                      ),
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: PanergoColors.surface,
+                          borderRadius: BorderRadius.circular(13),
+                          border: Border.all(color: PanergoColors.border),
+                        ),
+                        child: Center(
+                          child: MaterialSymbol('share',
+                              size: 19, color: context.brand.link),
+                        ),
+                      ),
+                    ),
             ),
             Expanded(
               child: ListView(

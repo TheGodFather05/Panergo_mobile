@@ -13,6 +13,7 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/dashed_border.dart';
 import '../../../core/widgets/material_symbol.dart';
 import '../business_providers.dart';
+import '../share_sheet.dart';
 import 'edit_product_screen.dart';
 
 /// The owner's price list.
@@ -44,8 +45,13 @@ class CatalogueScreen extends ConsumerWidget {
               title: 'Catalogue',
               subtitle: business.name,
               onBack: embedded ? null : () => Navigator.of(context).pop(),
-              trailing: _AddButton(
-                onTap: () => _edit(context, ref, null),
+              trailing: _HeaderActions(
+                onShare: () => ShareSheet.show(
+                  context,
+                  business: business,
+                  origin: ShareScope.catalogue,
+                ),
+                onAdd: () => _edit(context, ref, null),
               ),
             ),
             Expanded(
@@ -385,6 +391,42 @@ class _PillHint extends StatelessWidget {
                 fontSize: 11.5, height: 1.45, color: PanergoColors.muted),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Share and add, side by side in the header.
+class _HeaderActions extends StatelessWidget {
+  const _HeaderActions({required this.onShare, required this.onAdd});
+
+  final VoidCallback onShare;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GestureDetector(
+          onTap: onShare,
+          behavior: HitTestBehavior.opaque,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: PanergoColors.surface,
+              borderRadius: BorderRadius.circular(13),
+              border: Border.all(color: PanergoColors.border),
+            ),
+            child: Center(
+              child: MaterialSymbol('share',
+                  size: 19, color: context.brand.link),
+            ),
+          ),
+        ),
+        const SizedBox(width: Space.s8),
+        _AddButton(onTap: onAdd),
       ],
     );
   }

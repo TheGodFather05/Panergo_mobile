@@ -1671,6 +1671,7 @@ class BusinessProduct {
   const BusinessProduct({
     required this.id,
     required this.name,
+    this.slug,
     required this.available,
     this.description,
     this.photoUrl,
@@ -1681,6 +1682,10 @@ class BusinessProduct {
   });
 
   final String id;
+
+  /// Its address within the shop, for a shared link.
+  final String? slug;
+
   final String name;
   final String? description;
   final String? photoUrl;
@@ -1696,6 +1701,7 @@ class BusinessProduct {
 
   factory BusinessProduct.fromJson(Map<String, dynamic> json) => BusinessProduct(
         id: Json.str(json['id']),
+        slug: Json.strOrNull(json['slug']),
         name: Json.str(json['name']),
         description: Json.strOrNull(json['description']),
         photoUrl: Json.strOrNull(json['photo_url']),
@@ -1712,6 +1718,7 @@ class BusinessDetail {
   const BusinessDetail({
     required this.id,
     required this.name,
+    this.slug,
     required this.categoryCode,
     required this.categoryLabel,
     required this.categoryIconName,
@@ -1734,6 +1741,10 @@ class BusinessDetail {
   });
 
   final String id;
+
+  /// Its address in a shared link — `panergo.cm/b/{slug}`.
+  final String? slug;
+
   final String name;
   final String categoryCode;
   final String categoryLabel;
@@ -1767,6 +1778,7 @@ class BusinessDetail {
 
   factory BusinessDetail.fromJson(Map<String, dynamic> json) => BusinessDetail(
         id: Json.str(json['id']),
+        slug: Json.strOrNull(json['slug']),
         name: Json.str(json['name']),
         categoryCode: Json.str(json['category_code']),
         categoryLabel: Json.str(json['category_label']),

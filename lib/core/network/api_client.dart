@@ -35,6 +35,18 @@ abstract final class ApiConfig {
   /// The STOMP endpoint. The backend registers `/ws` with SockJS enabled.
   static String get webSocketUrl => '$baseUrl/ws';
 
+  /// Where the shared pages live.
+  ///
+  /// Not the API host: a link is read in WhatsApp by somebody who has never
+  /// heard of Panergo, and `panergo.cm/b/garage-ndokotti` is what makes it look
+  /// sent by the shopkeeper rather than forwarded by accident. Overridable so a
+  /// dev build can point at a staging host instead of promising a domain that
+  /// is not serving yet.
+  static const shareBaseUrl = String.fromEnvironment(
+    'PANERGO_SHARE_BASE_URL',
+    defaultValue: 'https://panergo.cm',
+  );
+
   /// Turns a stored path into something [Image.network] can fetch.
   ///
   /// Uploads come back as `/uploads/…` — a path, not a URL — because the server

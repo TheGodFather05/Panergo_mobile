@@ -11,6 +11,7 @@ import '../../../core/widgets/common.dart';
 import '../../../core/widgets/material_symbol.dart';
 import '../business_detail_screen.dart';
 import '../business_providers.dart';
+import '../share_sheet.dart';
 import '../../profile/settings_screen.dart';
 import '../../profile/support_screen.dart';
 import 'catalogue_screen.dart';
@@ -107,6 +108,17 @@ class _BusinessBlock extends ConsumerWidget {
           ),
           const SizedBox(height: Space.s8),
           _ToolRow(
+            icon: 'share',
+            label: 'Partager ma boutique',
+            detail: _shareSummary(business),
+            onTap: () => ShareSheet.show(
+              context,
+              business: business,
+              origin: ShareScope.shop,
+            ),
+          ),
+          const SizedBox(height: Space.s8),
+          _ToolRow(
             icon: 'edit',
             label: 'Nom, adresse, liens',
             detail: _infoSummary(business),
@@ -153,6 +165,13 @@ class _BusinessBlock extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Says whether there is a link to give out at all.
+String _shareSummary(BusinessDetail business) {
+  return business.status == BusinessStatus.published
+      ? 'Un lien à envoyer sur WhatsApp'
+      : 'Disponible une fois votre fiche publiée';
 }
 
 /// « 12 articles » — counted from the catalogue itself, never a stored figure,
