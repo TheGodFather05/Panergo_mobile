@@ -172,8 +172,16 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   }
 
   void _openRequest() {
+    // The question that got here becomes the first draft of the demande.
+    // Somebody who has described their problem to the assistant should not be
+    // asked to describe it again to a form.
+    final asked = _turns.whereType<UserAsked>().lastOrNull;
+
     Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => NewRequestScreen(initialCategory: _category),
+      builder: (_) => NewRequestScreen(
+        initialCategory: _category,
+        initialDescription: asked?.text,
+      ),
     ));
   }
 

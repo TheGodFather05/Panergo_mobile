@@ -27,9 +27,14 @@ class NewRequestScreen extends ConsumerStatefulWidget {
     super.key,
     this.initialCategory,
     this.fromPost,
+    this.initialDescription,
   });
 
   final ServiceCategory? initialCategory;
+
+  /// What was already typed on the way here — from the assistant card, say.
+  /// Seeding it means nobody describes the same problem twice.
+  final String? initialDescription;
 
   /// The réalisation this request was started from, when it was.
   ///
@@ -57,6 +62,9 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
       _descriptionController.text =
           'J’ai besoin du même travail que sur la photo de '
           '${origin.authorName.split(' ').first}.';
+    } else if (widget.initialDescription != null &&
+        widget.initialDescription!.trim().isNotEmpty) {
+      _descriptionController.text = widget.initialDescription!.trim();
     }
   }
 

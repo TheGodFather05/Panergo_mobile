@@ -25,7 +25,15 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final _assistantQuery = TextEditingController();
+
   ServiceCategory? _assistantCategory;
+
+  @override
+  void dispose() {
+    _assistantQuery.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,10 +55,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           _Headline(firstName: firstName),
           const SizedBox(height: Space.s18),
           _AssistantCard(
+            controller: _assistantQuery,
             category: _assistantCategory,
             onCategoryChanged: (value) =>
                 setState(() => _assistantCategory = value),
             onSearch: _openAssistant,
+            onAttach: _attach,
           ),
           const SizedBox(height: Space.s26),
           _SectionHeader(
@@ -76,9 +86,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   /// The assistant is the primary entry (ADR-03), so the card opens it rather
   /// than skipping ahead to the tender form.
+  ///
+  /// Whatever was typed on the card travels with it: the assistant screen asks
+  /// on arrival rather than showing an empty composer somebody has already
+  /// filled in once.
   void _openAssistant() {
-    Navigator.of(context).push(
-      AssistantScreen.route(initialCategory: _assistantCategory),
+    final query = _assistantQuery.text.trim();
+
+    Navigator.of(context)
+        .push(AssistantScreen.route(
+          initialCategory: _assistantCategory,
+          initialQuery: query.isEmpty ? null : query,
+        ))
+        // Cleared on the way out, not on the way in: coming back to a card
+        // still holding the last question invites asking it twice.
+        .then((_) {
+          if (mounted) setState(_assistantQuery.clear);
+        });
+  }
+
+  /// The three buttons under the composer.
+  ///
+  /// None of them attaches anything to the assistant, and that is not an
+  /// oversight: the assistant matches artisans on the words of the question,
+  /// so a photograph or a recording would change nothing it answers. Rather
+  /// than pretend otherwise, each says what it can and cannot do yet.
+  void _attach(AssistantAttachment kind) {
+    final message = switch (kind) {
+      AssistantAttachment.photo =>
+        'Une photo aide surtout l’artisan à chiffrer. Décrivez d’abord votre '
+            'besoin, vous pourrez l’ajouter à votre demande.',
+      AssistantAttachment.file =>
+        'Les pièces jointes arrivent bientôt. Décrivez votre besoin en '
+            'quelques mots pour l’instant.',
+      AssistantAttachment.voice =>
+        'La description vocale arrive bientôt. En attendant, écrivez votre '
+            'besoin — même en une ligne.',
+    };
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
     );
   }
 
@@ -147,14 +194,18 @@ class _Headline extends StatelessWidget {
 /// camera / attach / mic row above the search action.
 class _AssistantCard extends StatelessWidget {
   const _AssistantCard({
+    required this.controller,
     required this.category,
     required this.onCategoryChanged,
     required this.onSearch,
+    required this.onAttach,
   });
 
+  final TextEditingController controller;
   final ServiceCategory? category;
   final ValueChanged<ServiceCategory?> onCategoryChanged;
   final VoidCallback onSearch;
+  final ValueChanged<AssistantAttachment> onAttach;
 
   @override
   Widget build(BuildContext context) {
@@ -198,13 +249,29 @@ class _AssistantCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Space.s12),
-          GestureDetector(
-            onTap: onSearch,
-            child: Text(
-              category == null
+          // A field, not a label behind a tap. Somebody who types here has
+          // already said what they need; making them retype it on the next
+          // screen is the kind of thing that stops people asking at all.
+          TextField(
+            controller: controller,
+            maxLines: 3,
+            minLines: 1,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.search,
+            onSubmitted: (_) => onSearch(),
+            style: type.bodyLarge.copyWith(
+              fontSize: 16,
+              color: PanergoColors.ink,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+              hintText: category == null
                   ? 'Décrivez votre besoin…'
                   : 'Votre besoin en ${category!.label.toLowerCase()}…',
-              style: type.bodyLarge.copyWith(
+              hintStyle: type.bodyLarge.copyWith(
                 fontSize: 16,
                 color: PanergoColors.placeholder,
                 fontWeight: FontWeight.w500,
@@ -218,15 +285,27 @@ class _AssistantCard extends StatelessWidget {
           const SizedBox(height: Space.s12),
           Row(
             children: [
-              _ToolButton(icon: 'photo_camera', semanticLabel: 'Ajouter une photo'),
+              // A photograph belongs on the demande, where an artisan reading
+              // it can act on it — the assistant matches on the words alone,
+              // so attaching one here would change nothing it answers.
+              _ToolButton(
+                icon: 'photo_camera',
+                semanticLabel: 'Ajouter une photo à votre demande',
+                onTap: () => onAttach(AssistantAttachment.photo),
+              ),
               const SizedBox(width: Space.s8),
-              _ToolButton(icon: 'attach_file', semanticLabel: 'Joindre un fichier'),
+              _ToolButton(
+                icon: 'attach_file',
+                semanticLabel: 'Joindre un fichier à votre demande',
+                onTap: () => onAttach(AssistantAttachment.file),
+              ),
               const SizedBox(width: Space.s8),
               // The mic is the accessibility keystone — kept prominent.
               _ToolButton(
                 icon: 'mic',
                 semanticLabel: 'Décrire vocalement',
                 filled: true,
+                onTap: () => onAttach(AssistantAttachment.voice),
               ),
               const Spacer(),
               _SearchButton(onPressed: onSearch),
@@ -386,15 +465,20 @@ class _CategorySheetState extends State<_CategorySheet> {
       .replaceAll('ç', 'c');
 }
 
+/// What the three buttons under the composer offer.
+enum AssistantAttachment { photo, file, voice }
+
 class _ToolButton extends StatelessWidget {
   const _ToolButton({
     required this.icon,
     required this.semanticLabel,
+    required this.onTap,
     this.filled = false,
   });
 
   final String icon;
   final String semanticLabel;
+  final VoidCallback onTap;
   final bool filled;
 
   @override
@@ -402,7 +486,10 @@ class _ToolButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: semanticLabel,
-      child: Container(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
         width: 44,
         height: 44,
         alignment: Alignment.center,
@@ -410,8 +497,9 @@ class _ToolButton extends StatelessWidget {
           color: PanergoColors.fill,
           borderRadius: Radii.brTile,
         ),
-        child: MaterialSymbol(icon,
-            size: 20, color: context.brand.link, filled: filled),
+          child: MaterialSymbol(icon,
+              size: 20, color: context.brand.link, filled: filled),
+        ),
       ),
     );
   }
