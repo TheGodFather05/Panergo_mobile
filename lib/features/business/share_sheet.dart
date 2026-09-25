@@ -147,7 +147,7 @@ class _ShareSheetState extends State<ShareSheet> {
               _Note(scope: _scope, hasPhoto: widget.product?.photoUrl != null),
               const SizedBox(height: Space.s18),
               _Actions(
-                onWhatsApp: _whatsApp,
+                onPlatform: _post,
                 onCopy: _copy,
                 onOther: _other,
               ),
@@ -158,14 +158,66 @@ class _ShareSheetState extends State<ShareSheet> {
     );
   }
 
-  Future<void> _whatsApp() async {
-    final uri = Uri.parse(
-        'https://wa.me/?text=${Uri.encodeComponent(_message)}');
+  /// What each platform actually needs, which is not the same thing.
+  Future<void> _post(SharePlatform platform) async {
+    switch (platform) {
+      // Both read the page's og: tags and build the card themselves, so both
+      // want nothing but the link and a line of text.
+      case SharePlatform.whatsApp:
+        await _open(Uri.parse(
+            'https://wa.me/?text=${Uri.encodeComponent(_message)}'));
+      case SharePlatform.facebook:
+        await _open(Uri.parse(
+            'https://www.facebook.com/sharer/sharer.php?u=${Uri.encodeComponent(_url)}'));
+
+      // Neither ever turns a link into a preview. Instagram takes an image the
+      // shopkeeper posts as a story and puts the link sticker on themselves;
+      // TikTok has exactly one clickable link, in the bio.
+      case SharePlatform.instagram:
+        await _instagram();
+      case SharePlatform.tikTok:
+        await _tikTok();
+    }
+  }
+
+  Future<void> _instagram() async {
+    // The story image is composed server-side and does not exist yet. Saying
+    // so is better than opening Instagram with nothing to post: the shopkeeper
+    // would arrive there, find no image, and conclude the button is broken.
+    await Clipboard.setData(ClipboardData(text: _url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        duration: Duration(seconds: 5),
+        content: Text('Lien copié. L’image pour les stories arrive '
+            'bientôt — en attendant, collez le lien dans votre story.'),
+      ),
+    );
+  }
+
+  Future<void> _tikTok() async {
+    // Always the shop, never an article or the catalogue: a bio link is set
+    // once and left there, and the only one of the three that does not age is
+    // the shop's.
+    final shopUrl =
+        '${ApiConfig.shareBaseUrl}/b/${widget.business.slug ?? ''}';
+    await Clipboard.setData(ClipboardData(text: shopUrl));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        duration: Duration(seconds: 5),
+        content: Text('Lien de la boutique copié. Sur TikTok, collez-le '
+            'dans votre bio — c’est le seul endroit cliquable.'),
+      ),
+    );
+  }
+
+  Future<void> _open(Uri uri) async {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('WhatsApp n’est pas installé.')),
+        const SnackBar(content: Text('Application non installée.')),
       );
     }
   }
@@ -478,46 +530,85 @@ class _Note extends StatelessWidget {
   }
 }
 
+/// The four places a shopkeeper in Douala actually posts.
+///
+/// Two of them read the page's og: tags and build their own preview —
+/// WhatsApp and Facebook need nothing but the link. The other two never turn a
+/// link into a card at all, so each gets what it can actually use: Instagram a
+/// story image to post, TikTok the one link worth putting in a bio.
+enum SharePlatform {
+  whatsApp('WhatsApp', 'W', Color(0xFF1DA851), 19),
+  facebook('Facebook', 'f', Color(0xFF1877F2), 24),
+  instagram('Instagram', 'IG', Color(0xFFC13584), 15),
+  tikTok('TikTok', 'TT', Color(0xFF111111), 15);
+
+  const SharePlatform(this.label, this.mark, this.colour, this.markSize);
+
+  final String label;
+
+  /// A letterform rather than a logo: these are other companies' marks, and
+  /// shipping their artwork is a licensing question we have not asked.
+  final String mark;
+  final Color colour;
+  final double markSize;
+}
+
 class _Actions extends StatelessWidget {
   const _Actions({
-    required this.onWhatsApp,
+    required this.onPlatform,
     required this.onCopy,
     required this.onOther,
   });
 
-  final VoidCallback onWhatsApp;
+  final void Function(SharePlatform) onPlatform;
   final VoidCallback onCopy;
   final VoidCallback onOther;
 
   @override
   Widget build(BuildContext context) {
-    final brand = context.brand;
-
     return Column(
       children: [
-        GestureDetector(
-          onTap: onWhatsApp,
-          behavior: HitTestBehavior.opaque,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 15),
-            decoration: BoxDecoration(
-              color: brand.fill,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                MaterialSymbol('chat', size: 20, color: Colors.white),
-                SizedBox(width: Space.s8),
-                Text('Envoyer sur WhatsApp',
-                    style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white)),
-              ],
-            ),
-          ),
+        Row(
+          children: [
+            for (final platform in SharePlatform.values)
+              Expanded(
+                child: GestureDetector(
+                  onTap: () => onPlatform(platform),
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: platform.colour,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Center(
+                            child: Text(platform.mark,
+                                style: TextStyle(
+                                    fontSize: platform.markSize,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -0.3,
+                                    color: Colors.white)),
+                          ),
+                        ),
+                        const SizedBox(height: Space.s6),
+                        Text(platform.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                                color: PanergoColors.body)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: Space.s10),
         Row(

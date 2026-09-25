@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panergo_mobile/core/models/models.dart';
 import 'package:panergo_mobile/core/theme/app_theme.dart';
@@ -35,7 +36,7 @@ void main() {
 
   Widget host(Widget child) => MaterialApp(
         theme: AppTheme.build(BrandDirection.business),
-        home: Scaffold(body: child),
+        home: Scaffold(body: SingleChildScrollView(child: child)),
       );
 
   testWidgets('opened from an article, all three scopes are offered',
@@ -92,6 +93,61 @@ void main() {
 
     expect(find.text('Ouvert'), findsNothing);
     expect(find.textContaining('Ferme à'), findsNothing);
+  });
+
+  testWidgets('the four platforms a shopkeeper actually posts to are offered',
+      (tester) async {
+    await tester.pumpWidget(host(ShareSheet(
+      business: business,
+      origin: ShareScope.shop,
+    )));
+    await tester.pump();
+
+    expect(find.text('WhatsApp'), findsOneWidget);
+    expect(find.text('Facebook'), findsOneWidget);
+    expect(find.text('Instagram'), findsOneWidget);
+    expect(find.text('TikTok'), findsOneWidget);
+  });
+
+  testWidgets('TikTok copies the shop link even when opened from an article',
+      (tester) async {
+    // A phone, not the 800x600 the binding defaults to: the sheet lays four
+    // buttons across, and at 800 wide the last falls outside the viewport —
+    // the tap then lands on nothing and the test fails for the wrong reason.
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    // A bio link is set once and left there, so it must be the one that does
+    // not age — never an article that may be gone next month.
+    final copied = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied.add((call.arguments as Map)['text'] as String);
+        }
+        return null;
+      },
+    );
+
+    await tester.pumpWidget(host(ShareSheet(
+      business: business,
+      origin: ShareScope.product,
+      product: product,
+    )));
+    await tester.pump();
+
+    // Tap the mark on the tile — the GestureDetector wraps the whole column,
+    // so any point inside it works and the mark is unambiguous.
+    await tester.tap(find.text('TT'));
+    // The clipboard write is a platform call: pump once to run the handler,
+    // again to settle the SnackBar it schedules.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(copied.single, endsWith('/b/garage-ndokotti'));
+    expect(copied.single, isNot(contains('huile-15w40')));
   });
 
   testWidgets('an unpublished listing offers no link at all', (tester) async {
