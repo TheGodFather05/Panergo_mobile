@@ -745,18 +745,94 @@ class AssistantResult {
       );
 }
 
+/// A place from the annuaire among the assistant's answers.
+///
+/// Never narrated. The assistant speaks about artisans, where it has ratings
+/// and completed missions to speak from; a shop's opening hours are facts it
+/// lists without comment.
+class AssistantBusiness {
+  const AssistantBusiness({
+    required this.businessId,
+    required this.name,
+    required this.categoryCode,
+    required this.categoryLabel,
+    required this.neighborhood,
+    required this.openNow,
+    required this.services,
+    required this.matchedArticles,
+    this.photoUrl,
+  });
+
+  final String businessId;
+  final String name;
+  final String? photoUrl;
+  final String categoryCode;
+  final String categoryLabel;
+  final String neighborhood;
+  final bool openNow;
+  final List<String> services;
+
+  /// Articles the question mentioned — why this shop is in the results.
+  final List<AssistantArticle> matchedArticles;
+
+  factory AssistantBusiness.fromJson(Map<String, dynamic> json) =>
+      AssistantBusiness(
+        businessId: Json.str(json['business_id']),
+        name: Json.str(json['name']),
+        photoUrl: Json.strOrNull(json['photo_url']),
+        categoryCode: Json.str(json['category_code']),
+        categoryLabel: Json.str(json['category_label']),
+        neighborhood: Json.str(json['neighborhood']),
+        openNow: Json.boolOf(json['open_now']),
+        services: Json.list(json['services']).map((e) => '$e').toList(),
+        matchedArticles: Json.list(json['matched_articles'])
+            .map(AssistantArticle.fromJson)
+            .toList(),
+      );
+}
+
+/// One article from a shop's catalogue that the question named.
+class AssistantArticle {
+  const AssistantArticle({required this.name, this.price, this.unit});
+
+  final String name;
+
+  /// Null is « prix sur demande », never zero — which would say it is free.
+  final int? price;
+  final String? unit;
+
+  factory AssistantArticle.fromJson(Map<String, dynamic> json) =>
+      AssistantArticle(
+        name: Json.str(json['name']),
+        price: Json.intOrNull(json['price']),
+        unit: Json.strOrNull(json['unit']),
+      );
+}
+
 /// The assistant's answer: an optional observation plus grounded results.
 class AssistantAnswer {
-  const AssistantAnswer({required this.observation, required this.providers});
+  const AssistantAnswer({
+    required this.observation,
+    required this.providers,
+    required this.businesses,
+  });
 
   /// Null when the assistant is disabled server-side or the model call failed.
   final String? observation;
   final List<AssistantResult> providers;
 
+  /// Places from the annuaire. The server has always returned these; the app
+  /// simply never read them, so a pharmacy matching the question was found and
+  /// then thrown away.
+  final List<AssistantBusiness> businesses;
+
   factory AssistantAnswer.fromJson(Map<String, dynamic> json) => AssistantAnswer(
         observation: Json.strOrNull(json['observation']),
         providers:
             Json.list(json['providers']).map(AssistantResult.fromJson).toList(),
+        businesses: Json.list(json['businesses'])
+            .map(AssistantBusiness.fromJson)
+            .toList(),
       );
 }
 

@@ -11,6 +11,7 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../business/business_detail_screen.dart';
 import '../client/new_request_screen.dart';
 import '../client/reviews_screen.dart';
 
@@ -43,7 +44,10 @@ class AssistantReplied extends AssistantTurn {
   final ServiceCategory? category;
   final String neighborhood;
 
-  bool get isEmpty => answer.providers.isEmpty;
+  /// Nothing at all came back — neither an artisan to hire nor a place to go.
+  /// Counting only providers would show « rien trouvé » over a pharmacy that
+  /// is open right now.
+  bool get isEmpty => answer.providers.isEmpty && answer.businesses.isEmpty;
 }
 
 class AssistantFailed extends AssistantTurn {
@@ -407,7 +411,7 @@ class _TurnView extends StatelessWidget {
                 ),
                 const SizedBox(height: Space.s12),
               ],
-              if (answer.providers.isEmpty)
+              if (answer.providers.isEmpty && answer.businesses.isEmpty)
                 _NoResults(
                   category: category,
                   neighborhood: neighborhood,
@@ -419,8 +423,27 @@ class _TurnView extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: Space.s10),
                     child: _ResultCard(result: result),
                   ),
+
+                // Places, under their own heading and visibly a different kind
+                // of answer: an artisan comes to you, a shop is somewhere you
+                // go. Running them together would have people tapping a
+                // pharmacy expecting a quote.
+                if (answer.businesses.isNotEmpty) ...[
+                  if (answer.providers.isNotEmpty)
+                    const SizedBox(height: Space.s14),
+                  const _WhereToGoLabel(),
+                  for (final business in answer.businesses)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: Space.s10),
+                      child: _BusinessCard(business: business),
+                    ),
+                ],
+
                 const SizedBox(height: Space.xs),
-                _PostRequestNote(onOpenRequest: onOpenRequest),
+                // Only when there is somebody to hire. A question answered
+                // entirely by shops has no tender to open.
+                if (answer.providers.isNotEmpty)
+                  _PostRequestNote(onOpenRequest: onOpenRequest),
               ],
             ],
           ),
@@ -520,6 +543,156 @@ class _ThinkingRow extends StatelessWidget {
 
 /// One provider, with the numbers the backend actually holds. Anything it had
 /// no data for is named as missing rather than quietly omitted.
+/// « Où aller » — the line that keeps the two halves of the product apart.
+class _WhereToGoLabel extends StatelessWidget {
+  const _WhereToGoLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: Space.s10, left: 2),
+      child: Text('OÙ ALLER',
+          style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+              color: PanergoColors.faint)),
+    );
+  }
+}
+
+/// A place from the annuaire.
+///
+/// Deliberately not shaped like [_ResultCard]: no rating, no response time, no
+/// price from a last offer — a shop has none of those. What leads instead is
+/// open or closed, and the article that earned the result.
+class _BusinessCard extends StatelessWidget {
+  const _BusinessCard({required this.business});
+
+  final AssistantBusiness business;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => BusinessDetailScreen(businessId: business.businessId),
+      )),
+      child: Container(
+        padding: const EdgeInsets.all(Space.s14),
+        decoration: BoxDecoration(
+          color: PanergoColors.surface,
+          borderRadius: Radii.brCard,
+          border: Border.all(color: PanergoColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InitialsAvatar(
+                    name: business.name,
+                    photoUrl: business.photoUrl,
+                    size: 42,
+                    radius: 13),
+                const SizedBox(width: Space.s12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        spacing: Space.s8,
+                        runSpacing: 4,
+                        children: [
+                          Text(business.name,
+                              style: const TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: PanergoColors.ink)),
+                          _OpenChip(open: business.openNow),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text('${business.categoryLabel} · ${business.neighborhood}',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: PanergoColors.muted)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            // Why this shop is here. Without it, a quincaillerie under a
+            // question about cement looks like a guess.
+            if (business.matchedArticles.isNotEmpty) ...[
+              const SizedBox(height: Space.s10),
+              for (final article in business.matchedArticles)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Row(
+                    children: [
+                      MaterialSymbol('inventory_2',
+                          size: 14, color: context.brand.link),
+                      const SizedBox(width: Space.s6),
+                      Expanded(
+                        child: Text(article.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                                color: PanergoColors.body)),
+                      ),
+                      Text(
+                        // « Prix sur demande », never "0 FCFA".
+                        article.price == null
+                            ? 'Prix sur demande'
+                            : Formats.money(article.price!),
+                        style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: article.price == null
+                                ? FontWeight.w600
+                                : FontWeight.w800,
+                            color: article.price == null
+                                ? PanergoColors.muted
+                                : PanergoColors.ink),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Open or closed, said in a word — never colour alone (RM-16).
+class _OpenChip extends StatelessWidget {
+  const _OpenChip({required this.open});
+
+  final bool open;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = open
+        ? (const Color(0xFFE6F1EA), const Color(0xFF14603F))
+        : (PanergoColors.fill, PanergoColors.muted);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(open ? 'Ouvert' : 'Fermé',
+          style: TextStyle(
+              fontSize: 10.5, fontWeight: FontWeight.w800, color: fg)),
+    );
+  }
+}
+
 class _ResultCard extends StatelessWidget {
   const _ResultCard({required this.result});
 
