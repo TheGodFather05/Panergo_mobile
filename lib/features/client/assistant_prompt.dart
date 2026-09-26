@@ -72,8 +72,28 @@ class AssistantPromptState extends State<AssistantPrompt> {
     (Duration(milliseconds: 5200), 0),
   ];
 
+  /// The quiet before the examples come round again.
+  ///
+  /// Long enough that the card is still most of the time — the pause is what
+  /// keeps this from being the permanent loop the design ruled out — and short
+  /// enough that somebody reading the screen sees a second example.
+  static const _restAfterRound = Duration(seconds: 8);
+
+  /// How long the caret rests on each side of a blink.
+  ///
+  /// The platform caret is about 500ms; matching it means the drawn one and
+  /// the real one behave alike, and the swap at focus goes unnoticed.
+  static const _blink = Duration(milliseconds: 530);
+
   int _index = 0;
   bool _playing = false;
+
+  /// Whether the drawn caret is currently on.
+  bool _caretOn = true;
+  Timer? _blinkTimer;
+
+  /// Rounds already played, against [AssistantPrompt.playLimit].
+  int _rounds = 0;
 
   /// Cancellable, so disposal leaves nothing pending. `mounted` checks alone
   /// keep the callbacks harmless but leave timers alive behind the screen.
@@ -83,6 +103,31 @@ class AssistantPromptState extends State<AssistantPrompt> {
   void initState() {
     super.initState();
     _maybeStart();
+    _startBlink();
+  }
+
+  /// The drawn caret blinks like a real one.
+  ///
+  /// Independent of the examples: the caret is the standing signal that this
+  /// is a field, so it keeps going after the rotation has stopped for good.
+  /// It runs only while the caret is actually drawn — there is nothing to
+  /// blink once the real cursor is in place.
+  void _startBlink() {
+    _blinkTimer?.cancel();
+    _blinkTimer = Timer.periodic(_blink, (_) {
+      if (!mounted || !widget.showCaret) return;
+      setState(() => _caretOn = !_caretOn);
+    });
+  }
+
+  @override
+  void didUpdateWidget(AssistantPrompt oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Back from focus: start again on, rather than wherever the cycle was.
+    if (widget.showCaret && !oldWidget.showCaret) {
+      _caretOn = true;
+      _startBlink();
+    }
   }
 
   Future<void> _maybeStart() async {
@@ -93,6 +138,18 @@ class AssistantPromptState extends State<AssistantPrompt> {
     // open, and a rotation already running should not be interrupted by it.
     if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) return;
 
+    _startRound();
+  }
+
+  /// One pass through the examples, then a rest, then another.
+  ///
+  /// Stopped for good once [AssistantPrompt.playLimit] rounds have played, or
+  /// the moment somebody touches the card — whichever comes first.
+  void _startRound() {
+    if (!mounted || _stopped) return;
+    if (_rounds >= AssistantPrompt.playLimit) return;
+
+    _rounds++;
     setState(() => _playing = true);
 
     for (final (delay, index) in _beats) {
@@ -104,13 +161,22 @@ class AssistantPromptState extends State<AssistantPrompt> {
         });
       }));
     }
+
+    // Round again after a pause, so somebody who arrives mid-thought still
+    // sees an example without the card ever becoming a loop.
+    _timers.add(Timer(_beats.last.$1 + _restAfterRound, _startRound));
   }
 
   /// Stops on the first touch, on focus, and when the screen leaves view.
   ///
+  /// Permanent for this screen: somebody who has touched the card knows it can
+  /// be typed in, and examples resuming behind their cursor would be the loop
+  /// the design ruled out.
+  ///
   /// Returns to the fixed invitation with no fade: a crossfade here would read
   /// as one more thing happening at the moment somebody decided to type.
   void stop() {
+    _stopped = true;
     _cancel();
     if (!_playing && _index == 0) return;
     setState(() {
@@ -118,6 +184,8 @@ class AssistantPromptState extends State<AssistantPrompt> {
       _index = 0;
     });
   }
+
+  bool _stopped = false;
 
   void _cancel() {
     for (final timer in _timers) {
@@ -129,6 +197,7 @@ class AssistantPromptState extends State<AssistantPrompt> {
   @override
   void dispose() {
     _cancel();
+    _blinkTimer?.cancel();
     super.dispose();
   }
 
@@ -139,14 +208,19 @@ class AssistantPromptState extends State<AssistantPrompt> {
     return Row(
       children: [
         if (widget.showCaret) ...[
-          // Fixed, never blinking. A blinking caret under no cursor is a
-          // promise the field has not yet made.
-          Container(
-            width: 2,
-            height: 20,
-            decoration: BoxDecoration(
-              color: context.brand.link,
-              borderRadius: BorderRadius.circular(1),
+          // Blinks like the real one, at the platform's own rhythm, so the
+          // swap at focus goes unnoticed. Opacity rather than visibility:
+          // nothing reflows, and the row never twitches.
+          AnimatedOpacity(
+            opacity: _caretOn ? 1 : 0,
+            duration: reduced ? Duration.zero : const Duration(milliseconds: 90),
+            child: Container(
+              width: 2,
+              height: 20,
+              decoration: BoxDecoration(
+                color: context.brand.link,
+                borderRadius: BorderRadius.circular(1),
+              ),
             ),
           ),
           const SizedBox(width: 6),

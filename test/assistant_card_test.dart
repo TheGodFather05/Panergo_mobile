@@ -34,7 +34,7 @@ void main() {
     expect(find.text('Décrivez votre besoin…'), findsOneWidget);
   });
 
-  testWidgets('it shows examples, then settles back and stops',
+  testWidgets('it shows examples, then rests on the invitation',
       (tester) async {
     await tester.pumpWidget(host());
     await tester.pump();
@@ -45,14 +45,47 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2000));
     expect(find.text('Un électricien ce soir ?'), findsOneWidget);
 
-    // Back to the invitation, and nothing further.
+    // Back to the invitation, and quiet for a while.
     await tester.pump(const Duration(milliseconds: 2100));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(seconds: 2));
     expect(find.text('Décrivez votre besoin…'), findsOneWidget);
 
-    await tester.pump(const Duration(seconds: 5));
+    // Let the rounds run out so no timer outlives the test.
+    await tester.pump(const Duration(seconds: 40));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('the examples come round again after the rest', (tester) async {
+    // Somebody arriving mid-thought should still catch an example, without the
+    // card ever becoming a permanent loop.
+    await tester.pumpWidget(host());
+    await tester.pump();
+
+    // Through the first round and its pause.
+    await tester.pump(const Duration(milliseconds: 5300));
+    expect(find.text('Décrivez votre besoin…'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 8));
+    await tester.pump(const Duration(milliseconds: 1300));
+    expect(find.text('Une fuite dans la cuisine ?'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 40));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('a touch stops it for good, rests included', (tester) async {
+    // The rest must not bring the examples back behind somebody's cursor.
+    final key = GlobalKey<AssistantPromptState>();
+    await tester.pumpWidget(host(key: key));
+    await tester.pump();
+
+    key.currentState!.stop();
+    await tester.pump();
+
+    await tester.pump(const Duration(seconds: 20));
     await tester.pumpAndSettle();
     expect(find.text('Décrivez votre besoin…'), findsOneWidget);
+    expect(find.text('Une fuite dans la cuisine ?'), findsNothing);
   });
 
   testWidgets('stop() returns to the invitation at once', (tester) async {
@@ -73,6 +106,28 @@ void main() {
     await tester.pump(const Duration(seconds: 5));
     await tester.pumpAndSettle();
     expect(find.text('Décrivez votre besoin…'), findsOneWidget);
+  });
+
+  testWidgets('the drawn caret blinks', (tester) async {
+    // It is the standing signal that this is a field, so it behaves like a
+    // real cursor rather than sitting there fixed.
+    await tester.pumpWidget(host());
+    await tester.pump();
+
+    double opacity() => tester
+        .widget<AnimatedOpacity>(find.byType(AnimatedOpacity).first)
+        .opacity;
+
+    expect(opacity(), 1);
+
+    await tester.pump(const Duration(milliseconds: 540));
+    expect(opacity(), 0);
+
+    await tester.pump(const Duration(milliseconds: 540));
+    expect(opacity(), 1);
+
+    await tester.pump(const Duration(seconds: 40));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('reduced motion never rotates', (tester) async {
