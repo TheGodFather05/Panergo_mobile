@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'assistant_prompt.dart';
+
 import '../../core/models/enums.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -192,7 +194,7 @@ class _Headline extends StatelessWidget {
 
 /// The assistant entry point: a prompt line, a category picker, and the
 /// camera / attach / mic row above the search action.
-class _AssistantCard extends StatelessWidget {
+class _AssistantCard extends StatefulWidget {
   const _AssistantCard({
     required this.controller,
     required this.category,
@@ -208,9 +210,44 @@ class _AssistantCard extends StatelessWidget {
   final ValueChanged<AssistantAttachment> onAttach;
 
   @override
+  State<_AssistantCard> createState() => _AssistantCardState();
+}
+
+class _AssistantCardState extends State<_AssistantCard> {
+  final _focus = FocusNode();
+  final _prompt = GlobalKey<AssistantPromptState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_onFocusChange);
+    widget.controller.addListener(_onTextChange);
+  }
+
+  void _onFocusChange() {
+    // Stops the examples the moment somebody means to type.
+    if (_focus.hasFocus) _prompt.currentState?.stop();
+    setState(() {});
+  }
+
+  /// Rebuilds for the send button, which turns from outline to filled on the
+  /// first character.
+  void _onTextChange() => setState(() {});
+
+  @override
+  void dispose() {
+    _focus.removeListener(_onFocusChange);
+    widget.controller.removeListener(_onTextChange);
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final brand = context.brand;
     final type = context.type;
+    final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    final hasText = widget.controller.text.trim().isNotEmpty;
 
     return PanergoCard(
       elevated: true,
@@ -249,37 +286,105 @@ class _AssistantCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Space.s12),
-          // A field, not a label behind a tap. Somebody who types here has
-          // already said what they need; making them retype it on the next
-          // screen is the kind of thing that stops people asking at all.
-          TextField(
-            controller: controller,
-            maxLines: 3,
-            minLines: 1,
-            textCapitalization: TextCapitalization.sentences,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => onSearch(),
-            style: type.bodyLarge.copyWith(
-              fontSize: 16,
-              color: PanergoColors.ink,
-              fontWeight: FontWeight.w500,
-            ),
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              isDense: true,
-              contentPadding: EdgeInsets.zero,
-              hintText: category == null
-                  ? 'Décrivez votre besoin…'
-                  : 'Votre besoin en ${category!.label.toLowerCase()}…',
-              hintStyle: type.bodyLarge.copyWith(
-                fontSize: 16,
-                color: PanergoColors.placeholder,
-                fontWeight: FontWeight.w500,
+
+          // The well is the whole answer to "it does not look like it wants
+          // anything from you": a sunken ground with a visible caret reads as
+          // somewhere to write, for everybody and on every open. The moving
+          // examples only teach *what* to ask, which is why they stop.
+          GestureDetector(
+            onTap: () {
+              _prompt.currentState?.stop();
+              _focus.requestFocus();
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              padding: const EdgeInsets.all(Space.s14),
+              decoration: BoxDecoration(
+                color: PanergoColors.fill,
+                borderRadius: BorderRadius.circular(14),
+                // Inset, so focus changes nothing's position — the card must
+                // not move while the keyboard is already moving.
+                border: Border.all(
+                  color: _focus.hasFocus
+                      ? PanergoColors.ink
+                      : PanergoColors.border,
+                  width: _focus.hasFocus ? 2 : 1,
+                ),
+              ),
+              child: Stack(
+                children: [
+                  TextField(
+                    controller: widget.controller,
+                    focusNode: _focus,
+                    maxLines: 3,
+                    minLines: 1,
+                    textCapitalization: TextCapitalization.sentences,
+                    textInputAction: TextInputAction.search,
+                    cursorColor: brand.link,
+                    onSubmitted: (_) => widget.onSearch(),
+                    style: type.bodyLarge.copyWith(
+                      fontSize: 16,
+                      color: PanergoColors.ink,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+
+                  // Drawn rather than a hintText, because it carries the caret
+                  // and the rotation. Hidden the moment there is real text.
+                  if (!hasText)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: widget.category == null
+                            ? AssistantPrompt(
+                                key: _prompt,
+                                showCaret: !_focus.hasFocus,
+                                style: type.bodyLarge.copyWith(
+                                  fontSize: 16,
+                                  color: PanergoColors.placeholder,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              )
+                            // With a trade chosen the examples would contradict
+                            // it, so the invitation names the trade instead.
+                            : Text(
+                                'Votre besoin en '
+                                '${widget.category!.label.toLowerCase()}…',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: type.bodyLarge.copyWith(
+                                  fontSize: 16,
+                                  color: PanergoColors.placeholder,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
+
+          // With animations reduced the examples never play, so the same
+          // teaching is said once, in a fixed line.
+          if (reduced && !hasText) ...[
+            const SizedBox(height: Space.s8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Text(
+                'Par exemple : une fuite dans la cuisine, un électricien ce soir.',
+                style: type.metaSmall.copyWith(height: 1.4),
+              ),
+            ),
+          ],
+
           const SizedBox(height: Space.s14),
-          _CategoryPicker(value: category, onChanged: onCategoryChanged),
+          _CategoryPicker(
+              value: widget.category, onChanged: widget.onCategoryChanged),
           const SizedBox(height: Space.s14),
           const Divider(height: 1, color: PanergoColors.fillAlt),
           const SizedBox(height: Space.s12),
@@ -291,13 +396,13 @@ class _AssistantCard extends StatelessWidget {
               _ToolButton(
                 icon: 'photo_camera',
                 semanticLabel: 'Ajouter une photo à votre demande',
-                onTap: () => onAttach(AssistantAttachment.photo),
+                onTap: () => widget.onAttach(AssistantAttachment.photo),
               ),
               const SizedBox(width: Space.s8),
               _ToolButton(
                 icon: 'attach_file',
                 semanticLabel: 'Joindre un fichier à votre demande',
-                onTap: () => onAttach(AssistantAttachment.file),
+                onTap: () => widget.onAttach(AssistantAttachment.file),
               ),
               const SizedBox(width: Space.s8),
               // The mic is the accessibility keystone — kept prominent.
@@ -305,10 +410,10 @@ class _AssistantCard extends StatelessWidget {
                 icon: 'mic',
                 semanticLabel: 'Décrire vocalement',
                 filled: true,
-                onTap: () => onAttach(AssistantAttachment.voice),
+                onTap: () => widget.onAttach(AssistantAttachment.voice),
               ),
               const Spacer(),
-              _SearchButton(onPressed: onSearch),
+              _SearchButton(enabled: hasText, onPressed: widget.onSearch),
             ],
           ),
         ],
@@ -505,38 +610,93 @@ class _ToolButton extends StatelessWidget {
   }
 }
 
+/// « Rechercher » — outline until there is something to send.
+///
+/// Outline to filled is a change of *form*, not only of colour (RM-16): the
+/// button gains a ground rather than merely a brighter one, which reads at a
+/// glance and in sunlight.
+///
+/// The arrow pops at the moment the button becomes usable. Safe to move: the
+/// finger is on the keyboard then, not on the button.
 class _SearchButton extends StatelessWidget {
-  const _SearchButton({required this.onPressed});
+  const _SearchButton({required this.enabled, required this.onPressed});
 
+  final bool enabled;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     final brand = context.brand;
+    final reduced = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
-    return Material(
-      color: brand.fill,
-      borderRadius: Radii.brTile,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: Radii.brTile,
-        child: Container(
+    final ink = enabled ? Colors.white : PanergoColors.disabledLabel;
+
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: 'Rechercher',
+      child: GestureDetector(
+        // Inert rather than absent when empty: a button that vanishes takes
+        // the row's shape with it.
+        onTap: enabled ? onPressed : null,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: reduced ? Duration.zero : Motion.fadeUp,
+          curve: Curves.easeOut,
           height: 44,
           padding: const EdgeInsets.symmetric(horizontal: Space.s16),
+          decoration: BoxDecoration(
+            color: enabled ? brand.fill : Colors.transparent,
+            borderRadius: Radii.brTile,
+            border: enabled
+                ? null
+                : Border.all(color: PanergoColors.borderStrong, width: 1.5),
+          ),
           alignment: Alignment.center,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text('Rechercher',
                   style: context.type.cardTitleSmall
-                      .copyWith(fontSize: 13.5, color: Colors.white)),
+                      .copyWith(fontSize: 13.5, color: ink)),
               const SizedBox(width: 7),
-              const MaterialSymbol('arrow_forward',
-                  size: 19, color: Colors.white),
+              _PoppingArrow(enabled: enabled, colour: ink, reduced: reduced),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The arrow, which pops once as the button becomes usable.
+class _PoppingArrow extends StatelessWidget {
+  const _PoppingArrow({
+    required this.enabled,
+    required this.colour,
+    required this.reduced,
+  });
+
+  final bool enabled;
+  final Color colour;
+  final bool reduced;
+
+  @override
+  Widget build(BuildContext context) {
+    final arrow = MaterialSymbol('arrow_forward', size: 19, color: colour);
+
+    if (!enabled || reduced) return arrow;
+
+    return TweenAnimationBuilder<double>(
+      // Keyed on the state so it plays on the transition, not on every
+      // keystroke after it.
+      key: const ValueKey('enabled'),
+      tween: Tween(begin: 0.85, end: 1),
+      duration: Motion.pop,
+      curve: Curves.elasticOut,
+      builder: (_, scale, child) =>
+          Transform.scale(scale: scale, child: child),
+      child: arrow,
     );
   }
 }
