@@ -1942,6 +1942,7 @@ class Conversation {
     this.businessId,
     this.groupId,
     this.iconName,
+    this.lastMessage,
     this.lastMessageAt,
   });
 
@@ -1960,6 +1961,13 @@ class Conversation {
   /// A Material Symbols name for a group, which has no photograph to show.
   final String? iconName;
 
+  /// The last thing said, as one line, already prefixed by the server —
+  /// « Vous : » for your own, a first name in a group.
+  ///
+  /// Null in a thread nobody has spoken in, where the row shows the subject
+  /// instead.
+  final String? lastMessage;
+
   final DateTime? lastMessageAt;
 
   factory Conversation.fromJson(Map<String, dynamic> json) => Conversation(
@@ -1973,6 +1981,7 @@ class Conversation {
         businessId: Json.strOrNull(json['business_id']),
         groupId: Json.strOrNull(json['group_id']),
         iconName: Json.strOrNull(json['icon_name']),
+        lastMessage: Json.strOrNull(json['last_message']),
         lastMessageAt: json['last_message_at'] == null
             ? null
             : Json.dateTime(json['last_message_at']),

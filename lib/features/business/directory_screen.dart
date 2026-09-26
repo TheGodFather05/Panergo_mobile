@@ -54,7 +54,7 @@ class DirectoryScreen extends ConsumerWidget {
                 empty: (_) => const _NoCategories(),
                 builder: (context, items) => ListView(
                   padding: const EdgeInsets.fromLTRB(
-                      Space.gutterTight, 0, Space.gutterTight, Space.gutter),
+                      Space.gutterTight, 0, Space.gutterTight, Space.gutter + Clearance.askButton),
                   children: [
                     const _WhereNotWho(),
                     const SizedBox(height: Space.s14),

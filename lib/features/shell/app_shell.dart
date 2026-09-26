@@ -208,30 +208,30 @@ class _AppShellState extends ConsumerState<AppShell> {
       backgroundColor: PanergoColors.page,
       body: SafeArea(
         bottom: false,
-        child: IndexedStack(
-          // Rebuild the subtree when the mode changes: the two tab lists are
-          // different screens at the same positions, and without a key Flutter
-          // would match old state onto new widgets.
-          key: ValueKey(mode),
-          index: index,
+        child: Stack(
           children: [
-            for (final tab in tabs) Builder(builder: tab.builder),
-          ],
-        ),
-      ),
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Asking for work rides above the bar rather than sitting in it, so
-          // it is reachable from every tab without costing a destination. Only
-          // a client orders, so a provider's bar stays bare.
-          // Only a client orders, so neither an artisan's nor a shopkeeper's
-          // bar carries the ask.
-          if (mode == AppMode.client)
-            Align(
-              alignment: Alignment.centerRight,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 0, Space.s14, Space.s10),
+            IndexedStack(
+              // Rebuild the subtree when the mode changes: the two tab lists
+              // are different screens at the same positions, and without a key
+              // Flutter would match old state onto new widgets.
+              key: ValueKey(mode),
+              index: index,
+              children: [
+                for (final tab in tabs) Builder(builder: tab.builder),
+              ],
+            ),
+
+            // Asking for work floats over the content rather than reserving a
+            // strip above the bar: in the Column it used to sit in, it took
+            // its own height from every screen, so the last row of every list
+            // stopped short of the bar on the one mode that has it.
+            //
+            // Only a client orders, so neither an artisan's nor a
+            // shopkeeper's bar carries the ask.
+            if (mode == AppMode.client)
+              Positioned(
+                right: Space.s14,
+                bottom: Space.s10,
                 child: _AskButton(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
@@ -239,7 +239,12 @@ class _AppShellState extends ConsumerState<AppShell> {
                   ),
                 ),
               ),
-            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
           _TabBar(
             tabs: tabs,
             index: index,

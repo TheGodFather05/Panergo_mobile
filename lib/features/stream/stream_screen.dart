@@ -123,7 +123,7 @@ class StreamScreen extends ConsumerWidget {
                 onRefresh: () async => ref.invalidate(streamProvider),
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(
-                      Space.gutterTight, 0, Space.gutterTight, Space.gutter),
+                      Space.gutterTight, 0, Space.gutterTight, Space.gutter + Clearance.askButton),
                   itemCount: items.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 13),
                   itemBuilder: (context, i) => _StreamCard(post: items[i]),

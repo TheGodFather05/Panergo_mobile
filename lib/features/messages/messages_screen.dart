@@ -196,7 +196,7 @@ class _MessagesScreenState extends ConsumerState<MessagesScreen> {
                   ? _NoMatch(query: _search.text.trim())
                   : ListView.separated(
                 padding: const EdgeInsets.fromLTRB(
-                    Space.gutterTight, 0, Space.gutterTight, Space.gutter),
+                    Space.gutterTight, 0, Space.gutterTight, Space.gutter + Clearance.askButton),
                 itemCount: items.length,
                 separatorBuilder: (_, __) => const SizedBox(height: Space.s10),
                 itemBuilder: (context, index) => _Dismissible(
@@ -475,10 +475,23 @@ class _ConversationRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(conversation.peerName, style: context.type.cardTitleSmall),
+                Text(conversation.peerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: context.type.cardTitleSmall),
                 const SizedBox(height: 2),
-                Text(conversation.subtitle ?? conversation.kind.label,
-                    style: context.type.metaSmall),
+                // What was actually said, when anything was. The subject —
+                // « Plomberie », « Quincaillerie » — only stands in for a
+                // thread nobody has spoken in, where it says more than a blank
+                // line would.
+                Text(
+                  conversation.lastMessage ??
+                      conversation.subtitle ??
+                      conversation.kind.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.type.metaSmall,
+                ),
               ],
             ),
           ),

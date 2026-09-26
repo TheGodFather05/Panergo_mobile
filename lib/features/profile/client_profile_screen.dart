@@ -39,7 +39,8 @@ class ClientProfileScreen extends ConsumerWidget {
 
     return FadeUp(
       child: ListView(
-        padding: const EdgeInsets.only(bottom: Space.s26),
+        padding: const EdgeInsets.only(
+            bottom: Space.s26 + Clearance.askButton),
         children: [
           ProfileHeader(
             name: user?.name ?? '',

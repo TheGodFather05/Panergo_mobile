@@ -47,7 +47,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return FadeUp(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
-            Space.gutter, Space.s6, Space.gutter, Space.s26),
+            Space.gutter, Space.s6, Space.gutter,
+            Space.s26 + Clearance.askButton),
         children: [
           _TopRow(
               quartier: quartier,

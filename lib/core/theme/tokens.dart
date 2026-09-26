@@ -97,6 +97,14 @@ abstract final class Motion {
   static const fadeUpOffset = 10.0;
 }
 
+/// Room a floating control needs at the foot of a scrolling screen.
+abstract final class Clearance {
+  /// « Demander » floats over the client's screens, so their lists end above
+  /// it. A ListView with its own padding does not inherit viewPadding, so this
+  /// is added where the padding is written rather than imposed by the shell.
+  static const askButton = 62.0;
+}
+
 /// The type scale, in Hanken Grotesk.
 ///
 /// Nothing in Panergo is smaller than 11.5px — the design floor for outdoor
