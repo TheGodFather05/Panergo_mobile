@@ -20,14 +20,22 @@ final feedProvider = FutureProvider.autoDispose<List<FeedPost>>((ref) async {
 
 /// Feed — the provider's shop window: photos of finished work.
 class FeedScreen extends ConsumerWidget {
-  const FeedScreen({super.key});
+  const FeedScreen({super.key, this.pushed = false});
+
+  /// True when opened as its own route rather than as a shell tab.
+  ///
+  /// A tab body sits inside the shell's Scaffold and must not bring a second
+  /// one; a pushed route has nothing around it and must. Getting this wrong is
+  /// what rendered « Mes missions » as a title jammed under the status bar with
+  /// no way back and the black route ground showing through.
+  final bool pushed;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(feedProvider);
     final posts = async.value ?? const <FeedPost>[];
 
-    return FadeUp(
+    final body = FadeUp(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -53,7 +61,13 @@ class FeedScreen extends ConsumerWidget {
               ),
               data: async.value,
               onRetry: () => ref.invalidate(feedProvider),
-              errorTitle: 'Impossible de charger les réalisations',
+              // The design's own wording for this screen. Both bodies say the
+              // same reassuring thing in different words: nothing you did is
+              // lost, which is the only question somebody has when a feed fails.
+              errorTitle: 'Le fil n’a pas pu se charger',
+              errorBody: 'Vos publications et vos « utile » ne sont pas perdus.',
+              offlineBody: 'Les publications déjà chargées restent lisibles. '
+                  'Vos « utile » repartiront au retour du réseau.',
               skeleton: (context) => const _FeedSkeleton(),
               empty: (context) => const _EmptyFeed(),
               builder: (context, items) => RefreshIndicator(
@@ -71,6 +85,26 @@ class FeedScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+
+    // Inside the shell there is already a Scaffold and a tab bar; a second one
+    // would double the chrome. Pushed, there is neither, and without them the
+    // route renders over a black ground with no way back.
+    if (!pushed) return body;
+
+    return Scaffold(
+      backgroundColor: PanergoColors.page,
+      appBar: AppBar(
+        backgroundColor: PanergoColors.page,
+        elevation: 0,
+        leading: const BackButton(color: PanergoColors.ink),
+        title: const Text('Le fil',
+            style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: PanergoColors.ink)),
+      ),
+      body: body,
     );
   }
 }
@@ -218,6 +252,21 @@ class _FeedSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Named, not just shimmered. Two grey cards say "something is
+        // happening"; the words say what, which is what stops a slow network
+        // reading as a broken screen.
+        Padding(
+          padding: const EdgeInsets.only(bottom: Space.s10),
+          child: Text('Chargement du fil…', style: context.type.metaSmall),
+        ),
+        Expanded(child: _cards()),
+      ],
+    );
+  }
+
+  Widget _cards() {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(
           Space.gutterTight, 0, Space.gutterTight, Space.gutter),

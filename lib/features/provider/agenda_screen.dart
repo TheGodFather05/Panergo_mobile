@@ -136,7 +136,7 @@ class _Header extends StatelessWidget {
 
   String get _subtitle {
     if (jobCount == null) return 'Vos missions de la semaine';
-    if (jobCount == 0) return 'Aucune mission cette semaine';
+    if (jobCount == 0) return 'Votre semaine est libre';
     return jobCount == 1 ? '1 mission cette semaine' : '$jobCount missions cette semaine';
   }
 }
@@ -342,7 +342,7 @@ class _JobCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(job.clientName,
+                  Text(Formats.personName(job.clientName),
                       style: const TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w800,
@@ -420,7 +420,7 @@ class _NoWorkYet extends StatelessWidget {
             const MaterialSymbol('event_note',
                 size: 44, color: PanergoColors.disabled),
             const SizedBox(height: Space.gutterTight),
-            const Text('Aucune mission cette semaine',
+            const Text('Votre semaine est libre',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,

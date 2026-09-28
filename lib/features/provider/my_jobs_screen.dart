@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format/formats.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/models.dart';
+import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
+import '../../core/widgets/confirm_sheet.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
@@ -39,33 +41,51 @@ class MyJobsScreen extends ConsumerWidget {
         .toList();
     final pending =
         all.where((o) => o.status == OfferStatus.pending).toList();
+    // Closed is defined as "not in the other two" rather than by listing the
+    // statuses that belong here. Listing them is how WITHDRAWN — added with the
+    // withdrawal feature — fell through all three buckets and vanished from the
+    // screen: present in `all`, so the empty state stayed hidden, and matched by
+    // nothing, so three empty sections rendered and the page looked blank.
+    //
+    // Subtraction cannot have that failure. A future status lands in Terminées,
+    // which is wrong-ish but visible, and visible is recoverable.
     final closed = all
-        .where((o) =>
-            o.status == OfferStatus.rejected ||
-            (o.status == OfferStatus.selected &&
-                (o.requestStatus == RequestStatus.completed ||
-                    o.requestStatus == RequestStatus.cancelled)))
+        .where((o) => !won.contains(o) && !pending.contains(o))
         .toList();
 
-    return FadeUp(
+    // A pushed route, so it carries its own chrome — Scaffold, page ground and a
+    // way back. It had none: built as though it were a tab body, it rendered the
+    // title under the status bar with no back button and the black void behind
+    // the route showing through wherever the list did not reach. Its sibling
+    // rows in the same menu (Revenus, Ma performance) were always built this way.
+    return Scaffold(
+      backgroundColor: PanergoColors.page,
+      appBar: AppBar(
+        backgroundColor: PanergoColors.page,
+        elevation: 0,
+        leading: const BackButton(color: PanergoColors.ink),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Mes missions',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: PanergoColors.ink)),
+            if (async.hasValue)
+              Text(_subtitle(won.length, pending.length, closed.length),
+                  style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: PanergoColors.faint)),
+          ],
+        ),
+      ),
+      body: FadeUp(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                Space.gutter, Space.s12, Space.gutter, Space.gutterTight),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Mes missions', style: context.type.h1),
-                const SizedBox(height: Space.xs),
-                Text(
-                  async.hasValue ? _subtitle(won.length, pending.length) : '',
-                  style: context.type.meta,
-                ),
-              ],
-            ),
-          ),
           Expanded(
             child: AsyncView<List<MyOffer>>(
               state: AsyncView.stateFor(
@@ -101,7 +121,11 @@ class MyJobsScreen extends ConsumerWidget {
                         ),
                     ],
                     if (closed.isNotEmpty) ...[
-                      const _SectionLabel('Terminées'),
+                      // Not « Terminées »: this bucket holds finished missions,
+                      // offers the client passed over, and offers the artisan
+                      // took back. Only the first of those was ever completed,
+                      // and each card's own pill says which it is.
+                      const _SectionLabel('Historique'),
                       for (final offer in closed)
                         Padding(
                           padding: const EdgeInsets.only(bottom: Space.listGap),
@@ -115,11 +139,21 @@ class MyJobsScreen extends ConsumerWidget {
           ),
         ],
       ),
+      ),
     );
   }
 
-  static String _subtitle(int won, int pending) {
-    if (won == 0 && pending == 0) return 'Aucune offre envoyée';
+  /// The counts, and the history behind them.
+  ///
+  /// [past] matters: with only closed offers, « aucune offre envoyée » was a
+  /// plain falsehood — one had been sent and withdrawn. Nothing live is a
+  /// different fact from nothing ever.
+  static String _subtitle(int won, int pending, int past) {
+    if (won == 0 && pending == 0) {
+      return past == 0
+          ? 'Aucune offre envoyée'
+          : '$past offre${past > 1 ? 's' : ''} dans votre historique';
+    }
     final parts = <String>[
       if (won > 0) '$won à réaliser',
       if (pending > 0) '$pending en attente',
@@ -195,7 +229,7 @@ class _JobCard extends ConsumerWidget {
               const SizedBox(width: Space.xs),
               Flexible(
                 child: Text(
-                  offer.clientName,
+                  Formats.personName(offer.clientName),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: context.type.metaSmall,
@@ -224,6 +258,10 @@ class _JobCard extends ConsumerWidget {
               const SizedBox(width: Space.s10),
               Text('· ${offer.timeline.label}', style: context.type.metaSmall),
               const Spacer(),
+              // Only while it is still theirs to take back. A selected offer is
+              // somebody's plan by then, and undoing it is a cancellation.
+              if (offer.status == OfferStatus.pending)
+                _WithdrawButton(offer: offer),
               if (openable)
                 Row(
                   children: [
@@ -260,6 +298,68 @@ class _JobCard extends ConsumerWidget {
   }
 }
 
+/// « Retirer l'offre », on an offer nobody has chosen yet.
+///
+/// Behind a confirmation sheet (RM-09) because it is irreversible from the
+/// client's side, and the sheet carries the two facts that make it safe to
+/// press: the client stops seeing it, and it costs nothing.
+class _WithdrawButton extends ConsumerStatefulWidget {
+  const _WithdrawButton({required this.offer});
+
+  final MyOffer offer;
+
+  @override
+  ConsumerState<_WithdrawButton> createState() => _WithdrawButtonState();
+}
+
+class _WithdrawButtonState extends ConsumerState<_WithdrawButton> {
+  bool _busy = false;
+
+  Future<void> _withdraw() async {
+    final confirmed = await ConfirmSheet.show(
+      context,
+      title: 'Retirer votre offre ?',
+      body: 'Le client ne la verra plus. Cela n’affecte pas votre taux de '
+          'réponse tant que la demande est encore ouverte.',
+      confirmLabel: 'Retirer l’offre',
+      cancelLabel: 'Garder mon offre',
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      await ref.read(apiProvider).withdrawOffer(widget.offer.offerId);
+      if (!mounted) return;
+      ref.invalidate(myOffersProvider);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Votre offre a été retirée. Vous pouvez en envoyer une '
+            'nouvelle tant que la demande est ouverte.'),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: _busy ? null : _withdraw,
+      icon: const MaterialSymbol('cancel',
+          size: 16, color: PanergoColors.subtle),
+      label: Text('Retirer l’offre',
+          style: context.type.labelSmall
+              .copyWith(color: PanergoColors.subtle)),
+      style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: Space.s8),
+          minimumSize: const Size(0, 34)),
+    );
+  }
+}
+
 class _StatusPill extends StatelessWidget {
   const _StatusPill({required this.offer});
 
@@ -279,6 +379,10 @@ class _StatusPill extends StatelessWidget {
         ('En attente', PanergoColors.fillWarm, PanergoColors.muted),
       OfferStatus.rejected =>
         ('Non retenue', PanergoColors.fill, PanergoColors.subtle),
+      // Their own doing, so it reads differently from « non retenue » — and
+      // carries no judgement, because the client never saw it either way.
+      OfferStatus.withdrawn =>
+        ('Retirée', PanergoColors.fill, PanergoColors.subtle),
     };
 
     return StatusPill(

@@ -115,4 +115,22 @@ abstract final class Formats {
     if (reference.difference(when).inDays < 2) return 'Hier';
     return DateFormat('d MMMM', 'fr_FR').format(when);
   }
+
+  /// A person's name, never their phone number.
+  ///
+  /// An account created by OTP has no name until its owner supplies one, and the
+  /// backend falls back to the phone number for that column. Rendering it puts a
+  /// stranger's number on an artisan's screen — which is both a small privacy
+  /// leak and, more plainly, not a name.
+  ///
+  /// Detected by shape rather than by comparing against the stored number: the
+  /// caller usually does not have it, and anything that is only digits, spaces
+  /// and a leading + is not what anyone is called.
+  static String personName(String? raw, {String fallback = 'Client Panergo'}) {
+    final name = (raw ?? '').trim();
+    if (name.isEmpty) return fallback;
+
+    final looksLikeNumber = RegExp(r'^\+?[\d\s().-]{6,}$').hasMatch(name);
+    return looksLikeNumber ? fallback : name;
+  }
 }
