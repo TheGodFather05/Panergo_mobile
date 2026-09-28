@@ -51,6 +51,14 @@ abstract final class Formats {
   static String dayHeading(DateTime date) =>
       '${_weekdays[date.weekday - 1]} ${date.day} ${_months[date.month - 1]}';
 
+  /// A day and month with no weekday: `28 août`.
+  ///
+  /// Distinct from [dayHeading], which names the weekday because it heads a
+  /// day's agenda. In a list of finished missions the weekday is noise — nobody
+  /// recalls a job by which Tuesday it fell on.
+  static String dayMonth(DateTime date) =>
+      '${date.day} ${_months[date.month - 1]}';
+
   /// The span a week view covers. The month is written once where both ends
   /// share it — `2 – 8 septembre` rather than repeating it.
   static String weekRange(DateTime from, DateTime to) {

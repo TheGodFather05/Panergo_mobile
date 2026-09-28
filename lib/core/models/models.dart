@@ -1321,6 +1321,9 @@ class ProviderRevenue {
     required this.period,
     required this.totalAllTime,
     required this.averagePerMission,
+    required this.byCategory,
+    required this.byNeighborhood,
+    required this.missions,
   });
 
   final int total;
@@ -1336,6 +1339,19 @@ class ProviderRevenue {
   /// provider; absence is the truth.
   final int? averagePerMission;
 
+  /// The period's work split by trade, biggest first.
+  final List<RevenueCategorySlice> byCategory;
+
+  /// The same split by quartier, as mission counts — never francs.
+  final List<RevenueZoneSlice> byNeighborhood;
+
+  /// The finished missions themselves, newest first.
+  final List<CompletedMission> missions;
+
+  /// The biggest trade of the period, or null when there is nothing to rank.
+  RevenueCategorySlice? get topCategory =>
+      byCategory.isEmpty ? null : byCategory.first;
+
   factory ProviderRevenue.fromJson(Map<String, dynamic> json) => ProviderRevenue(
         total: Json.intOf(json['total_valeur_missions']),
         currency: Json.str(json['currency']),
@@ -1343,6 +1359,97 @@ class ProviderRevenue {
         period: Json.str(json['period']),
         totalAllTime: Json.intOf(json['total_all_time']),
         averagePerMission: Json.intOrNull(json['average_per_mission']),
+        byCategory: Json.list(json['by_category'])
+            .map(RevenueCategorySlice.fromJson)
+            .toList(growable: false),
+        byNeighborhood: Json.list(json['by_neighborhood'])
+            .map(RevenueZoneSlice.fromJson)
+            .toList(growable: false),
+        missions: Json.list(json['missions'])
+            .map(CompletedMission.fromJson)
+            .toList(growable: false),
+      );
+}
+
+/// One trade's share of a revenue period.
+class RevenueCategorySlice {
+  const RevenueCategorySlice({
+    required this.category,
+    required this.missions,
+    required this.total,
+    required this.share,
+  });
+
+  final ServiceCategory category;
+  final int missions;
+  final int total;
+
+  /// Percent of the period's value, rounded by the server so two screens cannot
+  /// round it differently.
+  final int share;
+
+  factory RevenueCategorySlice.fromJson(Map<String, dynamic> json) =>
+      RevenueCategorySlice(
+        category: Json.enumOf(json['category'], ServiceCategory.values,
+            ServiceCategory.plomberie),
+        missions: Json.intOf(json['missions']),
+        total: Json.intOf(json['total']),
+        share: Json.intOf(json['share']),
+      );
+}
+
+/// One quartier's share of a revenue period, counted in missions.
+class RevenueZoneSlice {
+  const RevenueZoneSlice({
+    required this.neighborhood,
+    required this.missions,
+    required this.share,
+  });
+
+  final String neighborhood;
+  final int missions;
+  final int share;
+
+  factory RevenueZoneSlice.fromJson(Map<String, dynamic> json) =>
+      RevenueZoneSlice(
+        neighborhood: Json.str(json['neighborhood']),
+        missions: Json.intOf(json['missions']),
+        share: Json.intOf(json['share']),
+      );
+}
+
+/// A finished mission as the revenue list shows it.
+class CompletedMission {
+  const CompletedMission({
+    required this.completedAt,
+    required this.category,
+    required this.clientName,
+    required this.price,
+    required this.originalPrice,
+  });
+
+  final DateTime completedAt;
+  final ServiceCategory category;
+  final String clientName;
+
+  /// What was actually paid.
+  final int price;
+
+  /// The opening quote, present only when it differs from [price]. Null means
+  /// no negotiation happened — striking through an unchanged quote would invent
+  /// one.
+  final int? originalPrice;
+
+  bool get wasNegotiated => originalPrice != null;
+
+  factory CompletedMission.fromJson(Map<String, dynamic> json) =>
+      CompletedMission(
+        completedAt: Json.dateTime(json['completed_at']),
+        category: Json.enumOf(json['category'], ServiceCategory.values,
+            ServiceCategory.plomberie),
+        clientName: Json.str(json['client_name']),
+        price: Json.intOf(json['price']),
+        originalPrice: Json.intOrNull(json['original_price']),
       );
 }
 

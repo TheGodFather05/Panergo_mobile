@@ -61,7 +61,7 @@ class _MakeOfferScreenState extends ConsumerState<MakeOfferScreen> {
     });
 
     try {
-      await ref.read(apiProvider).createOffer(
+      final offerId = await ref.read(apiProvider).createOffer(
             requestId: widget.request.id,
             price: _price!,
             timeline: _timeline,
@@ -70,6 +70,8 @@ class _MakeOfferScreenState extends ConsumerState<MakeOfferScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(MaterialPageRoute(
         builder: (_) => OfferSentScreen(
+          offerId: offerId,
+          request: widget.request,
           price: _price!,
           timeline: _timeline,
           message: _messageController.text.trim(),

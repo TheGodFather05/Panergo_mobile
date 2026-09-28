@@ -71,7 +71,13 @@ class RevenueScreen extends ConsumerWidget {
               errorTitle: 'Impossible de charger vos revenus',
               skeleton: (_) => const _Skeleton(),
               empty: (_) => const SizedBox.shrink(),
-              builder: (context, revenue) => _Body(revenue: revenue),
+              builder: (context, revenue) => _Body(
+                revenue: revenue,
+                period: period,
+                onWiden: () => ref
+                    .read(revenuePeriodProvider.notifier)
+                    .choose(RevenuePeriod.last30Days),
+              ),
             ),
           ),
         ],
@@ -148,9 +154,15 @@ class _Pill extends StatelessWidget {
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.revenue});
+  const _Body({
+    required this.revenue,
+    required this.period,
+    required this.onWiden,
+  });
 
   final ProviderRevenue revenue;
+  final RevenuePeriod period;
+  final VoidCallback onWiden;
 
   @override
   Widget build(BuildContext context) {
@@ -158,18 +170,47 @@ class _Body extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(
           Space.gutterTight, 0, Space.gutterTight, Space.s26),
       children: [
-        _Headline(revenue: revenue),
+        _Headline(revenue: revenue, period: period, onWiden: onWiden),
         const SizedBox(height: Space.gutterTight),
         _Facts(revenue: revenue),
+        // The best trade of the period, which is the one figure an artisan can
+        // actually act on — it says where to spend next month.
+        if (revenue.topCategory != null) ...[
+          const SizedBox(height: Space.xs),
+          _TopTrade(slice: revenue.topCategory!, total: revenue.total),
+        ],
+        // Said plainly rather than buried in terms: Panergo never touches the
+        // money, and an artisan reading a revenue screen is exactly the person
+        // who might assume otherwise.
+        const SizedBox(height: Space.xs),
+        const _MoneyDisclaimer(),
+        if (revenue.missions.isNotEmpty) ...[
+          const SizedBox(height: Space.gutterTight),
+          _MissionList(missions: revenue.missions),
+        ],
+        if (revenue.byCategory.length > 1) ...[
+          const SizedBox(height: Space.gutterTight),
+          _CategoryBreakdown(slices: revenue.byCategory),
+        ],
+        if (revenue.byNeighborhood.isNotEmpty) ...[
+          const SizedBox(height: Space.gutterTight),
+          _ZoneBreakdown(zones: revenue.byNeighborhood),
+        ],
       ],
     );
   }
 }
 
 class _Headline extends StatelessWidget {
-  const _Headline({required this.revenue});
+  const _Headline({
+    required this.revenue,
+    required this.period,
+    required this.onWiden,
+  });
 
   final ProviderRevenue revenue;
+  final RevenuePeriod period;
+  final VoidCallback onWiden;
 
   @override
   Widget build(BuildContext context) {
@@ -215,12 +256,39 @@ class _Headline extends StatelessWidget {
             // The count qualifies the figure, and comes from the data rather
             // than being written down anywhere (§4.5).
             revenue.completedCount == 0
-                ? 'Aucune mission terminée sur cette période'
+                // Two different empty states, which the design separates and
+                // this line used to conflate. A quiet month is not the same
+                // fact as never having earned, and an artisan reads the two
+                // very differently.
+                ? (revenue.totalAllTime > 0
+                    ? 'Rien ce mois-ci'
+                    : 'Votre première mission arrive')
                 : 'sur ${revenue.completedCount} mission'
                     '${revenue.completedCount > 1 ? 's' : ''} terminée'
                     '${revenue.completedCount > 1 ? 's' : ''}',
             style: const TextStyle(fontSize: 13, color: PanergoColors.muted),
           ),
+          if (revenue.completedCount == 0) ...[
+            const SizedBox(height: Space.s6),
+            Text(
+              revenue.totalAllTime > 0
+                  ? 'Aucune mission terminée sur cette période. Ce n’est pas '
+                      'une erreur, seulement une période creuse.'
+                  : 'Dès qu’une mission est clôturée, sa valeur apparaît ici. '
+                      'Aucune moyenne n’est affichée tant qu’il n’y a rien à '
+                      'moyenner.',
+              style: const TextStyle(
+                  fontSize: 12.5, height: 1.45, color: PanergoColors.subtle),
+            ),
+            // A way out of an empty period rather than a dead end — the design
+            // offers the wider window right where the gap is felt.
+            if (revenue.totalAllTime > 0 &&
+                period != RevenuePeriod.last30Days &&
+                period != RevenuePeriod.allTime) ...[
+              const SizedBox(height: Space.s8),
+              _WidenPeriod(onTap: onWiden),
+            ],
+          ],
           const SizedBox(height: Space.s12),
           // What this number is, and — more importantly — what Panergo is not.
           // ADR-01 leaves the transaction question open, so the figure has to
@@ -353,6 +421,407 @@ class _Skeleton extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// « Voir les 30 derniers jours » — the way out of an empty period.
+///
+/// The design puts it inside the empty state rather than beside the period
+/// pills, because that is where the gap is actually felt: an artisan looking at
+/// a blank month wants the wider window, not a lesson in filtering.
+class _WidenPeriod extends StatelessWidget {
+  const _WidenPeriod({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: Radii.brTile,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              vertical: Space.s6, horizontal: Space.s8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // The design names this glyph; MaterialSymbol takes that name
+              // straight, so there is nothing to translate.
+              MaterialSymbol('history',
+                  size: 15, color: BrandPalette.provider.link),
+              const SizedBox(width: Space.s6),
+              Text('Voir les 30 derniers jours',
+                  style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: BrandPalette.provider.link)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A section heading, as every list on this screen carries one.
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.s10, left: Space.xxs),
+      child: Text(text.toUpperCase(),
+          style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.9,
+              color: PanergoColors.faint)),
+    );
+  }
+}
+
+/// « Métier le plus rentable » — the period's best trade.
+class _TopTrade extends StatelessWidget {
+  const _TopTrade({required this.slice, required this.total});
+
+  final RevenueCategorySlice slice;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final average = slice.missions > 0 ? slice.total ~/ slice.missions : null;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: Space.s8),
+      padding: const EdgeInsets.all(Space.s14),
+      decoration: BoxDecoration(
+        color: BrandPalette.provider.soft,
+        borderRadius: Radii.brCard,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MaterialSymbol('trending_up',
+              size: 18, color: BrandPalette.provider.link),
+          const SizedBox(width: Space.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Métier le plus rentable',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: PanergoColors.muted)),
+                const SizedBox(height: Space.xs),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(slice.category.label,
+                          style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                              color: PanergoColors.ink)),
+                    ),
+                    Text(Formats.money(slice.total),
+                        style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: PanergoColors.ink)),
+                  ],
+                ),
+                const SizedBox(height: Space.xs),
+                Text(
+                  average == null
+                      ? '${slice.share} % de vos revenus'
+                      : '${slice.share} % de vos revenus · '
+                          '${Formats.money(average)} en moyenne par mission',
+                  style: const TextStyle(
+                      fontSize: 12, height: 1.4, color: PanergoColors.subtle),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Panergo holds no money, said on the screen where it matters most.
+class _MoneyDisclaimer extends StatelessWidget {
+  const _MoneyDisclaimer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Space.xxs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const MaterialSymbol('info', size: 15, color: PanergoColors.faint),
+          const SizedBox(width: Space.s8),
+          Expanded(
+            child: Text(
+              'Ce montant est la valeur des missions au prix convenu. Le client '
+              'vous règle directement : Panergo n’encaisse ni ne conserve '
+              'd’argent.',
+              style: const TextStyle(
+                  fontSize: 11.5, height: 1.45, color: PanergoColors.faint),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// « Missions terminées » — the rows behind the figure.
+class _MissionList extends StatelessWidget {
+  const _MissionList({required this.missions});
+
+  final List<CompletedMission> missions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Missions terminées'),
+        Container(
+          decoration: BoxDecoration(
+            color: PanergoColors.surface,
+            borderRadius: Radii.brCard,
+            border: Border.all(color: PanergoColors.border),
+          ),
+          child: Column(
+            children: [
+              for (var i = 0; i < missions.length; i++) ...[
+                if (i > 0)
+                  const Divider(
+                      height: 1, indent: Space.s14, endIndent: Space.s14,
+                      color: PanergoColors.borderFaint),
+                _MissionRow(mission: missions[i]),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _MissionRow extends StatelessWidget {
+  const _MissionRow({required this.mission});
+
+  final CompletedMission mission;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+          horizontal: Space.s14, vertical: Space.s12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(Formats.personName(mission.clientName),
+                    style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: PanergoColors.ink)),
+                const SizedBox(height: Space.xxs),
+                Text(
+                  '${Formats.dayMonth(mission.completedAt)} · '
+                  '${mission.category.label}',
+                  style: const TextStyle(
+                      fontSize: 12, color: PanergoColors.subtle),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: Space.s10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(Formats.money(mission.price),
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: PanergoColors.ink)),
+              // Shown only where a price actually moved, so the strike-through
+              // is evidence rather than decoration.
+              if (mission.wasNegotiated) ...[
+                const SizedBox(height: Space.xxs),
+                Text(
+                  Formats.money(mission.originalPrice!),
+                  style: const TextStyle(
+                      fontSize: 11.5,
+                      color: PanergoColors.faint,
+                      decoration: TextDecoration.lineThrough),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// « Par métier · du plus au moins rentable » — a ranked bar per trade.
+class _CategoryBreakdown extends StatelessWidget {
+  const _CategoryBreakdown({required this.slices});
+
+  final List<RevenueCategorySlice> slices;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Par métier · du plus au moins rentable'),
+        for (var i = 0; i < slices.length; i++)
+          _BreakdownBar(
+            label: slices[i].category.label,
+            detail: '${slices[i].missions} '
+                '${slices[i].missions > 1 ? 'missions' : 'mission'}',
+            amount: Formats.money(slices[i].total),
+            share: slices[i].share,
+            // The leader is named, not merely darker (RM-16): colour alone
+            // would say nothing to anyone who cannot separate the two blues.
+            rankLabel: i == 0 ? 'Nº 1' : null,
+            barColor: i == 0
+                ? BrandPalette.provider.accent
+                : BrandPalette.provider.soft,
+          ),
+      ],
+    );
+  }
+}
+
+/// « Par quartier » — where the work came from, counted in missions.
+class _ZoneBreakdown extends StatelessWidget {
+  const _ZoneBreakdown({required this.zones});
+
+  final List<RevenueZoneSlice> zones;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _SectionTitle('Par quartier'),
+        for (final zone in zones)
+          _BreakdownBar(
+            label: zone.neighborhood,
+            detail: '${zone.missions} '
+                '${zone.missions > 1 ? 'missions' : 'mission'}',
+            amount: null,
+            share: zone.share,
+            rankLabel: null,
+            barColor: BrandPalette.provider.soft,
+          ),
+      ],
+    );
+  }
+}
+
+/// One labelled proportional bar, shared by both breakdowns.
+class _BreakdownBar extends StatelessWidget {
+  const _BreakdownBar({
+    required this.label,
+    required this.detail,
+    required this.amount,
+    required this.share,
+    required this.rankLabel,
+    required this.barColor,
+  });
+
+  final String label;
+  final String detail;
+  final String? amount;
+  final int share;
+  final String? rankLabel;
+  final Color barColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.s12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: PanergoColors.ink)),
+              if (rankLabel != null) ...[
+                const SizedBox(width: Space.s6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: BrandPalette.provider.soft,
+                    borderRadius: BorderRadius.circular(Radii.badge),
+                  ),
+                  child: Text(rankLabel!,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: BrandPalette.provider.link)),
+                ),
+              ],
+              const Spacer(),
+              if (amount != null)
+                Text(amount!,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: PanergoColors.ink)),
+            ],
+          ),
+          const SizedBox(height: Space.s6),
+          // The share is written as well as drawn, so the bar is never the only
+          // carrier of the number.
+          Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(Radii.badge),
+                  child: LinearProgressIndicator(
+                    value: (share / 100).clamp(0.0, 1.0),
+                    minHeight: 7,
+                    backgroundColor: PanergoColors.fill,
+                    valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                  ),
+                ),
+              ),
+              const SizedBox(width: Space.s10),
+              Text('$share %',
+                  style: const TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: PanergoColors.muted)),
+            ],
+          ),
+          const SizedBox(height: Space.xxs),
+          Text(detail,
+              style: const TextStyle(
+                  fontSize: 11.5, color: PanergoColors.faint)),
+        ],
+      ),
     );
   }
 }
