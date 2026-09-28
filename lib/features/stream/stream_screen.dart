@@ -91,6 +91,14 @@ class StreamScreen extends ConsumerWidget {
                           // so only a provider is offered the choice.
                           canPublishWork:
                               ref.read(currentUserProvider)?.isProvider ?? false,
+                          // The sheet closes first: leaving it stacked over the
+                          // request form would put two composers on screen.
+                          onAskForWork: () {
+                            Navigator.of(context).pop();
+                            Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => const NewRequestScreen(),
+                            ));
+                          },
                         );
                         if (posted == true) ref.invalidate(streamProvider);
                       },

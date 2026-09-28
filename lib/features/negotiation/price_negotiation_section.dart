@@ -117,12 +117,25 @@ class _SettledRow extends StatelessWidget {
           const MaterialSymbol('lock', size: 17, color: PanergoColors.statusCoolInk),
           const SizedBox(width: Space.s10),
           Expanded(
-            child: Text(
-              'Prix convenu · ${Formats.money(price)}',
-              style: const TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800,
-                  color: PanergoColors.ink),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Prix convenu · ${Formats.money(price)}',
+                  style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: PanergoColors.ink),
+                ),
+                const SizedBox(height: Space.xxs),
+                // Why it is locked, not merely that it is. A padlock with no
+                // reason reads as the app having decided something on its own.
+                const Text(
+                  'Le prix ne change plus après l’arrivée.',
+                  style: TextStyle(
+                      fontSize: 11.5, color: PanergoColors.subtle),
+                ),
+              ],
             ),
           ),
         ],

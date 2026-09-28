@@ -22,17 +22,33 @@ import '../../core/widgets/panergo_button.dart';
 /// half-relevant half — and only an artisan is offered the photograph, because
 /// only a provider account may publish one.
 class ComposeSheet extends ConsumerStatefulWidget {
-  const ComposeSheet({super.key, required this.canPublishWork});
+  const ComposeSheet({
+    super.key,
+    required this.canPublishWork,
+    this.onAskForWork,
+  });
 
   /// Whether this account may post a réalisation.
   final bool canPublishWork;
 
-  static Future<bool?> show(BuildContext context, {required bool canPublishWork}) {
+  /// Opens the tender form instead, for somebody who came here to ask
+  /// neighbours about a job they actually want done. Null where the caller has
+  /// no route to that form, and then the suggestion is shown without a link.
+  final VoidCallback? onAskForWork;
+
+  static Future<bool?> show(
+    BuildContext context, {
+    required bool canPublishWork,
+    VoidCallback? onAskForWork,
+  }) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => ComposeSheet(canPublishWork: canPublishWork),
+      builder: (_) => ComposeSheet(
+        canPublishWork: canPublishWork,
+        onAskForWork: onAskForWork,
+      ),
     );
   }
 
@@ -345,12 +361,72 @@ class _ComposeSheetState extends ConsumerState<ComposeSheet> {
           ),
         ),
       ),
+      // A question to the quartier is not the same tool as a tender, and
+      // somebody who needs a plumber today should not be waiting on neighbours
+      // to answer. Offered here rather than guessed at: the design puts the
+      // alternative where the wrong choice is being made.
+      if (_mode == _Mode.question) ...[
+        const SizedBox(height: Space.s14),
+        _NeedWorkInstead(onTap: _busy ? null : widget.onAskForWork),
+      ],
       const SizedBox(height: Space.s16),
+      // RM-07: inert, and saying why. A greyed button with no reason reads as
+      // broken rather than as waiting for something.
+      if (!_valid)
+        ValidationHint(_mode == _Mode.question
+            ? 'Écrivez au moins une phrase pour publier.'
+            : 'Une photo et une description sont nécessaires.'),
       PanergoButton(
         label: _busy ? 'Publication…' : 'Publier',
-        onPressed: _valid && !_busy ? _publish : null,
+        enabled: _valid,
+        loading: _busy,
+        onPressed: _publish,
       ),
     ];
+  }
+}
+
+/// « Besoin d'une intervention plutôt que d'un avis ? »
+///
+/// Null [onTap] leaves it as plain text rather than a dead control: whoever
+/// opened this sheet may have no route to the request form from here.
+class _NeedWorkInstead extends StatelessWidget {
+  const _NeedWorkInstead({required this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = context.type;
+
+    return Container(
+      padding: const EdgeInsets.all(Space.s12),
+      decoration: BoxDecoration(
+        color: PanergoColors.fillWarm,
+        borderRadius: Radii.brTile,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Besoin d’une intervention plutôt que d’un avis ?',
+              style: type.labelSmall),
+          const SizedBox(height: Space.xs),
+          Text(
+            'Une demande vous apporte des prix à comparer au lieu de réponses '
+            'à attendre.',
+            style: type.metaSmall.copyWith(height: 1.4),
+          ),
+          if (onTap != null) ...[
+            const SizedBox(height: Space.s6),
+            InkWell(
+              onTap: onTap,
+              child: Text('Faites une demande',
+                  style: type.labelSmall.copyWith(color: context.brand.link)),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
