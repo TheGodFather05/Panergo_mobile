@@ -25,7 +25,19 @@ Future<void> main() async {
     return;
   }
 
-  runApp(const ProviderScope(child: PanergoApp()));
+  // One container, so the queue started here is the same one the screens
+  // enqueue into.
+  final container = ProviderContainer();
+
+  // Drain whatever was held before the app last closed, and keep watching for
+  // the network. Not awaited: a send waiting on a slow connection must not delay
+  // first paint, and the queue is designed to be started and forgotten.
+  container.read(sendQueueProvider).start();
+
+  runApp(UncontrolledProviderScope(
+    container: container,
+    child: const PanergoApp(),
+  ));
 }
 
 /// Shown when the binary was built without PANERGO_API_BASE_URL.
@@ -118,7 +130,18 @@ class _Root extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
 
-    return switch (auth) {
+    // Any pushed route belongs to the session that opened it. Signing out
+    // swaps what is *under* the stack, so without this a screen pushed over the
+    // shell stays on top of sign-in — still painting, its in-flight request
+    // resuming into an unmounted State. Keying the switch on the session drops
+    // the whole stack with it.
+    return KeyedSubtree(
+      key: ValueKey(switch (auth) {
+        SignedIn(:final user) => 'signed-in:${user.id}',
+        SignedOut() => 'signed-out',
+        AuthLoading() => 'loading',
+      }),
+      child: switch (auth) {
       AuthLoading() => const _Splash(),
       SignedOut() => const LoginScreen(),
       // Before the shell, and before the bare SignedIn arm — Dart takes the
@@ -127,7 +150,8 @@ class _Root extends ConsumerWidget {
       SignedIn(:final user) when user.needsProfileCompletion =>
         const CompleteProfileScreen(),
       SignedIn() => const AppShell(),
-    };
+      },
+    );
   }
 }
 

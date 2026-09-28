@@ -7,6 +7,7 @@ import 'models/enums.dart';
 import 'models/models.dart';
 import 'network/api_client.dart';
 import 'network/panergo_api.dart';
+import 'network/send_queue.dart';
 import 'storage/token_store.dart';
 import 'theme/palette.dart';
 
@@ -29,6 +30,17 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 final apiProvider = Provider<PanergoApi>(
   (ref) => PanergoApi(ref.watch(apiClientProvider)),
 );
+
+/// Sends held on the device until the network returns.
+///
+/// Started once from main(), which is what honours the design's « même si vous
+/// rouvrez l'application »: a question queued before a force-quit goes out on the
+/// next launch without anybody revisiting the screen.
+final sendQueueProvider = Provider<SendQueue>((ref) {
+  final queue = SendQueue(api: ref.watch(apiProvider));
+  ref.onDispose(queue.dispose);
+  return queue;
+});
 
 /// Where the session stands.
 sealed class AuthState {
@@ -173,10 +185,25 @@ class AuthNotifier extends Notifier<AuthState> {
     state = SignedIn(updated);
   }
 
+  /// A rejected token: drop the session and send them back to sign-in.
+  ///
+  /// Deferred to the next microtask rather than applied where it is called. The
+  /// call site is inside the Dio response interceptor, so assigning [state]
+  /// synchronously rebuilt the whole tree *while a request was still in flight*
+  /// — swapping the shell under a pushed screen and leaving that screen
+  /// unmounted with its `await` yet to resume. Every `if (!mounted) return;`
+  /// then did exactly what it says, and the spinner it was meant to clear ran
+  /// forever.
+  ///
+  /// Deferring lets the failing request finish unwinding first, so its own error
+  /// path runs and clears the screen before the tree changes underneath it.
   void handleExpiredSession() {
     if (state is SignedOut) return;
     unawaited(_store.clear());
-    state = const SignedOut(sessionExpired: true);
+    Future.microtask(() {
+      if (state is SignedOut) return;
+      state = const SignedOut(sessionExpired: true);
+    });
   }
 
   Future<void> signOut() async {
