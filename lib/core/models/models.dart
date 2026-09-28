@@ -739,9 +739,7 @@ class AssistantResult {
         avgResponseTimeHours: Json.dblOrNull(json['avg_response_time_hours']),
         statedAvailability: Json.strOrNull(json['stated_availability']),
         priceFromLastOffer: Json.intOrNull(json['price_from_last_offer']),
-        dataMissing: (json['data_missing'] as List? ?? const [])
-            .map((e) => '$e')
-            .toList(),
+        dataMissing: Json.strings(json['data_missing']),
       );
 }
 
@@ -784,7 +782,7 @@ class AssistantBusiness {
         categoryLabel: Json.str(json['category_label']),
         neighborhood: Json.str(json['neighborhood']),
         openNow: Json.boolOf(json['open_now']),
-        services: Json.list(json['services']).map((e) => '$e').toList(),
+        services: Json.strings(json['services']),
         matchedArticles: Json.list(json['matched_articles'])
             .map(AssistantArticle.fromJson)
             .toList(),
@@ -2055,9 +2053,7 @@ class BusinessDetail {
       statusLabel: Json.str(json['status_label']),
       statusMeta: Json.str(json['status_meta']),
         canMessage: Json.boolOf(json['can_message']),
-        services: (json['services'] as List<dynamic>? ?? const [])
-            .map((e) => e.toString())
-            .toList(),
+        services: Json.strings(json['services']),
         links: (json['links'] as List<dynamic>? ?? const [])
             .map((e) => BusinessLink.fromJson(e as Map<String, dynamic>))
             .toList(),

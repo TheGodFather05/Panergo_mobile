@@ -7,10 +7,20 @@ abstract final class Json {
   static Map<String, dynamic> obj(dynamic value) =>
       (value as Map).cast<String, dynamic>();
 
+  /// A list of JSON objects. Throws on a list of anything else — use
+  /// [strings] for those.
   static List<Map<String, dynamic>> list(dynamic value) =>
       (value as List? ?? const [])
           .map((e) => (e as Map).cast<String, dynamic>())
           .toList();
+
+  /// A list of plain strings, as `services` and other bare arrays come back.
+  ///
+  /// Separate from [list] because that one casts every element to a Map and
+  /// throws on a String — which surfaced as « une erreur inattendue » on a
+  /// perfectly good 200, with the real cause three layers down.
+  static List<String> strings(dynamic value) =>
+      (value as List? ?? const []).map((e) => '$e').toList(growable: false);
 
   static String str(dynamic value) => value as String? ?? '';
 
