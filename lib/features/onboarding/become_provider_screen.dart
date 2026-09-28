@@ -50,6 +50,12 @@ class _BecomeProviderScreenState extends ConsumerState<BecomeProviderScreen> {
   bool _uploading = false;
   bool _photoFailed = false;
 
+  /// How much of the photo has gone out, 0–1. Real progress from Dio rather
+  /// than an animation: the design puts a percentage next to « vous pouvez
+  /// continuer sans attendre », and a made-up number next to that sentence
+  /// would be the one part of it that was a lie.
+  double _photoProgress = 0;
+
   bool _busy = false;
   String? _error;
 
@@ -123,9 +129,11 @@ class _BecomeProviderScreenState extends ConsumerState<BecomeProviderScreen> {
                           limit: _bioLimit,
                           photo: _photo,
                           uploading: _uploading,
+                          progress: _photoProgress,
                           failed: _photoFailed,
                           onChanged: (_) => setState(() {}),
                           onPickPhoto: _pickPhoto,
+                          onRetryPhoto: _uploadPhoto,
                           onRemovePhoto: () => setState(() {
                             _photo = null;
                             _photoUrl = null;
@@ -214,14 +222,33 @@ class _BecomeProviderScreenState extends ConsumerState<BecomeProviderScreen> {
         .pickImage(source: source, maxWidth: 1440, imageQuality: 85);
     if (picked == null) return;
 
+    setState(() => _photo = File(picked.path));
+    await _uploadPhoto();
+  }
+
+  /// Sends whatever [_photo] holds.
+  ///
+  /// Separate from picking so a failed upload can be retried with the file
+  /// already chosen. Re-picking was the only way out before, which on a slow
+  /// connection meant opening the camera again to replace a photo that was
+  /// never the problem.
+  Future<void> _uploadPhoto() async {
+    final file = _photo;
+    if (file == null) return;
+
     setState(() {
-      _photo = File(picked.path);
       _uploading = true;
       _photoFailed = false;
+      _photoProgress = 0;
     });
 
     try {
-      final url = await ref.read(apiProvider).uploadImage(File(picked.path));
+      final url = await ref.read(apiProvider).uploadImage(
+            file,
+            onProgress: (f) {
+              if (mounted) setState(() => _photoProgress = f);
+            },
+          );
       if (mounted) setState(() => _photoUrl = url);
     } catch (_) {
       // Never blocks the wizard — the photo is optional and initials cover it.
@@ -344,9 +371,11 @@ class _PresentationStep extends StatelessWidget {
     required this.limit,
     required this.photo,
     required this.uploading,
+    required this.progress,
     required this.failed,
     required this.onChanged,
     required this.onPickPhoto,
+    required this.onRetryPhoto,
     required this.onRemovePhoto,
   });
 
@@ -354,9 +383,13 @@ class _PresentationStep extends StatelessWidget {
   final int limit;
   final File? photo;
   final bool uploading;
+  final double progress;
   final bool failed;
   final ValueChanged<String> onChanged;
   final ValueChanged<ImageSource> onPickPhoto;
+
+  /// Sends the already-chosen file again, after a failure.
+  final VoidCallback onRetryPhoto;
   final VoidCallback onRemovePhoto;
 
   @override
@@ -372,8 +405,10 @@ class _PresentationStep extends StatelessWidget {
           _PhotoRow(
             photo: photo,
             uploading: uploading,
+            progress: progress,
             failed: failed,
             onPick: () => _choosePhotoSource(context),
+            onRetry: onRetryPhoto,
             onRemove: onRemovePhoto,
           ),
           const SizedBox(height: Space.s20),
@@ -437,15 +472,19 @@ class _PhotoRow extends StatelessWidget {
   const _PhotoRow({
     required this.photo,
     required this.uploading,
+    required this.progress,
     required this.failed,
     required this.onPick,
+    required this.onRetry,
     required this.onRemove,
   });
 
   final File? photo;
   final bool uploading;
+  final double progress;
   final bool failed;
   final VoidCallback onPick;
+  final VoidCallback onRetry;
   final VoidCallback onRemove;
 
   @override
@@ -467,11 +506,16 @@ class _PhotoRow extends StatelessWidget {
                       image: FileImage(photo!), fit: BoxFit.cover),
             ),
             child: uploading
-                ? const Center(
+                ? Center(
                     child: SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      // Determinate, from the same fraction the percentage
+                      // reads. An indeterminate spinner beside « 62 % » would
+                      // have the two halves of one state disagreeing.
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          value: progress > 0 ? progress : null),
                     ),
                   )
                 : photo == null
@@ -488,7 +532,13 @@ class _PhotoRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                photo == null ? 'Votre photo (facultatif)' : 'Votre photo',
+                uploading
+                    ? 'Envoi en cours…'
+                    : failed
+                        ? 'L’envoi a échoué'
+                        : photo == null
+                            ? 'Votre photo (facultatif)'
+                            : 'Votre photo',
                 style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
@@ -497,9 +547,10 @@ class _PhotoRow extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 failed
-                    ? 'L’envoi a échoué. Vous pouvez continuer sans.'
+                    ? 'Connexion trop lente. Rien n’est perdu.'
                     : uploading
-                        ? 'Envoi en cours…'
+                        ? '${(progress * 100).round()} % · vous pouvez '
+                            'continuer sans attendre'
                         : photo == null
                             // Says what happens without one, rather than what a
                             // photo would do. Somebody hesitating here is
@@ -514,18 +565,41 @@ class _PhotoRow extends StatelessWidget {
                         ? PanergoColors.danger
                         : PanergoColors.muted),
               ),
+              // Two ways out of a failure, as the design draws it. Retry sends
+              // the file already chosen; « continuer sans photo » is the same
+              // act as removing it, named for what it means here — the wizard
+              // was never blocked, and somebody staring at an error should be
+              // told that rather than left to work it out.
               if (photo != null && !uploading)
-                TextButton(
-                  onPressed: onRemove,
-                  style: TextButton.styleFrom(
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size(44, 32),
-                      alignment: Alignment.centerLeft),
-                  child: const Text('Retirer',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w700,
-                          color: PanergoColors.subtle)),
+                Row(
+                  children: [
+                    if (failed)
+                      TextButton(
+                        onPressed: onRetry,
+                        style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: const Size(44, 32),
+                            alignment: Alignment.centerLeft),
+                        child: Text('Réessayer',
+                            style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                color: context.brand.link)),
+                      ),
+                    if (failed) const SizedBox(width: Space.s14),
+                    TextButton(
+                      onPressed: onRemove,
+                      style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(44, 32),
+                          alignment: Alignment.centerLeft),
+                      child: Text(failed ? 'Continuer sans photo' : 'Retirer',
+                          style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: PanergoColors.subtle)),
+                    ),
+                  ],
                 ),
             ],
           ),

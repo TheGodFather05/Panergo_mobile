@@ -149,11 +149,27 @@ class ApiClient {
   ///
   /// Routed through the same [_send] as everything else so an expired session
   /// and a mapped error behave here exactly as they do on any other call.
-  Future<T> upload<T>(String path, {required File file, String field = 'file'}) async {
+  /// Uploads a file, optionally reporting how much has gone out.
+  ///
+  /// [onProgress] receives a fraction between 0 and 1. Dio reports -1 for total
+  /// when the length is unknown, which would otherwise produce a negative
+  /// percentage on screen.
+  Future<T> upload<T>(String path,
+      {required File file,
+      String field = 'file',
+      void Function(double fraction)? onProgress}) async {
     final form = FormData.fromMap({
       field: await MultipartFile.fromFile(file.path),
     });
-    return _send(() => _dio.post<T>(path, data: form));
+    return _send(() => _dio.post<T>(
+          path,
+          data: form,
+          onSendProgress: onProgress == null
+              ? null
+              : (sent, total) {
+                  if (total > 0) onProgress((sent / total).clamp(0.0, 1.0));
+                },
+        ));
   }
 
   Future<T> put<T>(String path, {Object? body}) =>

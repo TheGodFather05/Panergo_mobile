@@ -67,10 +67,12 @@ abstract final class PlacePickers {
             hint: 'Rechercher un quartier',
             emptyCount: (n) => '$n quartier${n > 1 ? 's' : ''} desservi${n > 1 ? 's' : ''}',
             emptyTitle: 'Aucun quartier desservi',
-            // The consequence, not just the absence: without this list nothing
-            // can be routed, which is why it is worth spelling out.
-            emptyBody: 'Les quartiers desservis n’ont pas pu être chargés. '
-                'Sans cette liste, vos demandes ne peuvent pas être routées.',
+            // Empty is not failure. The load worked and the answer was none —
+            // this city is not open yet. The old text blamed the network for a
+            // fact about coverage, sending somebody to retry a connection that
+            // was never the problem; the error state next door says that.
+            emptyBody: 'Panergo n’est pas encore ouvert dans votre ville. '
+                'Nous vous préviendrons au lancement.',
             loadingLabel: 'Chargement des quartiers…',
             errorBody: 'La liste des quartiers demande une connexion. Elle '
                 's’affichera dès le retour du réseau.',

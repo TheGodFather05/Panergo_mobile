@@ -165,15 +165,28 @@ enum PostType implements WireEnum {
 
 /// What a neighbourhood post is for.
 enum QuartierPostKind implements WireEnum {
-  question('QUESTION', 'Question'),
-  prestataire('PRESTATAIRE', 'Prestataire'),
-  recommandation('RECOMMANDATION', 'Recommandation');
+  // Icons and hints from the design's kind picker. Its third kind is
+  // « Information »; the server's is PRESTATAIRE, and the server's list is the
+  // contract — so the hint describes what this one actually posts.
+  question('QUESTION', 'Question', 'help',
+      'Vous cherchez un conseil ou un prestataire'),
+  prestataire('PRESTATAIRE', 'Prestataire', 'handyman',
+      'Vous proposez vos services au quartier'),
+  recommandation('RECOMMANDATION', 'Recommandation', 'thumb_up',
+      'Vous voulez citer quelqu’un de bien');
 
-  const QuartierPostKind(this.wire, this.label);
+  const QuartierPostKind(this.wire, this.label, this.iconName, this.hint);
 
   @override
   final String wire;
   final String label;
+
+  /// The glyph beside the label in the kind picker.
+  final String iconName;
+
+  /// What choosing this kind means, shown under the picker so the three are
+  /// distinguishable before anything is typed.
+  final String hint;
 }
 
 

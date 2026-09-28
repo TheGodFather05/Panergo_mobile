@@ -300,8 +300,14 @@ class _ComposeSheetState extends ConsumerState<ComposeSheet> {
         ),
         const SizedBox(height: Space.s12),
       ] else ...[
+        // The picker was three unlabelled pills. Named now, as the design does,
+        // and each carries its glyph — three words alone do not say what
+        // « Prestataire » posts.
+        Text('De quoi s’agit-il ?', style: context.type.label),
+        const SizedBox(height: Space.s8),
         Wrap(
           spacing: Space.s8,
+          runSpacing: Space.s8,
           children: [
             for (final k in QuartierPostKind.values)
               GestureDetector(
@@ -319,20 +325,47 @@ class _ComposeSheetState extends ConsumerState<ComposeSheet> {
                             ? context.brand.link
                             : PanergoColors.border),
                   ),
-                  child: Text(k.label,
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: _kind == k
-                              ? FontWeight.w800
-                              : FontWeight.w600,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MaterialSymbol(k.iconName,
+                          size: 15,
                           color: _kind == k
                               ? context.brand.link
-                              : PanergoColors.muted)),
+                              : PanergoColors.muted),
+                      const SizedBox(width: Space.s6),
+                      Text(k.label,
+                          style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: _kind == k
+                                  ? FontWeight.w800
+                                  : FontWeight.w600,
+                              color: _kind == k
+                                  ? context.brand.link
+                                  : PanergoColors.muted)),
+                    ],
+                  ),
                 ),
               ),
           ],
         ),
-        const SizedBox(height: Space.s12),
+        const SizedBox(height: Space.s8),
+        // What the chosen kind means, so the three are distinguishable before
+        // anything is typed.
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const MaterialSymbol('info', size: 14, color: PanergoColors.faint),
+            const SizedBox(width: Space.s6),
+            Expanded(
+              child: Text(_kind.hint,
+                  style: context.type.metaSmall.copyWith(height: 1.4)),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.s14),
+        Text('Votre message', style: context.type.label),
+        const SizedBox(height: Space.s8),
       ],
       Container(
         decoration: BoxDecoration(
@@ -377,7 +410,14 @@ class _ComposeSheetState extends ConsumerState<ComposeSheet> {
             ? 'Écrivez au moins une phrase pour publier.'
             : 'Une photo et une description sont nécessaires.'),
       PanergoButton(
-        label: _busy ? 'Publication…' : 'Publier',
+        // « dans le fil » for a question: it says where it lands, on the one
+        // kind that goes to the neighbours rather than onto a profile.
+        label: _busy
+            ? 'Publication…'
+            : _mode == _Mode.question
+                ? 'Publier dans le fil'
+                : 'Publier',
+        icon: 'send',
         enabled: _valid,
         loading: _busy,
         onPressed: _publish,

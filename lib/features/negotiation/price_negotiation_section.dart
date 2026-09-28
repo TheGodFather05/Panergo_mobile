@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/formats.dart';
 import '../../core/models/enums.dart';
+import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/material_symbol.dart';
@@ -63,18 +64,30 @@ class PriceNegotiationSection extends ConsumerWidget {
               ),
             if (negotiation.locked)
               _SettledRow(price: negotiation.effectivePrice)
-            else if (canOpen && negotiation.pending == null)
+            else if (canOpen && negotiation.pending == null) ...[
+              // The question before the button, on the first round only. « Négocier
+              // le prix » is an abstract verb an artisan standing in a kitchen does
+              // not connect to the job being simpler than quoted; the design asks
+              // the concrete question instead, and it is the artisan's question —
+              // they are the one on site.
+              if (rounds.isEmpty && viewerRole == PartyRole.provider)
+                Padding(
+                  padding: const EdgeInsets.only(top: Space.s6),
+                  child: Text('Le prix a changé sur place ?',
+                      style: context.type.labelSmall),
+                ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: Space.s6),
                 child: PanergoOutlinedButton(
                   label: rounds.isEmpty
-                      ? 'Négocier le prix'
+                      ? 'Proposer un prix'
                       : 'Proposer un autre prix',
                   icon: 'sell',
                   onPressed: () =>
                       _propose(context, ref, negotiation.effectivePrice),
                 ),
               ),
+            ],
           ],
         );
       },

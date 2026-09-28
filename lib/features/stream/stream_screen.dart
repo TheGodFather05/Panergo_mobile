@@ -134,6 +134,10 @@ class StreamScreen extends ConsumerWidget {
               empty: (context) => _EmptyStream(
                 onlyMine: onlyMine,
                 onCompose: () => _compose(context, ref),
+                onAskForWork: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const NewRequestScreen()),
+                ),
               ),
               builder: (context, items) => RefreshIndicator(
                 onRefresh: () async => ref.invalidate(streamProvider),
@@ -541,7 +545,11 @@ class _Footer extends StatelessWidget {
 }
 
 class _EmptyStream extends StatelessWidget {
-  const _EmptyStream({required this.onlyMine, required this.onCompose});
+  const _EmptyStream({
+    required this.onlyMine,
+    required this.onCompose,
+    required this.onAskForWork,
+  });
 
   final bool onlyMine;
 
@@ -549,6 +557,10 @@ class _EmptyStream extends StatelessWidget {
   /// that says « posez une question » and offers no way to do it sends somebody
   /// hunting for the button that was the whole point of the sentence.
   final VoidCallback onCompose;
+
+  /// Opens the tender form. The design offers it beside the composer on an empty
+  /// feed, and says why: waiting on neighbours is the slow way to get work done.
+  final VoidCallback onAskForWork;
 
   @override
   Widget build(BuildContext context) {
@@ -591,7 +603,57 @@ class _EmptyStream extends StatelessWidget {
                 icon: 'forum',
                 onPressed: onCompose,
               ),
+              const SizedBox(height: Space.s12),
+              // The other way out, and the honest one for somebody who wants
+              // work done rather than an opinion: an empty feed has nobody to
+              // answer them.
+              _NeedWorkCard(onTap: onAskForWork),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// « Vous avez un besoin ? » — the tender, offered where the feed cannot help.
+class _NeedWorkCard extends StatelessWidget {
+  const _NeedWorkCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final type = context.type;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: Radii.brCardLarge,
+      child: Container(
+        padding: const EdgeInsets.all(Space.s14),
+        decoration: BoxDecoration(
+          color: PanergoColors.surface,
+          borderRadius: Radii.brCardLarge,
+          border: Border.all(color: PanergoColors.border),
+        ),
+        child: Row(
+          children: [
+            MaterialSymbol('bolt', size: 20, color: context.brand.link),
+            const SizedBox(width: Space.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Vous avez un besoin ?', style: type.labelSmall),
+                  const SizedBox(height: Space.xxs),
+                  Text('Le fil n’est pas le chemin le plus court',
+                      style: type.metaSmall),
+                ],
+              ),
+            ),
+            const SizedBox(width: Space.s8),
+            Text('Demander',
+                style: type.labelSmall.copyWith(color: context.brand.link)),
           ],
         ),
       ),

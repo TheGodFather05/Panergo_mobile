@@ -66,10 +66,12 @@ class PanergoApi {
   }
 
   /// Uploads an image and returns the URL to store against a profile.
-  Future<String> uploadImage(File file) async {
+  Future<String> uploadImage(File file,
+      {void Function(double fraction)? onProgress}) async {
     final data = await _client.upload<Map<String, dynamic>>(
       '/api/uploads',
       file: file,
+      onProgress: onProgress,
     );
     return Json.str(data['url']);
   }

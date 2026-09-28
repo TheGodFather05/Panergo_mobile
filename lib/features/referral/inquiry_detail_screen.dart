@@ -326,13 +326,40 @@ class _Awaiting extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          detail.live
-              ? 'Nous attendons leurs réponses. Vous serez prévenu à chaque '
-                  'réponse — pas besoin de rester ici.'
-              : 'Personne n’a répondu avant la clôture.',
-          style: context.type.bodySmall.copyWith(height: 1.5),
-        ),
+        if (detail.live)
+          // Why the wait is normal, which « nous attendons » alone does not
+          // say. A shopkeeper answers between two customers, so silence at
+          // eleven in the morning means busy, not ignored — and somebody who
+          // does not know that reads five blank rows as a broken feature.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const MaterialSymbol('storefront',
+                  size: 17, color: PanergoColors.subtle),
+              const SizedBox(width: Space.s10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('La question est chez les commerçants',
+                        style: context.type.labelSmall),
+                    const SizedBox(height: Space.xxs),
+                    Text(
+                      'Ils répondent entre deux clients, souvent dans l’heure, '
+                      'parfois plus tard. Vous serez prévenu à chaque réponse : '
+                      'inutile de rester ici.',
+                      style: context.type.bodySmall.copyWith(height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          )
+        else
+          Text(
+            'Personne n’a répondu avant la clôture.',
+            style: context.type.bodySmall.copyWith(height: 1.5),
+          ),
         const SizedBox(height: Space.s14),
         for (var i = 0; i < waiting; i++)
           Padding(
