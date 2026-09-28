@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/format/formats.dart';
 import '../../core/models/enums.dart';
@@ -14,6 +17,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
+import '../../core/widgets/photo_source_sheet.dart';
 import 'confirmation_screen.dart';
 import 'direct_dispatch_screen.dart';
 
@@ -82,6 +86,10 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
   bool _busy = false;
   String? _error;
 
+  /// A photo the client attaches themselves, distinct from [_origin]'s — that
+  /// one travels with a réalisation and also notifies the artisan who took it.
+  File? _photo;
+
   @override
   void dispose() {
     _descriptionController.dispose();
@@ -128,6 +136,9 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
           builder: (_) => DirectDispatchScreen(match: match),
         ));
       } else {
+        // Uploaded first: the request names a URL, so the file has to exist on
+        // the server before it can be referenced.
+        final attached = _photo == null ? null : await api.uploadImage(_photo!);
         final requestId = await api.createRequest(
           idempotencyKey: _idempotencyKey,
           category: _category,
@@ -138,7 +149,7 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
           // The photo that convinced them travels with the request, and the
           // artisan who took it is notified ahead of the others — the promise
           // the origin card makes to the client.
-          photoUrl: _origin?.photoUrl,
+          photoUrl: attached ?? _origin?.photoUrl,
           originProviderId: _origin?.providerId,
         );
         if (!mounted) return;
@@ -173,9 +184,17 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
             ));
         if (!mounted) return;
         Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Pas de réseau. Votre demande partira au retour de la '
-              'connexion — une seule fois.'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          // Said rather than glossed over: the queue holds the request but not
+          // the image, because a photo has to be uploaded before it can be
+          // named and there is no network to upload it over. Dropping it
+          // quietly would have the client believe the artisan can see it.
+          content: Text(_photo == null
+              ? 'Pas de réseau. Votre demande partira au retour de la '
+                  'connexion — une seule fois.'
+              : 'Pas de réseau. Votre demande partira au retour de la '
+                  'connexion, sans la photo — vous pourrez l’envoyer '
+                  'ensuite dans la discussion.'),
         ));
         return;
       }
@@ -189,6 +208,19 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
 
   /// One key per visit to this form. Reused by every attempt, including a queued
   /// one, so a flaky connection cannot turn one tender into three.
+  Future<void> _pickPhoto() async {
+    // Camera first: a leaking pipe is photographed where it leaks, and opening
+    // the gallery meant leaving the app to take the picture.
+    final source = await PhotoSourceSheet.show(context);
+    if (source == null || !mounted) return;
+
+    final picked =
+        await ImagePicker().pickImage(source: source, imageQuality: 80);
+    if (picked != null && mounted) {
+      setState(() => _photo = File(picked.path));
+    }
+  }
+
   late final String _idempotencyKey =
       'request-${DateTime.now().microsecondsSinceEpoch}';
 
@@ -236,6 +268,24 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
                       controller: _descriptionController,
                       limit: _descriptionLimit,
                       onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: Space.s22),
+                    Text('Photos (facultatif)', style: type.label),
+                    const SizedBox(height: Space.xs),
+                    Text(
+                      'Une photo aide le prestataire à mieux évaluer.',
+                      style: type.metaSmall.copyWith(height: 1.4),
+                    ),
+                    const SizedBox(height: Space.s10),
+                    _PhotoField(
+                      photo: _photo,
+                      // The réalisation's own photo is already travelling with
+                      // this request and is shown on the origin card above, so
+                      // offering to attach a second one here would be confusing.
+                      originPhotoUrl: _origin?.photoUrl,
+                      onPick: _busy ? null : _pickPhoto,
+                      onRemove:
+                          _busy ? null : () => setState(() => _photo = null),
                     ),
                     const SizedBox(height: Space.s22),
                     _RequiredLabel(label: 'Quand ?'),
@@ -442,6 +492,108 @@ class _UrgencyPills extends StatelessWidget {
             selectedColor: brand.fill,
             onTap: () => onSelected(urgency),
           ),
+      ],
+    );
+  }
+}
+
+/// The optional photo, either an attach affordance or the chosen image.
+///
+/// Stays out of the way when a réalisation's photo is already carrying the
+/// request: that image is shown on the origin card and travels with the send,
+/// so a second empty slot underneath it would read as a missing step.
+class _PhotoField extends StatelessWidget {
+  const _PhotoField({
+    required this.photo,
+    required this.originPhotoUrl,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  final File? photo;
+  final String? originPhotoUrl;
+  final VoidCallback? onPick;
+  final VoidCallback? onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    if (originPhotoUrl != null) {
+      return Text(
+        'La photo de la réalisation part avec votre demande.',
+        style: context.type.metaSmall.copyWith(height: 1.4),
+      );
+    }
+
+    if (photo == null) {
+      return Semantics(
+        button: true,
+        label: 'Ajouter une photo',
+        child: InkWell(
+          onTap: onPick,
+          borderRadius: Radii.brTile,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: Space.s18),
+            decoration: BoxDecoration(
+              borderRadius: Radii.brTile,
+              border: Border.all(
+                  color: PanergoColors.borderDashed,
+                  style: BorderStyle.solid),
+              color: PanergoColors.fillWarm,
+            ),
+            child: Column(
+              children: [
+                MaterialSymbol('add_a_photo',
+                    size: 22, color: context.brand.link),
+                const SizedBox(height: Space.s6),
+                Text('Ajouter une photo',
+                    style: context.type.labelSmall
+                        .copyWith(color: context.brand.link)),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        ClipRRect(
+          borderRadius: Radii.brTile,
+          child: Image.file(photo!,
+              width: 84, height: 84, fit: BoxFit.cover),
+        ),
+        const SizedBox(width: Space.s12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Photo jointe', style: context.type.labelSmall),
+              const SizedBox(height: Space.xs),
+              // Both actions stay available: a photo taken in a dark cupboard
+              // is usually retaken rather than abandoned.
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: onPick,
+                    style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 32)),
+                    child: const Text('Remplacer'),
+                  ),
+                  const SizedBox(width: Space.s14),
+                  TextButton(
+                    onPressed: onRemove,
+                    style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 32),
+                        foregroundColor: PanergoColors.muted),
+                    child: const Text('Retirer'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }

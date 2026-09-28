@@ -13,6 +13,7 @@ import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../assistant/assistant_screen.dart';
 import 'offer_detail_screen.dart';
 
 /// One request and the offers it has attracted.
@@ -109,7 +110,7 @@ class _Loaded extends StatelessWidget {
         ),
         const SizedBox(height: Space.s12),
         if (request.offers.isEmpty)
-          const _NoOffersYet()
+          _NoOffersYet(category: request.category)
         else
           for (var i = 0; i < request.offers.length; i++) ...[
             _OfferCard(
@@ -498,7 +499,11 @@ class _RankReason extends StatelessWidget {
 /// The empty state of the offers list, with a route onward rather than a
 /// dead end.
 class _NoOffersYet extends StatelessWidget {
-  const _NoOffersYet();
+  const _NoOffersYet({required this.category});
+
+  /// Carried into the assistant so somebody who has already said « plomberie »
+  /// once does not have to say it again.
+  final ServiceCategory category;
 
   @override
   Widget build(BuildContext context) {
@@ -521,6 +526,17 @@ class _NoOffersYet extends StatelessWidget {
               style: context.type.bodySmall
                   .copyWith(color: PanergoColors.subtle, height: 1.5),
             ),
+          ),
+          const SizedBox(height: Space.gutterTight),
+          // The route onward this state promised and did not have. Waiting is
+          // the right answer most of the time, and when it is not, the way out
+          // should be here rather than back through the tabs.
+          TextButton(
+            onPressed: () => Navigator.of(context)
+                .push(AssistantScreen.route(initialCategory: category)),
+            child: Text('Demander à l’assistant',
+                style: context.type.labelSmall
+                    .copyWith(color: context.brand.link)),
           ),
         ],
       ),

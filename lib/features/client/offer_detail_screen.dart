@@ -56,8 +56,11 @@ class _OfferDetailScreenState extends ConsumerState<OfferDetailScreen> {
           children: [
             _RecapRow(label: 'Prestataire', value: offer.providerName),
             const SizedBox(height: Space.s10),
+            // « Proposé », not « convenu »: nothing has been agreed until the
+            // client accepts, and the note below exists precisely because the
+            // old label read as a guarantee.
             _RecapRow(
-                label: 'Prix convenu', value: Formats.money(offer.price)),
+                label: 'Prix proposé', value: Formats.money(offer.price)),
             const SizedBox(height: Space.s10),
             _RecapRow(label: 'Intervention', value: offer.timeline.label),
             const SizedBox(height: Space.s12),
@@ -65,8 +68,8 @@ class _OfferDetailScreenState extends ConsumerState<OfferDetailScreen> {
             const SizedBox(height: Space.s12),
             // Said at the moment of committing, because this is where somebody
             // needs it: the number above is not final, and refusing a revised
-            // one costs nothing. Without this a client reads « prix convenu »
-            // as a guarantee and feels tricked when it moves.
+            // one costs nothing. The label above says « proposé » for the same
+            // reason; this spells out what that means.
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -200,7 +203,8 @@ class _OfferDetailScreenState extends ConsumerState<OfferDetailScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Son offre', style: type.micro),
+                              Text('Son offre pour votre demande',
+                                  style: type.micro),
                               PriceLabel(offer.price, size: 24),
                             ],
                           ),
