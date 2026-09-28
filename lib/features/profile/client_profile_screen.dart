@@ -111,6 +111,10 @@ class ClientProfileScreen extends ConsumerWidget {
               PanergoOutlinedButton(
                 label: 'Changer de mode',
                 icon: 'swap_horiz',
+                // Outlined in the face's own colour, as the design draws it:
+                // this is the one control on a profile that leaves the mode
+                // you are in, and a grey hairline hid it among the rows.
+                tone: OutlinedTone.brand,
                 onPressed: () => ModeSheet.show(context),
               ),
               const SizedBox(height: Space.s8),

@@ -110,6 +110,15 @@ class PanergoOutlinedButton extends StatelessWidget {
     final color = switch (tone) {
       OutlinedTone.neutral => PanergoColors.body,
       OutlinedTone.danger => PanergoColors.danger,
+      OutlinedTone.brand => context.brand.link,
+    };
+
+    // Brand outlines are drawn on the face's fill at 1.5px, as the design has
+    // them; the others keep the neutral hairline so they stay quiet.
+    final border = switch (tone) {
+      OutlinedTone.brand =>
+        Border.all(color: context.brand.fill, width: 1.5),
+      _ => Border.all(color: PanergoColors.borderInput),
     };
 
     return Semantics(
@@ -126,7 +135,7 @@ class PanergoOutlinedButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: Space.s14),
             decoration: BoxDecoration(
               borderRadius: Radii.brTile,
-              border: Border.all(color: PanergoColors.borderInput),
+              border: border,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -151,7 +160,13 @@ class PanergoOutlinedButton extends StatelessWidget {
   }
 }
 
-enum OutlinedTone { neutral, danger }
+/// How an outlined button is weighted.
+///
+/// [brand] is the design's emphasised outline — a 1.5px border in the current
+/// face's colour, for the one action on a screen that leads somewhere else.
+/// Neutral is the default because most outlined buttons sit beside a filled
+/// one and must not compete with it.
+enum OutlinedTone { neutral, danger, brand }
 
 /// The inline hint above a disabled primary button, naming what is missing.
 class ValidationHint extends StatelessWidget {
