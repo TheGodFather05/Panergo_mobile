@@ -10,6 +10,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/fullscreen_route.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/dashed_border.dart';
 import '../referral/inquiry_detail_screen.dart';
@@ -75,11 +76,14 @@ class AssistantScreen extends ConsumerStatefulWidget {
   final ServiceCategory? initialCategory;
   final String? initialQuery;
 
+  /// Full-screen: the prototype's showUserNav excludes u_ai, because the
+  /// keyboard needs the height and the tabs would be a way to walk out of a
+  /// half-typed question.
   static Route<void> route({
     ServiceCategory? initialCategory,
     String? initialQuery,
   }) =>
-      MaterialPageRoute(
+      FullScreenRoute(
         builder: (_) => AssistantScreen(
           initialCategory: initialCategory,
           initialQuery: initialQuery,

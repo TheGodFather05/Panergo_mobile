@@ -96,12 +96,13 @@ class ContactRow extends ConsumerWidget {
       ref.invalidate(conversationsProvider);
 
       if (!context.mounted) return;
-      await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => ChatScreen(
-          conversationId: conversation.conversationId,
-          peerName: conversation.peerName,
-          peerPhotoUrl: conversation.peerPhotoUrl,
-        ),
+      // Through the screen's own route, which is full-screen: a thread is a
+      // place you are in, and the tabs would be a way to lose a half-typed
+      // message.
+      await Navigator.of(context).push(ChatScreen.route(
+        conversationId: conversation.conversationId,
+        peerName: conversation.peerName,
+        peerPhotoUrl: conversation.peerPhotoUrl,
       ));
 
       // And again on the way out: a message sent in there moves the thread to

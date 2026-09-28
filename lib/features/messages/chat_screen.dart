@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/formats.dart';
+import '../../core/widgets/fullscreen_route.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/models.dart';
 import '../../core/network/chat_socket.dart';
@@ -36,6 +37,9 @@ class ChatScreen extends ConsumerStatefulWidget {
   final ServiceCategory? category;
   final DateTime? confirmedAt;
 
+  /// Full-screen: showUserNav and showProvNav both exclude chat, because the
+  /// keyboard needs the height and a thread is a place you are in rather than
+  /// a page you are browsing.
   static Route<void> route({
     required String conversationId,
     required String peerName,
@@ -43,7 +47,7 @@ class ChatScreen extends ConsumerStatefulWidget {
     ServiceCategory? category,
     DateTime? confirmedAt,
   }) =>
-      MaterialPageRoute(
+      FullScreenRoute(
         builder: (_) => ChatScreen(
           conversationId: conversationId,
           peerName: peerName,

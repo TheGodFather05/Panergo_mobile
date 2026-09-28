@@ -109,9 +109,8 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
   void _open(GroupSummary group) {
     final id = group.conversationId;
     if (id == null) return;
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => ChatScreen(conversationId: id, peerName: group.name),
-    ));
+    Navigator.of(context)
+        .push(ChatScreen.route(conversationId: id, peerName: group.name));
   }
 
   void _queue(GroupSummary group) {
@@ -175,10 +174,8 @@ class _GroupsScreenState extends ConsumerState<GroupsScreen> {
     if (created == null) return;
     _refresh();
     if (!mounted) return;
-    Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => ChatScreen(
-          conversationId: created.conversationId!, peerName: created.name),
-    ));
+    Navigator.of(context).push(ChatScreen.route(
+        conversationId: created.conversationId!, peerName: created.name));
   }
 
   void _refresh() {
