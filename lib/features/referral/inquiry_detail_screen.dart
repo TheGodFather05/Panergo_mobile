@@ -153,6 +153,9 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
                 state: _state,
                 data: _detail,
                 onRetry: _load,
+                errorTitle: 'Réponses indisponibles',
+                errorBody: 'Les réponses des commerces n’ont pas pu être '
+                    'chargées. Votre question, elle, est bien partie.',
                 skeleton: (_) => const _DetailSkeleton(),
                 empty: (_) => const SizedBox.shrink(),
                 builder: (context, detail) => RefreshIndicator(

@@ -130,6 +130,9 @@ class _QuestionSettingsScreenState
                 state: _state,
                 data: _settings,
                 onRetry: _load,
+                errorTitle: 'Réglages indisponibles',
+                errorBody: 'Vos réglages n’ont pas pu être chargés. Rien n’a '
+                    'changé : ceux déjà enregistrés s’appliquent toujours.',
                 skeleton: (_) => const _SettingsSkeleton(),
                 empty: (_) => const SizedBox.shrink(),
                 builder: (context, settings) => ListView(

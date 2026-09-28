@@ -47,6 +47,7 @@ abstract final class PlacePickers {
             errorBody: 'La liste des pays demande une connexion. Elle '
                 's’affichera dès le retour du réseau.',
             watch: (ref) => ref.watch(countriesProvider),
+            refresh: (ref) => ref.invalidate(countriesProvider),
             labelOf: (c) => c.name,
             detailOf: (c) => c.dialCode,
             isSelected: (c) => c.code == selected,
@@ -74,6 +75,7 @@ abstract final class PlacePickers {
             errorBody: 'La liste des quartiers demande une connexion. Elle '
                 's’affichera dès le retour du réseau.',
             watch: (ref) => ref.watch(quartiersProvider(cityId)),
+            refresh: (ref) => ref.invalidate(quartiersProvider(cityId)),
             labelOf: (q) => q.name,
             detailOf: (q) => q.city,
             isSelected: (q) => q.name == selected,
@@ -97,6 +99,7 @@ abstract final class PlacePickers {
             errorBody: 'La liste des villes demande une connexion. Elle '
                 's’affichera dès le retour du réseau.',
             watch: (ref) => ref.watch(citiesProvider(countryCode)),
+            refresh: (ref) => ref.invalidate(citiesProvider(countryCode)),
             labelOf: (c) => c.name,
             detailOf: (_) => null,
             isSelected: (c) => c.name == selected,
@@ -117,6 +120,7 @@ class _PlaceList<T> extends ConsumerStatefulWidget {
     required this.errorBody,
     required this.emptyCount,
     required this.watch,
+    required this.refresh,
     required this.labelOf,
     required this.detailOf,
     required this.isSelected,
@@ -143,6 +147,11 @@ class _PlaceList<T> extends ConsumerStatefulWidget {
   /// Watched by the caller and handed in, so this widget stays generic
   /// without needing a provider type it cannot name.
   final AsyncValue<List<T>> Function(WidgetRef) watch;
+
+  /// Invalidates whatever [watch] reads. Paired with it for the same reason:
+  /// without a retry, a failed quartier list dead-ends onboarding, and this
+  /// sheet's own copy says routing cannot work without it.
+  final void Function(WidgetRef) refresh;
   final String Function(T) labelOf;
   final String? Function(T) detailOf;
   final bool Function(T) isSelected;
@@ -236,6 +245,7 @@ class _PlaceListState<T> extends ConsumerState<_PlaceList<T>> {
                   data: async.value,
                   errorTitle: 'Chargement impossible',
                   errorBody: widget.errorBody,
+                  onRetry: () => widget.refresh(ref),
                   skeleton: (_) => _Skeleton(label: widget.loadingLabel),
                   empty: (_) => const SizedBox.shrink(),
                   builder: (_, items) {
