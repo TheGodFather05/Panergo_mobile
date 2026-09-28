@@ -101,10 +101,18 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// profile lost the bar and left the back arrow as the only way out.
   /// FullScreenRoute is the deliberate exception and asks for the root one.
   ///
-  /// Five keys because that is the longest tab list; a shorter mode simply
-  /// uses fewer.
-  final List<GlobalKey<NavigatorState>> _tabKeys =
-      List.generate(5, (_) => GlobalKey<NavigatorState>());
+  /// Keyed per mode, and that is not cosmetic. A GlobalKey makes Flutter reuse
+  /// the element it is attached to, which defeated the ValueKey(mode) on the
+  /// IndexedStack above: switching to Prestataire rebuilt the stack, the
+  /// Navigators were reused, and each one kept the client screen it had
+  /// already built — every mode wearing its own colours over the client's
+  /// views. Fresh keys per mode mean fresh Navigators.
+  final Map<AppMode, List<GlobalKey<NavigatorState>>> _tabKeysByMode = {};
+
+  /// Five keys because that is the longest tab list; a shorter mode uses fewer.
+  List<GlobalKey<NavigatorState>> _keysFor(AppMode mode) =>
+      _tabKeysByMode.putIfAbsent(
+          mode, () => List.generate(5, (_) => GlobalKey<NavigatorState>()));
 
   static final _clientTabs = <AppTab>[
     AppTab(
@@ -256,7 +264,7 @@ class _AppShellState extends ConsumerState<AppShell> {
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-        final nav = _tabKeys[index].currentState;
+        final nav = _keysFor(mode)[index].currentState;
         if (nav != null && nav.canPop()) {
           nav.pop();
           return;
@@ -290,7 +298,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               children: [
                 for (var i = 0; i < tabs.length; i++)
                   Navigator(
-                    key: _tabKeys[i],
+                    key: _keysFor(mode)[i],
                     onGenerateRoute: (settings) => MaterialPageRoute<void>(
                       settings: settings,
                       builder: (context) =>
@@ -338,7 +346,7 @@ class _AppShellState extends ConsumerState<AppShell> {
               // root, which is what a bottom bar does everywhere else. Without
               // it a tab pushed three deep had no way back but the arrow.
               if (next == index) {
-                _tabKeys[next].currentState?.popUntil((r) => r.isFirst);
+                _keysFor(mode)[next].currentState?.popUntil((r) => r.isFirst);
                 return;
               }
               setState(() => _index = next);
