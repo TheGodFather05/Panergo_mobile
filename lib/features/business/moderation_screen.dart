@@ -9,6 +9,7 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
+import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
 import 'business_providers.dart';
@@ -90,6 +91,23 @@ class _PendingCardState extends ConsumerState<_PendingCard> {
   String? _error;
 
   Future<void> _publish() async {
+    // RM-09: publishing is one tap away from being permanent. It puts the shop
+    // in the public directory and sends the owner « votre fiche est publiée » —
+    // a notification to a real person that nothing here can recall, and there
+    // is no unpublish endpoint. Refusing already goes through a sheet because
+    // it needs a reason; this needed one because it needs a moment.
+    final confirmed = await ConfirmSheet.show(
+      context,
+      title: 'Publier cette fiche ?',
+      body: '${widget.business.name} apparaîtra dans l’annuaire et le '
+          'propriétaire sera prévenu. La publication ne peut pas être annulée '
+          'depuis cet écran.',
+      confirmLabel: 'Publier',
+      cancelLabel: 'Relire encore',
+      destructive: false,
+    );
+    if (confirmed != true || !mounted) return;
+
     setState(() {
       _busy = true;
       _error = null;
