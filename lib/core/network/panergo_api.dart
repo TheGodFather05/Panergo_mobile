@@ -871,6 +871,43 @@ class PanergoApi {
   }
 
   /// Stops listening. The answers already in stay readable.
+  /// How many artisans of a trade a question would reach, before writing it.
+  ///
+  /// The « + » entry starts from nothing, so the draft has no reach to show
+  /// until it asks. A count and never the rows.
+  Future<({int wouldReach, bool wouldWiden})> tradeReach({
+    required ServiceCategory trade,
+    required String neighborhood,
+  }) async {
+    final data = await _client.get<Map<String, dynamic>>(
+      '/api/referrals/trade-reach',
+      query: {'trade': trade.wire, 'neighborhood': neighborhood},
+    );
+    return (
+      wouldReach: Json.intOf(data['would_reach']),
+      wouldWiden: data['would_widen'] == true,
+    );
+  }
+
+  /// « En faire une demande » — a « je peux » becomes a real tender.
+  ///
+  /// The question closes and records what it became, so the row can say
+  /// « devenue une demande » rather than an unexplained « close ». Idempotent
+  /// server-side: a second tap returns the same request rather than opening
+  /// another.
+  ///
+  /// The indicative price an artisan may have mentioned is deliberately not
+  /// carried over — that omission is what shows it was never a quote.
+  Future<({String requestId, int providersNotified})> inquiryToRequest(
+      String inquiryId) async {
+    final data = await _client.post<Map<String, dynamic>>(
+        '/api/referrals/$inquiryId/to-request');
+    return (
+      requestId: Json.str(data['request_id']),
+      providersNotified: Json.intOf(data['providers_notified']),
+    );
+  }
+
   Future<void> closeInquiry(String id) =>
       _client.post<dynamic>('/api/referrals/$id/close');
 

@@ -14,6 +14,9 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/dashed_border.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/panergo_button.dart';
+import '../client/requests_screen.dart'
+    show myInquiriesProvider, myRequestsProvider;
 import '../../core/widgets/pending_sends_banner.dart';
 import 'referral_draft_screen.dart';
 
@@ -51,6 +54,10 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
   /// and a list of five « je n'ai pas » is not worth scrolling past the answers.
   bool _refusalsOpen = false;
 
+  /// True while « en faire une demande » is in flight, so a second tap cannot
+  /// open a second tender before the first answers.
+  bool _busy = false;
+
   @override
   void initState() {
     super.initState();
@@ -74,6 +81,51 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
           _state = e.isOffline && _detail != null
               ? LoadState.offline
               : LoadState.error);
+    }
+  }
+
+  /// « En faire une demande » — the bridge the whole flow exists for.
+  ///
+  /// Behind a confirmation (RM-09) because it goes out to artisans: the
+  /// question asked whether the work was possible, and this asks them to price
+  /// it. The sheet says what carries over, which is also where the reader
+  /// learns what does not — the figure an artisan mentioned is nowhere in it.
+  Future<void> _makeRequest(InquiryDetail detail) async {
+    final confirmed = await ConfirmSheet.show(
+      context,
+      title: 'En faire une demande ?',
+      body: 'Votre texte, le métier et le quartier sont repris. Cette fois les '
+          'artisans vous envoient un prix ferme et un délai, et votre question '
+          'se ferme.',
+      confirmLabel: 'Créer la demande',
+      cancelLabel: 'Pas encore',
+      destructive: false,
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final created =
+          await ref.read(apiProvider).inquiryToRequest(detail.inquiryId);
+      if (!mounted) return;
+
+      // Both lists changed: the question closed and a tender opened.
+      ref.invalidate(myInquiriesProvider);
+      ref.invalidate(myRequestsProvider);
+
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(created.providersNotified == 0
+            ? 'Votre demande est créée.'
+            : 'Votre demande est partie à '
+                '${created.providersNotified} artisan'
+                '${created.providersNotified > 1 ? 's' : ''}.'),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -172,6 +224,47 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
                       const SizedBox(height: Space.s14),
                       if (detail.awaiting)
                         _Awaiting(detail: detail)
+                      else if (detail.audience.isTrade) ...[
+                        // Artisans split on the answer, not on the price. « 9 000
+                        // le m² » is an indication, so grouping by whether one
+                        // was given would rank an aside above a plain yes.
+                        if (detail.canDoReplies.isNotEmpty) ...[
+                          _GroupHeading(
+                            icon: 'check_circle',
+                            label: 'Peuvent · ${detail.canDoReplies.length}',
+                          ),
+                          for (final reply in detail.canDoReplies)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: Space.listGap),
+                              child: _ReplyCard(
+                                reply: reply,
+                                onMakeRequest:
+                                    _busy ? null : () => _makeRequest(detail),
+                              ),
+                            ),
+                        ],
+                        if (detail.cannotReplies.isNotEmpty) ...[
+                          _GroupHeading(
+                            icon: 'do_not_disturb_on',
+                            label:
+                                'Ne peut pas · ${detail.cannotReplies.length}',
+                          ),
+                          for (final reply in detail.cannotReplies)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: Space.listGap),
+                              child: _ReplyCard(reply: reply),
+                            ),
+                        ],
+                        if (detail.silent > 0)
+                          _FoldedNonAnswers(
+                            detail: detail,
+                            open: _refusalsOpen,
+                            onToggle: () => setState(
+                                () => _refusalsOpen = !_refusalsOpen),
+                          ),
+                      ]
                       else ...[
                         // Two headings, as the design has them: a price and a
                         // « prix à demander » are both real answers, and running
@@ -242,7 +335,22 @@ class _Headline extends StatelessWidget {
             best == null || r.price! < best.price! ? r : best);
 
     final String result;
-    if (detail.haveIt == 0) {
+    if (detail.audience.isTrade) {
+      // The artisan's summary counts people, not stock, and « personne ne
+      // peut » is a real answer rather than a failure — it saved a demande
+      // nobody could have filled.
+      final n = detail.haveIt;
+      if (n == 0) {
+        result = detail.awaiting
+            ? 'Question envoyée à ${detail.recipientCount} artisan'
+                '${detail.recipientCount > 1 ? 's' : ''}'
+            : 'Personne ne peut, pour l’instant';
+      } else if (n == 1) {
+        result = 'Un artisan peut';
+      } else {
+        result = '$n artisans peuvent';
+      }
+    } else if (detail.haveIt == 0) {
       result = detail.awaiting
           ? 'Question envoyée à ${detail.recipientCount} boutiques'
           : 'Personne n’a l’article pour l’instant';
@@ -393,9 +501,13 @@ class _Awaiting extends StatelessWidget {
 
 /// One shop's answer.
 class _ReplyCard extends StatelessWidget {
-  const _ReplyCard({required this.reply});
+  const _ReplyCard({required this.reply, this.onMakeRequest});
 
   final InquiryReply reply;
+
+  /// Turns this « je peux » into a real tender. Null for a shop reply, and for
+  /// an artisan who said no — there is nothing to build on a refusal.
+  final VoidCallback? onMakeRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -432,7 +544,17 @@ class _ReplyCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (reply.price != null)
+              // What leads the card is what the reader came for. A shop's
+              // answer is a price; an artisan's is a day — « mardi matin » is
+              // the thing that decides whether to open a demande, and the
+              // figure beside it is not a quote.
+              if (reply.availability != null)
+                Text(reply.availability!,
+                    style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: PanergoColors.ink))
+              else if (reply.price != null)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
@@ -449,6 +571,29 @@ class _ReplyCard extends StatelessWidget {
             const SizedBox(height: Space.s8),
             _SupersededLine(previous: reply.previous!),
           ],
+          // An artisan's figure sits below the answer on a dotted line, in
+          // grey, prefixed « à titre d'idée ». Absent entirely when there is
+          // none — no « prix à demander » placeholder, because a missing
+          // indication is not a thing to chase.
+          if (reply.availability != null && reply.price != null) ...[
+            const SizedBox(height: Space.s10),
+            const _DottedRule(),
+            const SizedBox(height: Space.s8),
+            Row(
+              children: [
+                const MaterialSymbol('sell',
+                    size: 14, color: PanergoColors.faint),
+                const SizedBox(width: Space.s6),
+                Expanded(
+                  child: Text(
+                    'À titre d’idée : environ ${Formats.money(reply.price!)}',
+                    style: context.type.metaSmall
+                        .copyWith(color: PanergoColors.faint),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (reply.note != null && reply.note!.isNotEmpty) ...[
             const SizedBox(height: Space.s10),
             Text('« ${reply.note!} »',
@@ -456,6 +601,20 @@ class _ReplyCard extends StatelessWidget {
                     .copyWith(height: 1.45, color: PanergoColors.muted)),
           ],
           const SizedBox(height: Space.s12),
+          // An artisan who can do it gets one action, and it is not « appeler »
+          // or « accepter ». Answering leads to a demande and nothing else
+          // (ADR-01): the word « offre » never appears on this card, because
+          // no offer has been made.
+          if (reply.availability != null)
+            if (reply.canDo && onMakeRequest != null)
+              PanergoButton(
+                label: 'En faire une demande',
+                icon: 'arrow_forward',
+                onPressed: onMakeRequest,
+              )
+            else
+              const SizedBox.shrink()
+          else
           Row(
             children: [
               if (reply.phoneNumber != null)
@@ -768,6 +927,36 @@ class _GroupHeading extends StatelessWidget {
           Text(label, style: context.type.micro),
         ],
       ),
+    );
+  }
+}
+
+/// The dotted rule above an artisan's indicative figure.
+///
+/// Dotted rather than solid because the line under it is not a commitment —
+/// the design uses the weight of the rule to say so before the words do.
+class _DottedRule extends StatelessWidget {
+  const _DottedRule();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const dash = 3.0;
+        const gap = 3.0;
+        final count = (constraints.maxWidth / (dash + gap)).floor();
+        return Row(
+          children: List.generate(
+            count,
+            (_) => Container(
+              width: dash,
+              height: 1,
+              margin: const EdgeInsets.only(right: gap),
+              color: PanergoColors.borderDashed,
+            ),
+          ),
+        );
+      },
     );
   }
 }

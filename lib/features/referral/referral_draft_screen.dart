@@ -116,7 +116,13 @@ class _ReferralDraftScreenState extends ConsumerState<ReferralDraftScreen> {
       final outcome = await ref.read(apiProvider).sendReferral(
             text: _text.text.trim(),
             neighborhood: widget.draft.neighborhood,
-            target: target ?? ReferralTarget.shop,
+            // A draft that names a trade is addressed to artisans; everything
+            // else is a stock question. The explicit target, when there is one,
+            // comes from the ambiguity sheet and wins over both.
+            target: target ??
+                (widget.draft.isTrade
+                    ? ReferralTarget.askTrade
+                    : ReferralTarget.shop),
             urgent: _urgent,
             idempotencyKey: _idempotencyKey,
           );
@@ -169,7 +175,11 @@ class _ReferralDraftScreenState extends ConsumerState<ReferralDraftScreen> {
               body: {
                 'text': _text.text.trim(),
                 'neighborhood': widget.draft.neighborhood,
-                'target': (target ?? ReferralTarget.shop).wire,
+                'target': (target ??
+                        (widget.draft.isTrade
+                            ? ReferralTarget.askTrade
+                            : ReferralTarget.shop))
+                    .wire,
                 'urgent': _urgent,
               },
               queuedAt: DateTime.now(),

@@ -296,12 +296,25 @@ enum AssistantSilence implements WireEnum {
 /// Which market a relayed question went to.
 enum ReferralTarget implements WireEnum {
   /// An artisan, through the tender: a price to come and do the work.
-  trade('TRADE', 'Un artisan', 'Vous recevrez des offres avec un prix.'),
+  trade('TRADE', 'Faire faire un travail',
+      'Les artisans vous envoient un prix et un délai. Vous en choisissez un.',
+      'handyman'),
+
+  /// An artisan, through a question: whether they can do it at all.
+  ///
+  /// The row opens with what comes back, like the other two. « Un jour » rather
+  /// than « un prix » is the whole difference, and it is readable before
+  /// choosing rather than in a help screen.
+  askTrade('ASK_TRADE', 'Savoir si un artisan peut',
+      'Ils répondent oui ou non, avec un jour. Personne ne s’engage.',
+      'forum'),
 
   /// A shop, through a stock question: whether it is worth walking over.
-  shop('SHOP', 'Un commerce', 'Vous saurez qui en a, et à quel prix.');
+  shop('SHOP', 'Savoir si une boutique en a',
+      'Les commerces répondent oui ou non, parfois avec un prix.',
+      'storefront');
 
-  const ReferralTarget(this.wire, this.label, this.outcome);
+  const ReferralTarget(this.wire, this.label, this.outcome, this.iconName);
 
   @override
   final String wire;
@@ -310,11 +323,25 @@ enum ReferralTarget implements WireEnum {
   /// What happens next if this is chosen. Design 3C puts it under each option,
   /// because « une offre » and « un déplacement » are different commitments.
   final String outcome;
+
+  /// The glyph on the row, per the design's « + » sheet.
+  final String iconName;
+
+  /// Whether this target asks a question rather than opening a tender.
+  ///
+  /// Both question targets share a vocabulary — « poser », « répondre »,
+  /// « personne ne s'engage » — and neither produces offers.
+  bool get isQuestion => this != ReferralTarget.trade;
 }
 
 /// What became of a question the server routed.
 enum ReferralKind implements WireEnum {
   trade('TRADE'),
+
+  /// A question put to artisans. Carries an inquiryId, never a requestId —
+  /// nobody has been asked for a price and no tender exists.
+  askTrade('ASK_TRADE'),
+
   shop('SHOP'),
 
   /// Nothing was created: the words point at both markets, and guessing would
@@ -351,6 +378,10 @@ enum InquiryAudienceKind implements WireEnum {
 
   static InquiryAudienceKind fromWire(String? wire) =>
       wire == 'PROVIDERS' ? providers : shops;
+
+  /// Artisans answer « je peux, mardi »; shops answer « j'ai, 4 500 le sac ».
+  /// Every screen that renders a reply branches on this once.
+  bool get isTrade => this == InquiryAudienceKind.providers;
 }
 
 /// How wide a relayed question was actually sent.

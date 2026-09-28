@@ -881,6 +881,7 @@ class ReferralDraft {
     required this.wouldWiden,
     this.suggestedCategoryCode,
     this.suggestedCategoryLabel,
+    this.trade,
   });
 
   /// The question, verbatim, as the first draft of the relayed one.
@@ -898,6 +899,16 @@ class ReferralDraft {
   /// « du ciment » belongs to no category.
   final String? suggestedCategoryCode;
   final String? suggestedCategoryLabel;
+
+  /// The trade being asked, when the question goes to artisans.
+  ///
+  /// Set instead of [suggestedCategoryCode], never beside it: a question goes
+  /// to one market or the other, and carrying both would let a screen render a
+  /// shop category over an artisan's answer.
+  final ServiceCategory? trade;
+
+  /// Whether this draft is addressed to artisans rather than shops.
+  bool get isTrade => trade != null;
 
   factory ReferralDraft.fromJson(Map<String, dynamic> json) => ReferralDraft(
         text: Json.str(json['text']),
@@ -2328,6 +2339,7 @@ class ReferralOption {
 class InquirySummary {
   const InquirySummary({
     required this.inquiryId,
+    required this.audience,
     required this.text,
     required this.neighborhood,
     required this.scope,
@@ -2342,6 +2354,10 @@ class InquirySummary {
   });
 
   final String inquiryId;
+  /// Who was asked. The client reads its whole vocabulary from this — « en a »
+  /// against « peut », « commerces » against the trade's own word.
+  final InquiryAudienceKind audience;
+
   final String text;
   final String? categoryLabel;
   final String neighborhood;
@@ -2362,6 +2378,7 @@ class InquirySummary {
 
   factory InquirySummary.fromJson(Map<String, dynamic> json) => InquirySummary(
         inquiryId: Json.str(json['inquiry_id']),
+        audience: InquiryAudienceKind.fromWire(Json.strOrNull(json['audience'])),
         text: Json.str(json['text']),
         categoryLabel: Json.strOrNull(json['category_label']),
         neighborhood: Json.str(json['neighborhood']),
@@ -2380,6 +2397,7 @@ class InquirySummary {
 class InquiryDetail {
   const InquiryDetail({
     required this.inquiryId,
+    required this.audience,
     required this.text,
     required this.neighborhood,
     required this.scope,
@@ -2399,6 +2417,10 @@ class InquiryDetail {
   });
 
   final String inquiryId;
+  /// Who was asked. The client reads its whole vocabulary from this — « en a »
+  /// against « peut », « commerces » against the trade's own word.
+  final InquiryAudienceKind audience;
+
   final String text;
   final String? categoryCode;
   final String? categoryLabel;
@@ -2446,6 +2468,18 @@ class InquiryDetail {
     return priced;
   }
 
+  /// « Peuvent » — artisans who said yes, soonest first.
+  ///
+  /// Ordered by nothing but arrival: an availability is free text (« mardi
+  /// matin », « sous 2 semaines ») and sorting it would mean parsing dates out
+  /// of prose and getting them wrong.
+  List<InquiryReply> get canDoReplies =>
+      replies.where((r) => r.canDo).toList(growable: false);
+
+  /// « Ne peut pas » — a real answer too. It saved a pointless demande.
+  List<InquiryReply> get cannotReplies =>
+      replies.where((r) => !r.canDo).toList(growable: false);
+
   /// « En ont · prix non donné » — a real answer, and not a cheap one.
   List<InquiryReply> get unpricedReplies =>
       replies.where((r) => r.hasItem && r.price == null).toList();
@@ -2458,6 +2492,7 @@ class InquiryDetail {
 
   factory InquiryDetail.fromJson(Map<String, dynamic> json) => InquiryDetail(
         inquiryId: Json.str(json['inquiry_id']),
+        audience: InquiryAudienceKind.fromWire(Json.strOrNull(json['audience'])),
         text: Json.str(json['text']),
         categoryCode: Json.strOrNull(json['category_code']),
         categoryLabel: Json.strOrNull(json['category_label']),
@@ -2495,6 +2530,7 @@ class InquiryReply {
     this.whatsappNumber,
     this.price,
     this.unit,
+    this.availability,
     this.note,
     this.previous,
   });
@@ -2508,8 +2544,19 @@ class InquiryReply {
   final String? phoneNumber;
   final String? whatsappNumber;
   final bool hasItem;
+
+  /// « Peut » / « Ne peut pas ». The same stored yes/no as [hasItem], named for
+  /// what it means when the answer came from a person rather than a shelf.
+  bool get canDo => hasItem;
+
   final int? price;
   final String? unit;
+
+  /// « Mardi matin », « Sous 2 semaines » — when an artisan says they can.
+  ///
+  /// The largest thing on an artisan's card, where a shop's card is largest on
+  /// price. Null for a shop, and for an artisan who said no.
+  final String? availability;
   final String? note;
   final bool openNow;
 
@@ -2538,6 +2585,7 @@ class InquiryReply {
         hasItem: json['has_item'] == true,
         price: Json.intOrNull(json['price']),
         unit: Json.strOrNull(json['unit']),
+        availability: Json.strOrNull(json['availability']),
         note: Json.strOrNull(json['note']),
         openNow: json['open_now'] == true,
         stale: json['stale'] == true,

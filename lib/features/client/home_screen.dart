@@ -12,6 +12,7 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/trade_picker.dart';
 import '../assistant/assistant_screen.dart';
 import '../deals/deals_screen.dart' show dealsProvider;
 import '../feed/feed_screen.dart';
@@ -625,106 +626,9 @@ class _CategoryPicker extends StatelessWidget {
   }
 
   Future<void> _pick(BuildContext context) async {
-    final selected = await showModalBottomSheet<ServiceCategory?>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => const _CategorySheet(),
-    );
+    final selected = await TradePicker.show(context);
     if (selected != null) onChanged(selected);
   }
-}
-
-/// Searchable list of the 18 categories.
-class _CategorySheet extends StatefulWidget {
-  const _CategorySheet();
-
-  @override
-  State<_CategorySheet> createState() => _CategorySheetState();
-}
-
-class _CategorySheetState extends State<_CategorySheet> {
-  String _query = '';
-
-  @override
-  Widget build(BuildContext context) {
-    final matches = ServiceCategory.values.where((c) {
-      if (_query.isEmpty) return true;
-      return _normalize(c.label).contains(_normalize(_query));
-    }).toList();
-
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      decoration: const BoxDecoration(
-        color: PanergoColors.page,
-        borderRadius: Radii.brSheet,
-      ),
-      padding: const EdgeInsets.fromLTRB(
-          Space.gutter, Space.s12, Space.gutter, 0),
-      child: Column(
-        children: [
-          Container(
-            width: 38,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: Space.s16),
-            decoration: BoxDecoration(
-              color: PanergoColors.disabled,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          TextField(
-            autofocus: false,
-            onChanged: (value) => setState(() => _query = value),
-            decoration: InputDecoration(
-              hintText: 'Rechercher une catégorie',
-              prefixIcon: const Icon(Icons.search, size: 20),
-              filled: true,
-              fillColor: PanergoColors.surface,
-              border: OutlineInputBorder(
-                borderRadius: Radii.brInput,
-                borderSide: const BorderSide(color: PanergoColors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: Radii.brInput,
-                borderSide: const BorderSide(color: PanergoColors.border),
-              ),
-            ),
-          ),
-          const SizedBox(height: Space.s12),
-          Expanded(
-            child: matches.isEmpty
-                ? Center(
-                    child: Text('Aucune catégorie trouvée',
-                        style: context.type.bodySmall
-                            .copyWith(color: PanergoColors.faint)),
-                  )
-                : ListView.builder(
-                    itemCount: matches.length,
-                    itemBuilder: (context, index) {
-                      final category = matches[index];
-                      final tint = CategoryTints.at(category.tintIndex);
-                      return ListTile(
-                        leading: MaterialSymbol(category.iconName,
-                            size: 22, color: tint.foreground),
-                        title: Text(category.label, style: context.type.body),
-                        onTap: () => Navigator.of(context).pop(category),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _normalize(String value) => value
-      .toLowerCase()
-      .replaceAll(RegExp('[àâä]'), 'a')
-      .replaceAll(RegExp('[éèêë]'), 'e')
-      .replaceAll(RegExp('[îï]'), 'i')
-      .replaceAll(RegExp('[ôö]'), 'o')
-      .replaceAll(RegExp('[ùûü]'), 'u')
-      .replaceAll('ç', 'c');
 }
 
 /// What the three buttons under the composer offer.
