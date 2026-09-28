@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format/formats.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/models.dart';
+import '../../core/network/api_client.dart' show ApiConfig;
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
@@ -259,6 +260,29 @@ class _RequestCard extends StatelessWidget {
           const SizedBox(height: Space.s12),
           Text(request.description,
               maxLines: 3, overflow: TextOverflow.ellipsis, style: type.body),
+          // The photo the client attached. The API has always sent it and no
+          // provider screen showed it, so a picture of the leak reached the
+          // server and stopped there — and pricing a job you cannot see is the
+          // thing a photo exists to prevent.
+          if (request.photoUrl != null) ...[
+            const SizedBox(height: Space.s12),
+            ClipRRect(
+              borderRadius: Radii.brTile,
+              child: Image.network(
+                ApiConfig.absolute(request.photoUrl!),
+                width: double.infinity,
+                height: 150,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 150,
+                  color: PanergoColors.skeleton,
+                  alignment: Alignment.center,
+                  child: const MaterialSymbol('image_not_supported',
+                      size: 24, color: PanergoColors.placeholder),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: Space.gutterTight),
           Row(
             children: [

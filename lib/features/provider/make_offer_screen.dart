@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format/formats.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/models.dart';
+import '../../core/network/api_client.dart' show ApiConfig;
+import '../../core/widgets/material_symbol.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -133,6 +135,32 @@ class _MakeOfferScreenState extends ConsumerState<MakeOfferScreen> {
                         ],
                       ),
                     ),
+                    // What is actually being priced. The form showed a category
+                    // and a quartier, so an artisan set a figure without the
+                    // sentence describing the job or the photo of it — both of
+                    // which the request has carried all along.
+                    const SizedBox(height: Space.s14),
+                    Text(widget.request.description,
+                        style: type.body.copyWith(height: 1.5)),
+                    if (widget.request.photoUrl != null) ...[
+                      const SizedBox(height: Space.s12),
+                      ClipRRect(
+                        borderRadius: Radii.brTile,
+                        child: Image.network(
+                          ApiConfig.absolute(widget.request.photoUrl!),
+                          width: double.infinity,
+                          height: 170,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            height: 170,
+                            color: PanergoColors.skeleton,
+                            alignment: Alignment.center,
+                            child: const MaterialSymbol('image_not_supported',
+                                size: 24, color: PanergoColors.placeholder),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: Space.gutter),
                     _RequiredLabel(label: 'Votre prix'),
                     const SizedBox(height: Space.s10),
