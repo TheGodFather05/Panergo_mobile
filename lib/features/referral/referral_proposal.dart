@@ -46,28 +46,34 @@ class ReferralProposal extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // An eyebrow naming the offer, so the card says what it is before it
+          // says how many shops — the count means nothing until you know what
+          // is being proposed.
           Row(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: context.brand.soft,
-                  borderRadius: Radii.brTile,
-                ),
-                alignment: Alignment.center,
-                child: MaterialSymbol('forum',
-                    size: 19, color: context.brand.link),
-              ),
-              const SizedBox(width: Space.s12),
+              MaterialSymbol('forum', size: 17, color: context.brand.link),
+              const SizedBox(width: Space.s6),
+              Text('POSER LA QUESTION',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                      color: context.brand.link)),
+            ],
+          ),
+          const SizedBox(height: Space.s10),
+          Row(
+            children: [
               Expanded(
                 child: Text(
                   // The count is the argument, so it goes in the sentence
                   // rather than into a badge beside it.
+                  // The quartier is named: « 7 quincailleries » is a number,
+                  // « 7 quincailleries de Bonamoussadi » is a reason to bother.
                   single
-                      ? 'Une $kind peut vous répondre'
-                      : '${draft.wouldReach} $kind peuvent vous dire '
-                          'si elles en ont',
+                      ? 'Une $kind de ${draft.neighborhood} peut vous répondre'
+                      : '${draft.wouldReach} $kind de ${draft.neighborhood} '
+                          'peuvent vous dire si elles en ont',
                   style: context.type.cardTitle.copyWith(height: 1.3),
                 ),
               ),
@@ -102,6 +108,20 @@ class ReferralProposal extends StatelessWidget {
               ],
             ),
           ],
+          const SizedBox(height: Space.s12),
+          // Three steps rather than one paragraph, as the design has them. The
+          // last is the one that earns its place: answering does not reserve
+          // anything, and somebody who walks over expecting a set-aside sack of
+          // cement has been misled by our silence rather than by the shop.
+          const _Step(
+              icon: 'edit_note',
+              text: 'Vous relisez la question avant qu’elle parte.'),
+          const _Step(
+              icon: 'rule',
+              text: 'Chaque boutique répond oui ou non, parfois avec un prix.'),
+          const _Step(
+              icon: 'directions_walk',
+              text: 'Rien n’est mis de côté : vous passez ensuite en boutique.'),
           const SizedBox(height: Space.s14),
           Row(
             children: [
@@ -230,6 +250,35 @@ class _DeadEndExit extends StatelessWidget {
           ),
           MaterialSymbol('chevron_right',
               size: 18, color: PanergoColors.subtle),
+        ],
+      ),
+    );
+  }
+}
+
+/// One line of what will happen, with its glyph.
+///
+/// Three of these replace a paragraph: somebody deciding whether to send a
+/// question to seven shops reads a list and skims prose.
+class _Step extends StatelessWidget {
+  const _Step({required this.icon, required this.text});
+
+  final String icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Space.s6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MaterialSymbol(icon, size: 15, color: PanergoColors.faint),
+          const SizedBox(width: Space.s8),
+          Expanded(
+            child: Text(text,
+                style: context.type.metaSmall.copyWith(height: 1.4)),
+          ),
         ],
       ),
     );

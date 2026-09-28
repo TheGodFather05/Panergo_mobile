@@ -1066,7 +1066,10 @@ class _Composer extends StatelessWidget {
                             border: InputBorder.none,
                             contentPadding: const EdgeInsets.symmetric(
                                 vertical: Space.s8),
-                            hintText: 'Décrivez votre besoin…',
+                            // Names who is being asked. On a screen that can
+                            // also relay a question to seven shops, « envoyer »
+                            // is ambiguous unless the field says where it goes.
+                            hintText: 'Posez une question à l’assistant…',
                             hintStyle: context.type.body.copyWith(
                                 fontSize: 14,
                                 color: PanergoColors.placeholder),
