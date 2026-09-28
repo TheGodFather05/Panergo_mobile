@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'assistant_prompt.dart';
 
+import '../../core/format/formats.dart';
 import '../../core/models/enums.dart';
+import '../../core/models/models.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
@@ -11,14 +13,26 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../assistant/assistant_screen.dart';
+import '../deals/deals_screen.dart' show dealsProvider;
+import '../feed/feed_screen.dart';
+import '../profile/edit_profile_screen.dart';
 import 'categories_screen.dart';
 import 'new_request_screen.dart';
+import 'requests_screen.dart' show RequestsScreen, myRequestsProvider;
+import 'reviews_screen.dart';
 
 /// Accueil — the client's entry point (home layout variant B).
 ///
 /// The assistant card is the primary way in (ADR-03), and the mic inside it is
 /// the accessibility keystone of the product, so it stays prominent. Sponsored
 /// content sits below the organic content and never moves above the fold.
+/// The artisans the home strip shows. Own quartier first, so it needs the
+/// quartier rather than being a bare list.
+final featuredProvidersProvider =
+    FutureProvider.autoDispose.family<List<ProviderProfile>, String>(
+        (ref, neighborhood) async =>
+            ref.watch(apiProvider).featuredProviders(neighborhood: neighborhood));
+
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
@@ -51,9 +65,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             Space.s26 + Clearance.askButton),
         children: [
           _TopRow(
-              quartier: quartier,
-              name: user?.name ?? '',
-              photoUrl: user?.photoUrl),
+            quartier: quartier,
+            name: user?.name ?? '',
+            photoUrl: user?.photoUrl,
+            // Derived, never a literal: the prototype's `notifCount = 3` is
+            // demo data, and a badge that always reads 3 trains people to
+            // ignore it. Until there is a notifications feed to count, the
+            // open requests awaiting an answer are what the bell is about.
+            notifCount: ref.watch(myRequestsProvider).value
+                    ?.where((r) => r.status == RequestStatus.open)
+                    .length ??
+                0,
+            onNotifications: _openRequests,
+            onChangeQuartier: _changeQuartier,
+          ),
           const SizedBox(height: Space.s22),
           _Headline(firstName: firstName),
           const SizedBox(height: Space.s18),
@@ -76,9 +101,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           const SizedBox(height: Space.s10),
           const _CoverageNote(),
 
+          // Sponsored placements. Labelled « Sponsorisé » above the row rather
+          // than inside each card, as the design has it: one disclosure for the
+          // band, not three competing with the copy.
+          const SizedBox(height: Space.s22),
+          const _SponsoredLabel(),
+          const SizedBox(height: Space.s10),
+          const _AdCarousel(),
+
+          const SizedBox(height: Space.s22),
+          _SectionHeader(
+            label: 'Découvrir',
+            actionLabel: 'Voir le fil',
+            onAction: _openFeed,
+          ),
+          const SizedBox(height: Space.s12),
+          const _SponsoredProsLabel(),
+          const SizedBox(height: Space.s10),
+          _TopProsList(neighborhood: quartier),
         ],
       ),
     );
+  }
+
+  void _openRequests() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => const RequestsScreen(),
+    ));
+  }
+
+  /// The quartier decides everything downstream, so it is changed where it is
+  /// shown rather than buried in settings.
+  void _changeQuartier() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => const EditProfileScreen(),
+    ));
+  }
+
+  void _openFeed() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      // Pushed, so it carries its own Scaffold and back button.
+      builder: (_) => const FeedScreen(pushed: true),
+    ));
   }
 
   void _openCategories() {
@@ -140,10 +204,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 class _TopRow extends StatelessWidget {
-  const _TopRow({required this.quartier, required this.name, this.photoUrl});
+  const _TopRow({
+    required this.quartier,
+    required this.name,
+    required this.notifCount,
+    required this.onNotifications,
+    required this.onChangeQuartier,
+    this.photoUrl,
+  });
 
   final String quartier;
   final String name;
+
+  /// Unread count on the bell. Derived from what the app actually has, never a
+  /// literal: a badge that always says 3 teaches people to ignore it.
+  final int notifCount;
+
+  final VoidCallback onNotifications;
+  final VoidCallback onChangeQuartier;
   final String? photoUrl;
 
   @override
@@ -152,15 +230,93 @@ class _TopRow extends StatelessWidget {
 
     return Row(
       children: [
-        MaterialSymbol('location_on',
-            size: 19, color: brand.link, filled: true),
-        const SizedBox(width: Space.s6),
-        Text(quartier,
-            style: context.type.body.copyWith(
-                fontWeight: FontWeight.w700, color: PanergoColors.ink)),
+        // The quartier is a picker, not a label — everything in the product
+        // routes on it, so it has to be changeable from the first screen.
+        InkWell(
+          onTap: onChangeQuartier,
+          borderRadius: Radii.brChip,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: Space.xs),
+            child: Row(
+              children: [
+                MaterialSymbol('location_on',
+                    size: 19, color: brand.link, filled: true),
+                const SizedBox(width: Space.s6),
+                Text(quartier,
+                    style: context.type.body.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: PanergoColors.ink)),
+                const SizedBox(width: Space.xxs),
+                MaterialSymbol('expand_more',
+                    size: 18, color: PanergoColors.subtle),
+              ],
+            ),
+          ),
+        ),
         const Spacer(),
+        _NotificationBell(count: notifCount, onTap: onNotifications),
+        const SizedBox(width: Space.s10),
         InitialsAvatar(name: name, photoUrl: photoUrl, size: 40, radius: null),
       ],
+    );
+  }
+}
+
+/// The bell, with its count badge.
+///
+/// Hidden entirely at zero rather than shown as a bare bell: an affordance that
+/// never has anything behind it is one people stop reaching for.
+class _NotificationBell extends StatelessWidget {
+  const _NotificationBell({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: SizedBox(
+        width: 40,
+        height: 40,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: PanergoColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: PanergoColors.border),
+              ),
+            ),
+            const MaterialSymbol('notifications',
+                size: 20, color: PanergoColors.ink),
+            if (count > 0)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  constraints:
+                      const BoxConstraints(minWidth: 17, minHeight: 17),
+                  decoration: BoxDecoration(
+                    color: context.brand.fill,
+                    shape: BoxShape.rectangle,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: PanergoColors.surface, width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    count > 9 ? '9+' : '$count',
+                    style: context.type.microTight
+                        .copyWith(color: Colors.white, height: 1.1),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -844,6 +1000,199 @@ class _CoverageNote extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// « Sponsorisé », once, above the band.
+///
+/// One disclosure for the row rather than a badge inside each card: three
+/// repetitions of the same word compete with the copy they are meant to qualify,
+/// and the design puts it here for that reason.
+class _SponsoredLabel extends StatelessWidget {
+  const _SponsoredLabel();
+
+  @override
+  Widget build(BuildContext context) =>
+      Text('SPONSORISÉ', style: context.type.micro);
+}
+
+class _SponsoredProsLabel extends StatelessWidget {
+  const _SponsoredProsLabel();
+
+  @override
+  Widget build(BuildContext context) => Text(
+      'Prestataires sponsorisés près de chez vous',
+      style: context.type.metaSmall);
+}
+
+/// The sponsored placements, side-scrolling.
+///
+/// Fed from the real deals endpoint rather than the prototype's three fixtures:
+/// a hardcoded « −15% sur tout le matériel de plomberie » would be a claim the
+/// platform is making on a partner's behalf.
+class _AdCarousel extends ConsumerWidget {
+  const _AdCarousel();
+
+  static const _height = 132.0;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(dealsProvider);
+    final deals = async.value ?? const <Deal>[];
+
+    // Nothing to show and nothing to apologise for: the band simply is not
+    // there. An empty « Sponsorisé » strip looks like a failed load.
+    if (deals.isEmpty) return const SizedBox.shrink();
+
+    return SizedBox(
+      height: _height,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: deals.length,
+        separatorBuilder: (_, __) => const SizedBox(width: Space.s10),
+        itemBuilder: (context, i) => _AdCard(deal: deals[i]),
+      ),
+    );
+  }
+}
+
+class _AdCard extends StatelessWidget {
+  const _AdCard({required this.deal});
+
+  final Deal deal;
+
+  /// The three grounds the design gives its cards, in order. Taken by position
+  /// so a row of three reads as three different partners rather than one brand.
+  static const _grounds = [
+    Color(0xFFC24E00),
+    Color(0xFF0068CC),
+    Color(0xFF1F7A55),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final ground = _grounds[deal.id.hashCode.abs() % _grounds.length];
+
+    return Container(
+      width: 254,
+      padding: const EdgeInsets.all(Space.s14),
+      decoration: BoxDecoration(
+        color: ground,
+        borderRadius: Radii.brCardLarge,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Space.s8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(Radii.badge),
+                ),
+                child: Text(
+                  deal.discountLabel.isEmpty ? 'Sponsorisé' : deal.discountLabel,
+                  style: context.type.microTight.copyWith(color: Colors.white),
+                ),
+              ),
+              const Spacer(),
+              MaterialSymbol('local_offer', size: 19, color: Colors.white),
+            ],
+          ),
+          const Spacer(),
+          Text(deal.partnerName,
+              style: context.type.cardTitle.copyWith(color: Colors.white),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 2),
+          Text(deal.description,
+              style: context.type.metaSmall
+                  .copyWith(color: Colors.white.withValues(alpha: 0.85), height: 1.35),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+}
+
+/// The artisans strip under « Découvrir ».
+class _TopProsList extends ConsumerWidget {
+  const _TopProsList({required this.neighborhood});
+
+  final String neighborhood;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(featuredProvidersProvider(neighborhood));
+    final pros = async.value ?? const <ProviderProfile>[];
+
+    if (pros.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        for (final pro in pros)
+          Padding(
+            padding: const EdgeInsets.only(bottom: Space.s8),
+            child: _TopProRow(pro: pro),
+          ),
+      ],
+    );
+  }
+}
+
+class _TopProRow extends StatelessWidget {
+  const _TopProRow({required this.pro});
+
+  final ProviderProfile pro;
+
+  @override
+  Widget build(BuildContext context) {
+    return PanergoCard(
+      padding: const EdgeInsets.all(Space.s12),
+      radius: Radii.card,
+      // Their reviews, which is the public face of an artisan in this app —
+      // ProviderProfileScreen is the artisan's own dashboard, not a profile
+      // somebody else can open.
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => ReviewsScreen(
+          providerId: pro.id,
+          providerName: pro.name,
+        ),
+      )),
+      child: Row(
+        children: [
+          InitialsAvatar(name: pro.name, photoUrl: pro.photoUrl, size: 42),
+          const SizedBox(width: Space.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(pro.name, style: context.type.cardTitleSmall),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Text(pro.category.label, style: context.type.metaSmall),
+                    Text(' · ', style: context.type.metaSmall),
+                    MaterialSymbol('star',
+                        size: 13, color: context.brand.accent, filled: true),
+                    const SizedBox(width: 2),
+                    // Decimal comma, per the handoff's number rules.
+                    Text(Formats.rating(pro.avgRating),
+                        style: context.type.metaSmall),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          MaterialSymbol('chevron_right',
+              size: 18, color: PanergoColors.subtle),
+        ],
+      ),
     );
   }
 }

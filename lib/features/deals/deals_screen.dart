@@ -40,7 +40,10 @@ class DealsScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
                 child: Text(
-                  'Offres négociées chez nos partenaires',
+                  // The design's wording. « négociées » implies Panergo brokered them, which
+              // ADR-01 leaves open; « près de chez vous » says the useful thing
+              // instead — these are local — without claiming a relationship.
+              'Offres & promotions près de chez vous',
                   style: context.type.meta,
                 ),
               ),
