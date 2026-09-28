@@ -155,7 +155,7 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
             // picker. Two round trips could set an end before a start, and left
             // nowhere for the two actions the design asks for — applying the
             // week, and closing the day.
-            onPickTime: (weekday, _) async {
+            onEditDay: (weekday) async {
               final current = _week[weekday];
               if (current == null) return;
 
@@ -245,7 +245,7 @@ class _Body extends StatelessWidget {
     required this.saving,
     required this.error,
     required this.onToggle,
-    required this.onPickTime,
+    required this.onEditDay,
     required this.onSave,
     required this.onAddTimeOff,
     required this.onRemoveTimeOff,
@@ -258,7 +258,9 @@ class _Body extends StatelessWidget {
   final bool saving;
   final String? error;
   final void Function(int weekday, bool on) onToggle;
-  final Future<void> Function(int weekday, bool isStart) onPickTime;
+  /// Opens the day sheet for this weekday. No start/end flag: the sheet sets
+  /// both together, and the flag was already being discarded.
+  final Future<void> Function(int weekday) onEditDay;
   final VoidCallback onSave;
   final VoidCallback onAddTimeOff;
   final void Function(TimeOff) onRemoveTimeOff;
@@ -294,8 +296,7 @@ class _Body extends StatelessWidget {
                   label: dayNames[weekday - 1],
                   hours: week[weekday],
                   onToggle: (on) => onToggle(weekday, on),
-                  onPickStart: () => onPickTime(weekday, true),
-                  onPickEnd: () => onPickTime(weekday, false),
+                  onEditHours: () => onEditDay(weekday),
                 ),
               const SizedBox(height: Space.s20),
               Row(
@@ -402,8 +403,13 @@ class _ReassuranceCard extends StatelessWidget {
           const SizedBox(width: Space.s12),
           const Expanded(
             child: Text(
+              // The third sentence is the one that answers the actual fear.
+              // An artisan reading a form about availability assumes filling
+              // it in badly could cost them work; the design says outright
+              // that leaving it empty costs nothing.
               'Vous recevez des demandes à toute heure. Déclarez vos horaires '
-              'seulement si vous préférez être contacté à certains moments.',
+              'seulement si vous préférez être contacté à certains moments. '
+              'Ne rien remplir ne vous retire jamais des recherches.',
               style: TextStyle(
                   fontSize: 12.5, height: 1.45, color: PanergoColors.body),
             ),
@@ -440,15 +446,15 @@ class _DayRow extends StatelessWidget {
     required this.label,
     required this.hours,
     required this.onToggle,
-    required this.onPickStart,
-    required this.onPickEnd,
+    required this.onEditHours,
   });
 
   final String label;
   final ({TimeOfDay start, TimeOfDay end})? hours;
   final ValueChanged<bool> onToggle;
-  final VoidCallback onPickStart;
-  final VoidCallback onPickEnd;
+  /// Opens the day sheet. One entry point, because the sheet sets both ends
+  /// together — a start and an end picked separately can land out of order.
+  final VoidCallback onEditHours;
 
   bool get _on => hours != null;
 
@@ -473,13 +479,25 @@ class _DayRow extends StatelessWidget {
                     color: _on ? PanergoColors.ink : PanergoColors.subtle)),
           ),
           if (_on) ...[
-            _TimeChip(time: hours!.start, onTap: onPickStart),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: Space.s6),
-              child: Text('–',
-                  style: TextStyle(color: PanergoColors.faint)),
+            // One control for the range, as the design draws it. It was two
+            // chips with a dash between, which read as two editors — and both
+            // already opened the same sheet, because a start and an end set
+            // separately can end up in the wrong order.
+            _RangeButton(
+              start: hours!.start,
+              end: hours!.end,
+              onTap: onEditHours,
             ),
-            _TimeChip(time: hours!.end, onTap: onPickEnd),
+            const SizedBox(width: Space.s8),
+          ] else ...[
+            // « Repos », as the design has it. Without a word the switch
+            // position was the only thing saying the day was off — RM-16, and
+            // also just hard to read down a column of seven rows.
+            const Text('Repos',
+                style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: PanergoColors.faint)),
             const SizedBox(width: Space.s8),
           ],
           Switch.adaptive(
@@ -493,29 +511,51 @@ class _DayRow extends StatelessWidget {
   }
 }
 
-class _TimeChip extends StatelessWidget {
-  const _TimeChip({required this.time, required this.onTap});
+/// « 08:00 – 18:00 » with an edit glyph — one tap target for one range.
+class _RangeButton extends StatelessWidget {
+  const _RangeButton({
+    required this.start,
+    required this.end,
+    required this.onTap,
+  });
 
-  final TimeOfDay time;
+  final TimeOfDay start;
+  final TimeOfDay end;
   final VoidCallback onTap;
+
+  static String _hhmm(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:'
+      '${t.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: PanergoColors.fill,
-          borderRadius: BorderRadius.circular(Radii.pill),
-        ),
-        child: Text(
-          '${time.hour.toString().padLeft(2, '0')}:'
-          '${time.minute.toString().padLeft(2, '0')}',
-          style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: PanergoColors.ink),
+    return Semantics(
+      button: true,
+      label: 'Modifier les horaires, ${_hhmm(start)} à ${_hhmm(end)}',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Radii.pill),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: PanergoColors.fill,
+            borderRadius: BorderRadius.circular(Radii.pill),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${_hhmm(start)} – ${_hhmm(end)}',
+                style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: PanergoColors.ink),
+              ),
+              const SizedBox(width: Space.s6),
+              const MaterialSymbol('edit',
+                  size: 14, color: PanergoColors.subtle),
+            ],
+          ),
         ),
       ),
     );
