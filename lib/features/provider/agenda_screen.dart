@@ -8,6 +8,8 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/panergo_button.dart';
+import '../shell/app_shell.dart' show tabJumpProvider;
 import '../booking/booking_tracking_screen.dart';
 import 'agenda_providers.dart';
 
@@ -406,11 +408,11 @@ class _AvailabilityInvite extends StatelessWidget {
   }
 }
 
-class _NoWorkYet extends StatelessWidget {
+class _NoWorkYet extends ConsumerWidget {
   const _NoWorkYet();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(Space.s30),
@@ -432,6 +434,16 @@ class _NoWorkYet extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 13, height: 1.5, color: PanergoColors.muted),
+            ),
+            const SizedBox(height: Space.gutterTight),
+            // Where the work actually comes from. Saying missions « appear
+            // here » and stopping leaves the artisan on the one screen that
+            // cannot produce any.
+            PanergoOutlinedButton(
+              label: 'Voir les demandes reçues',
+              icon: 'inbox',
+              onPressed: () =>
+                  ref.read(tabJumpProvider.notifier).to('Demandes'),
             ),
           ],
         ),

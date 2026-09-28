@@ -57,6 +57,24 @@ class AppTab {
 ///
 /// Missions is where a won offer becomes work the provider can open — without
 /// it their road ended at "offre envoyée".
+/// A request from a nested screen to show a different tab, by label.
+///
+/// By label rather than index because the three mode tab lists hold different
+/// screens at the same positions — the bug this shell already guards against
+/// when a mode switch resets the tab. Consumed once and cleared, so returning
+/// to a screen later does not re-trigger the jump.
+final tabJumpProvider = NotifierProvider<TabJump, String?>(TabJump.new);
+
+class TabJump extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  /// Asks the shell to show the tab with this label.
+  void to(String label) => state = label;
+
+  void clear() => state = null;
+}
+
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
@@ -198,6 +216,20 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (_indexMode != mode) {
       _indexMode = mode;
       _index = 0;
+    }
+
+    // Honoured after the frame that asked for it: a screen requesting this from
+    // inside build cannot also drive a setState here. An unknown label is
+    // ignored rather than clamped — the three modes hold different tabs, so a
+    // request can legitimately name one this bar does not have.
+    final jump = ref.watch(tabJumpProvider);
+    if (jump != null) {
+      final target = tabs.indexWhere((t) => t.label == jump);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ref.read(tabJumpProvider.notifier).clear();
+        if (target >= 0 && target != _index) setState(() => _index = target);
+      });
     }
 
     // Still clamped: the reset above covers a switch, and this covers a list
