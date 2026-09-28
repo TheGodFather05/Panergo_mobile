@@ -58,6 +58,14 @@ class CategoryScreen extends ConsumerWidget {
                 onRetry: () =>
                     ref.invalidate(businessesProvider(category.code)),
                 errorTitle: 'Liste indisponible',
+                errorBody: 'Les commerces de cette catégorie n’ont pas pu '
+                    'être chargés.',
+                // « Ouvert » is computed against the current time from hours
+                // fetched earlier, so a cached list can show a shop as open
+                // hours after it shut. Said plainly rather than left to be
+                // discovered at a closed door.
+                offlineBody: 'Les horaires dépendent de l’heure courante : '
+                    'sans réseau, « ouvert » ne peut pas être garanti.',
                 skeleton: (_) => const _Skeleton(),
                 empty: (_) => _Empty(
                   onRegister: () => Navigator.of(context).push(
