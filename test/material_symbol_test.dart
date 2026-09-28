@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panergo_mobile/core/widgets/material_symbol.dart';
@@ -9,7 +11,50 @@ import 'package:panergo_mobile/core/widgets/material_symbol.dart';
 /// fourteen of them reached a device, including the Feed tab and the « Utile »
 /// thumb. The compiler cannot catch a missing map entry because the name is a
 /// string, so this test stands in for it.
+/// Every icon name the source actually asks for, read from the source.
+///
+/// Scanned rather than listed: the hand-kept list below drifted four names
+/// behind — including the assistant's send button — because nothing forced it
+/// forward when a screen added an icon. A scan cannot fall behind.
+Set<String> requestedNames() {
+  final names = <String>{};
+  final patterns = [
+    RegExp(r"MaterialSymbol\(\s*'([a-z_0-9]+)'"),
+    RegExp(r"MaterialSymbol\(\s*\n\s*'([a-z_0-9]+)'"),
+    RegExp(r"icon:\s*'([a-z_0-9]+)'"),
+    RegExp(r"iconName:\s*'([a-z_0-9]+)'"),
+  ];
+  for (final entity in Directory('lib').listSync(recursive: true)) {
+    if (entity is! File || !entity.path.endsWith('.dart')) continue;
+    final src = entity.readAsStringSync();
+    for (final p in patterns) {
+      for (final m in p.allMatches(src)) {
+        names.add(m.group(1)!);
+      }
+    }
+  }
+  return names;
+}
+
 void main() {
+  testWidgets('every icon the source asks for resolves', (tester) async {
+    final names = requestedNames();
+    // A scan that finds almost nothing means the patterns stopped matching,
+    // which would make this test pass by looking at nothing.
+    expect(names.length, greaterThan(80));
+
+    for (final name in names) {
+      await tester.pumpWidget(MaterialApp(home: MaterialSymbol(name)));
+      final icon = tester.widget<Icon>(find.byType(Icon));
+      expect(
+        icon.icon,
+        isNot(Icons.circle_outlined),
+        reason: '"$name" is requested in lib/ but not mapped, so it renders as '
+            'a blank circle',
+      );
+    }
+  });
+
   testWidgets('no symbol falls back to the placeholder circle', (tester) async {
     // The names used across the app. Keep in step with MaterialSymbol callers.
     const names = <String>[

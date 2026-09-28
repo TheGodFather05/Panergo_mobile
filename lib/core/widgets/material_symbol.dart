@@ -46,8 +46,15 @@ class MaterialSymbol extends StatelessWidget {
     'home': Icons.home_outlined,
     'arrow_back': Icons.arrow_back,
     'arrow_forward': Icons.arrow_forward,
+    'arrow_upward': Icons.arrow_upward,
     'chevron_right': Icons.chevron_right,
     'expand_more': Icons.expand_more,
+    // Undo/redo/history: the offer-withdrawal actions and the revenue screen's
+    // wider-window link. An unmapped name falls back to a blank circle without
+    // complaining, so a missing entry here is a silently empty button.
+    'undo': Icons.undo,
+    'redo': Icons.redo,
+    'history': Icons.history,
     'close': Icons.close,
     'search': Icons.search,
     'apps': Icons.apps,
