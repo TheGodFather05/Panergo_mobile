@@ -121,34 +121,53 @@ class PanergoOutlinedButton extends StatelessWidget {
       _ => Border.all(color: PanergoColors.borderInput),
     };
 
+    // Brand outlines fill their line; the others hug their label because they
+    // sit beside something else — « Ignorer » shares a Row with « Faire une
+    // offre », and a full-width one there would push its neighbour off.
+    final isBrand = tone == OutlinedTone.brand;
+    final radius = isBrand ? Radii.brInput : Radii.brTile;
+
     return Semantics(
       button: true,
       label: label,
       child: Material(
         color: Colors.transparent,
-        borderRadius: Radii.brTile,
+        borderRadius: radius,
         child: InkWell(
           onTap: onPressed,
-          borderRadius: Radii.brTile,
+          borderRadius: radius,
           child: Container(
+            width: isBrand ? double.infinity : null,
             constraints: const BoxConstraints(minHeight: 44),
-            padding: const EdgeInsets.symmetric(horizontal: Space.s14),
+            padding: EdgeInsets.symmetric(
+                horizontal: Space.s14,
+                vertical: isBrand ? Space.s14 : 0),
             decoration: BoxDecoration(
-              borderRadius: Radii.brTile,
+              borderRadius: radius,
               border: border,
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize:
+                  isBrand ? MainAxisSize.max : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (icon != null) ...[
-                  MaterialSymbol(icon!, size: 18, color: color),
-                  const SizedBox(width: Space.s6),
+                  MaterialSymbol(icon!,
+                      size: isBrand ? 21 : 18, color: color),
+                  SizedBox(width: isBrand ? Space.s10 : Space.s6),
                 ],
                 Flexible(
                   child: Text(
                     label,
-                    style: context.type.labelSmall.copyWith(color: color),
+                    // A brand outline carries a screen's main action and is
+                    // sized for it — just under the filled button's 16, as the
+                    // design has them. The quiet ones keep the small label.
+                    style: isBrand
+                        ? context.type.labelSmall.copyWith(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w800,
+                            color: color)
+                        : context.type.labelSmall.copyWith(color: color),
                   ),
                 ),
               ],

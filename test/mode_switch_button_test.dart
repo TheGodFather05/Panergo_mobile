@@ -63,4 +63,44 @@ void main() {
     expect(side.color, PanergoColors.borderInput);
     expect(side.width, lessThan(1.5));
   });
+
+  testWidgets('a brand outline fills its line', (tester) async {
+    // The design draws it width:100%. It shipped shrink-wrapped and centred,
+    // which is what a screenshot caught: the colour was right and the shape
+    // was not.
+    await tester.pumpWidget(wrap(
+      SizedBox(
+        width: 400,
+        child: PanergoOutlinedButton(
+          label: 'Changer de mode',
+          icon: 'swap_horiz',
+          tone: OutlinedTone.brand,
+          onPressed: () {},
+        ),
+      ),
+      BrandDirection.provider,
+    ));
+
+    final box = tester.getSize(find.byType(PanergoOutlinedButton));
+    expect(box.width, 400);
+  });
+
+  testWidgets('a neutral outline still hugs its label', (tester) async {
+    // « Ignorer » shares a Row with « Faire une offre ». Full width here would
+    // push its neighbour off the screen.
+    await tester.pumpWidget(wrap(
+      SizedBox(
+        width: 400,
+        child: Row(
+          children: [
+            PanergoOutlinedButton(label: 'Ignorer', onPressed: () {}),
+          ],
+        ),
+      ),
+      BrandDirection.provider,
+    ));
+
+    expect(tester.getSize(find.byType(PanergoOutlinedButton)).width,
+        lessThan(200));
+  });
 }
