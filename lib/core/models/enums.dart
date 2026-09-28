@@ -198,7 +198,13 @@ enum ProposalStatus implements WireEnum {
 /// Which side of the table someone is on.
 enum PartyRole implements WireEnum {
   user('USER', 'Client'),
-  provider('PROVIDER', 'Prestataire');
+  provider('PROVIDER', 'Prestataire'),
+  // Both reachable: a business conversation resolves the shopkeeper to BUSINESS
+  // and a group resolves a participant to MEMBER. Absent here they parsed as
+  // « Client » through the fallback, silently — nothing reads senderRole yet, so
+  // the first screen that does would have inherited the wrong answer.
+  business('BUSINESS', 'Commerce'),
+  member('MEMBER', 'Membre');
 
   const PartyRole(this.wire, this.label);
 
