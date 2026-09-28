@@ -6,6 +6,7 @@ import '../../core/models/enums.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/network/send_queue.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
@@ -128,6 +129,7 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
         ));
       } else {
         final requestId = await api.createRequest(
+          idempotencyKey: _idempotencyKey,
           category: _category,
           neighborhood: neighborhood,
           description: _description,
@@ -149,14 +151,46 @@ class _NewRequestScreenState extends ConsumerState<NewRequestScreen> {
         ));
       }
     } on ApiException catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.message;
-          _busy = false;
-        });
+      if (!mounted) return;
+
+      // Held on the device and sent once when the network returns, carrying the
+      // same key — so the artisans are notified exactly one time.
+      if (e.isOffline) {
+        await ref.read(sendQueueProvider).enqueue(QueuedSend(
+              kind: QueuedSendKind.request,
+              idempotencyKey: _idempotencyKey,
+              body: {
+                'category': _category.wire,
+                'neighborhood': neighborhood,
+                'description': _description,
+                'urgency': _urgency!.wire,
+                if (_budget != null) 'budget_bracket': _budget!.wire,
+                if (_origin?.photoUrl != null) 'photo_url': _origin!.photoUrl,
+                if (_origin?.providerId != null)
+                  'origin_provider_id': _origin!.providerId,
+              },
+              queuedAt: DateTime.now(),
+            ));
+        if (!mounted) return;
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Pas de réseau. Votre demande partira au retour de la '
+              'connexion — une seule fois.'),
+        ));
+        return;
       }
+
+      setState(() {
+        _error = e.message;
+        _busy = false;
+      });
     }
   }
+
+  /// One key per visit to this form. Reused by every attempt, including a queued
+  /// one, so a flaky connection cannot turn one tender into three.
+  late final String _idempotencyKey =
+      'request-${DateTime.now().microsecondsSinceEpoch}';
 
   @override
   Widget build(BuildContext context) {
