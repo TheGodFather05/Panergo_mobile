@@ -98,7 +98,7 @@ class _LoadedState extends ConsumerState<_Loaded> {
 
   /// The provider scans; this is their action.
   Future<void> _openScan() async {
-    final confirmed = await Navigator.of(context).push<bool>(
+    final confirmed = await Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute(
         builder: (_) => ScanArrivalScreen(booking: booking),
       ),
@@ -108,7 +108,7 @@ class _LoadedState extends ConsumerState<_Loaded> {
 
   /// The client displays the code the provider scans.
   Future<void> _showCode() async {
-    await Navigator.of(context).push<void>(
+    await Navigator.of(context, rootNavigator: true).push<void>(
       MaterialPageRoute(
         builder: (_) => ShowArrivalCodeScreen(booking: booking),
       ),
@@ -148,7 +148,7 @@ class _LoadedState extends ConsumerState<_Loaded> {
   }
 
   Future<void> _rate() async {
-    final rated = await Navigator.of(context).push<bool>(
+    final rated = await Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute(
         builder: (_) => RateProviderScreen(booking: booking),
       ),

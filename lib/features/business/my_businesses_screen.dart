@@ -63,7 +63,7 @@ class MyBusinessesScreen extends ConsumerWidget {
   }
 
   Future<void> _register(BuildContext context, WidgetRef ref) async {
-    final created = await Navigator.of(context).push<bool>(
+    final created = await Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute<bool>(
           builder: (_) => const RegisterBusinessScreen()),
     );

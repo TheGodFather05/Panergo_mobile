@@ -1366,7 +1366,7 @@ class _QuietProposalLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: Radii.brCard,
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+      onTap: () => Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(
         builder: (_) => ReferralDraftScreen(draft: draft, onSent: onSent),
       )),
       child: DashedBorder(

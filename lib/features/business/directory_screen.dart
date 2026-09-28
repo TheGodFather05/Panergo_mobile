@@ -69,7 +69,7 @@ class DirectoryScreen extends ConsumerWidget {
                       ),
                     const SizedBox(height: Space.s14),
                     _RegisterRow(
-                      onTap: () => Navigator.of(context).push(
+                      onTap: () => Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute<void>(
                             builder: (_) => const RegisterBusinessScreen()),
                       ),

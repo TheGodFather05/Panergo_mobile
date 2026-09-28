@@ -103,10 +103,10 @@ class ModeSheet extends ConsumerWidget {
 
     switch (mode) {
       case AppMode.provider:
-        Navigator.of(context).push(MaterialPageRoute<void>(
+        Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(
             builder: (_) => const BecomeProviderScreen()));
       case AppMode.business:
-        Navigator.of(context).push(MaterialPageRoute<void>(
+        Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(
             builder: (_) => const RegisterBusinessScreen()));
       case AppMode.client:
         break; // everyone is already a client

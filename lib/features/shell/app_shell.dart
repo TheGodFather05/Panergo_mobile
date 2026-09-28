@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_mode.dart';
@@ -92,6 +93,18 @@ class _AppShellState extends ConsumerState<AppShell> {
   /// Messages into a merchant's bar lands on Mode — a seat the shopkeeper did
   /// not ask for and that does nothing.
   AppMode? _indexMode;
+
+  /// One Navigator per seat, so a push stays under the bar.
+  ///
+  /// Without these every push went to the root navigator, which paints over
+  /// the whole shell — so opening a category, a shop or anything from the
+  /// profile lost the bar and left the back arrow as the only way out.
+  /// FullScreenRoute is the deliberate exception and asks for the root one.
+  ///
+  /// Five keys because that is the longest tab list; a shorter mode simply
+  /// uses fewer.
+  final List<GlobalKey<NavigatorState>> _tabKeys =
+      List.generate(5, (_) => GlobalKey<NavigatorState>());
 
   static final _clientTabs = <AppTab>[
     AppTab(
@@ -236,6 +249,32 @@ class _AppShellState extends ConsumerState<AppShell> {
     // that shrinks under a stale index for any other reason.
     final index = _index.clamp(0, tabs.length - 1);
 
+    return PopScope(
+      // Android back pops inside the tab first. The root navigator holds only
+      // the shell, so without this the system back button left the app from a
+      // screen the user had pushed two taps ago.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        final nav = _tabKeys[index].currentState;
+        if (nav != null && nav.canPop()) {
+          nav.pop();
+          return;
+        }
+        // Nothing left to pop in this tab: fall back to the first seat before
+        // giving up and letting the app close.
+        if (index != 0) {
+          setState(() => _index = 0);
+          return;
+        }
+        SystemNavigator.pop();
+      },
+      child: _shell(context, ref, mode, tabs, index),
+    );
+  }
+
+  Widget _shell(BuildContext context, WidgetRef ref, AppMode mode,
+      List<AppTab> tabs, int index) {
     return Scaffold(
       backgroundColor: PanergoColors.page,
       body: SafeArea(
@@ -249,7 +288,15 @@ class _AppShellState extends ConsumerState<AppShell> {
               key: ValueKey(mode),
               index: index,
               children: [
-                for (final tab in tabs) Builder(builder: tab.builder),
+                for (var i = 0; i < tabs.length; i++)
+                  Navigator(
+                    key: _tabKeys[i],
+                    onGenerateRoute: (settings) => MaterialPageRoute<void>(
+                      settings: settings,
+                      builder: (context) =>
+                          Builder(builder: tabs[i].builder),
+                    ),
+                  ),
               ],
             ),
 
@@ -285,6 +332,13 @@ class _AppShellState extends ConsumerState<AppShell> {
               // sheet and leaves the shopkeeper on the tab they were using.
               if (tabs[next].label == 'Mode') {
                 ModeSheet.show(context);
+                return;
+              }
+              // Tapping the seat you are already on returns that tab to its
+              // root, which is what a bottom bar does everywhere else. Without
+              // it a tab pushed three deep had no way back but the arrow.
+              if (next == index) {
+                _tabKeys[next].currentState?.popUntil((r) => r.isFirst);
                 return;
               }
               setState(() => _index = next);

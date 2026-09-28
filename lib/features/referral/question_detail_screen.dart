@@ -61,7 +61,7 @@ class _QuestionDetailScreenState extends ConsumerState<QuestionDetailScreen> {
   }
 
   Future<void> _answerYes() async {
-    final sent = await Navigator.of(context).push<bool>(
+    final sent = await Navigator.of(context, rootNavigator: true).push<bool>(
       MaterialPageRoute<bool>(
         builder: (_) => QuestionAnswerScreen(
           item: widget.item,
@@ -167,7 +167,7 @@ class _QuestionDetailScreenState extends ConsumerState<QuestionDetailScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: Space.s10),
               child: TextButton.icon(
-                onPressed: () => Navigator.of(context).push(
+                onPressed: () => Navigator.of(context, rootNavigator: true).push(
                   MaterialPageRoute<void>(
                     builder: (_) =>
                         QuestionSettingsScreen(source: widget.source),

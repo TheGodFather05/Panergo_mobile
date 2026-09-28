@@ -159,7 +159,7 @@ class _SettingsButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextButton.icon(
-      onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+      onPressed: () => Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(
         builder: (_) => QuestionSettingsScreen(source: source),
       )),
       icon: const MaterialSymbol('tune', size: 17, color: PanergoColors.ink2),
@@ -192,7 +192,7 @@ class _QuestionRow extends StatelessWidget {
     return InkWell(
       borderRadius: Radii.brCardLarge,
       onTap: () async {
-        final changed = await Navigator.of(context).push<bool>(
+        final changed = await Navigator.of(context, rootNavigator: true).push<bool>(
           MaterialPageRoute<bool>(
             builder: (_) => QuestionDetailScreen(item: item, source: source),
           ),

@@ -106,7 +106,7 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
       // Reuses the same draft screen, so the wording is reread before it goes
       // back out to the same shopkeepers — which is the whole point of the
       // design routing this through a draft rather than a button.
-      Navigator.of(context).push(MaterialPageRoute<void>(
+      Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(
         builder: (_) => ReferralDraftScreen(
           draft: ReferralDraft(
             text: again.text,

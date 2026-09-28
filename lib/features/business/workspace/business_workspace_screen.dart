@@ -126,7 +126,7 @@ class _BusinessBlock extends ConsumerWidget {
             icon: 'schedule',
             label: 'Mes horaires',
             detail: _hoursSummary(business),
-            onTap: () => Navigator.of(context).push(
+            onTap: () => Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute<void>(
                 builder: (_) => BusinessHoursScreen(business: business),
               ),
@@ -148,7 +148,7 @@ class _BusinessBlock extends ConsumerWidget {
             icon: 'edit',
             label: 'Nom, adresse, liens',
             detail: _infoSummary(business),
-            onTap: () => Navigator.of(context).push(
+            onTap: () => Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute<void>(
                 builder: (_) => EditInfoScreen(business: business),
               ),
@@ -159,7 +159,7 @@ class _BusinessBlock extends ConsumerWidget {
             icon: 'add_a_photo',
             label: 'Photo et bannière',
             detail: _mediaSummary(business),
-            onTap: () => Navigator.of(context).push(
+            onTap: () => Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute<void>(
                 builder: (_) => EditMediaScreen(business: business),
               ),

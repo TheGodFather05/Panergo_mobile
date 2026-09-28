@@ -140,7 +140,7 @@ class ReferralProposal extends StatelessWidget {
   }
 
   void _open(BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute<void>(
+    Navigator.of(context, rootNavigator: true).push(MaterialPageRoute<void>(
       builder: (_) => ReferralDraftScreen(draft: draft, onSent: onSent),
     ));
   }

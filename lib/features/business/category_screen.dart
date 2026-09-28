@@ -68,7 +68,7 @@ class CategoryScreen extends ConsumerWidget {
                     'sans réseau, « ouvert » ne peut pas être garanti.',
                 skeleton: (_) => const _Skeleton(),
                 empty: (_) => _Empty(
-                  onRegister: () => Navigator.of(context).push(
+                  onRegister: () => Navigator.of(context, rootNavigator: true).push(
                     MaterialPageRoute<void>(
                         builder: (_) => const RegisterBusinessScreen()),
                   ),
