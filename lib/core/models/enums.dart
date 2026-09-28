@@ -98,13 +98,26 @@ enum RequestStatus implements WireEnum {
 enum OfferStatus implements WireEnum {
   pending('PENDING', 'En attente'),
   selected('SELECTED', 'Acceptée'),
-  rejected('REJECTED', 'Refusée');
+  rejected('REJECTED', 'Refusée'),
+
+  /// The artisan took it back before the client chose.
+  ///
+  /// Not « refusée »: nobody chose against it. The distinction is what lets the
+  /// screen say « vous pouvez en envoyer une nouvelle », and what keeps it off
+  /// their response rate.
+  withdrawn('WITHDRAWN', 'Retirée');
 
   const OfferStatus(this.wire, this.label);
 
   @override
   final String wire;
   final String label;
+
+  /// Still waiting on the client.
+  bool get isLive => this == pending;
+
+  /// Over, one way or another — nothing more will happen to it.
+  bool get isSettled => this == selected || this == rejected;
 }
 
 enum BookingStatus implements WireEnum {
@@ -223,4 +236,133 @@ enum RevenuePeriod implements WireEnum {
   @override
   final String wire;
   final String label;
+}
+
+// ---------------------------------------------------------- relayed search ---
+
+/// Why the assistant said nothing.
+///
+/// Four of these five are deliberate restraint and one is a fault, and the
+/// screen has to tell them apart: [unavailable] is the only one that earns the
+/// error dressing and a retry (design 2B), while [notEnoughProviders] and
+/// [notEnoughHistory] can arrive with a full list of open shops beside them.
+/// Rendering any silence as "nothing found" would hide a pharmacy open now.
+enum AssistantSilence implements WireEnum {
+  disabled('DISABLED'),
+  notEnoughProviders('NOT_ENOUGH_PROVIDERS'),
+  notEnoughHistory('NOT_ENOUGH_HISTORY'),
+  unavailable('UNAVAILABLE'),
+
+  /// Nothing matched at all — the one value a screen may draw as empty, and the
+  /// one that carries the offer to ask the shops instead.
+  nothingFound('NOTHING_FOUND');
+
+  const AssistantSilence(this.wire);
+
+  @override
+  final String wire;
+
+  static AssistantSilence? fromWire(String? wire) {
+    if (wire == null) return null;
+    for (final value in values) {
+      if (value.wire == wire) return value;
+    }
+    return null;
+  }
+
+  /// Whether this is a breakage rather than a choice.
+  bool get isFault => this == unavailable;
+}
+
+/// Which market a relayed question went to.
+enum ReferralTarget implements WireEnum {
+  /// An artisan, through the tender: a price to come and do the work.
+  trade('TRADE', 'Un artisan', 'Vous recevrez des offres avec un prix.'),
+
+  /// A shop, through a stock question: whether it is worth walking over.
+  shop('SHOP', 'Un commerce', 'Vous saurez qui en a, et à quel prix.');
+
+  const ReferralTarget(this.wire, this.label, this.outcome);
+
+  @override
+  final String wire;
+  final String label;
+
+  /// What happens next if this is chosen. Design 3C puts it under each option,
+  /// because « une offre » and « un déplacement » are different commitments.
+  final String outcome;
+}
+
+/// What became of a question the server routed.
+enum ReferralKind implements WireEnum {
+  trade('TRADE'),
+  shop('SHOP'),
+
+  /// Nothing was created: the words point at both markets, and guessing would
+  /// send the question to half the people who could answer it.
+  ambiguous('AMBIGUOUS');
+
+  const ReferralKind(this.wire);
+
+  @override
+  final String wire;
+
+  static ReferralKind fromWire(String? wire) {
+    for (final value in values) {
+      if (value.wire == wire) return value;
+    }
+    return shop;
+  }
+}
+
+/// Who a relayed question was put to.
+///
+/// One or the other, never both: « 4 500 le sac » and « je peux passer jeudi »
+/// answer different questions, and a list mixing them is unreadable. When the
+/// words point both ways the design asks the person to choose rather than
+/// running both searches and merging them.
+enum InquiryAudienceKind implements WireEnum {
+  shops('SHOPS'),
+  providers('PROVIDERS');
+
+  const InquiryAudienceKind(this.wire);
+
+  @override
+  final String wire;
+
+  static InquiryAudienceKind fromWire(String? wire) =>
+      wire == 'PROVIDERS' ? providers : shops;
+}
+
+/// How wide a relayed question was actually sent.
+enum InquiryScope implements WireEnum {
+  quartier('QUARTIER'),
+  city('CITY');
+
+  const InquiryScope(this.wire);
+
+  @override
+  final String wire;
+
+  static InquiryScope fromWire(String? wire) =>
+      wire == 'CITY' ? city : quartier;
+}
+
+/// Where a relayed question stands.
+enum InquiryStatus implements WireEnum {
+  open('OPEN'),
+  closed('CLOSED'),
+  expired('EXPIRED');
+
+  const InquiryStatus(this.wire);
+
+  @override
+  final String wire;
+
+  static InquiryStatus fromWire(String? wire) {
+    for (final value in values) {
+      if (value.wire == wire) return value;
+    }
+    return open;
+  }
 }

@@ -11,6 +11,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../referral/questions_screen.dart';
 import '../../core/widgets/panergo_button.dart';
 import 'make_offer_screen.dart';
 
@@ -37,6 +38,14 @@ class IgnoredRequests extends Notifier<Set<String>> {
 /// Ignoring a request removes it from the list; when everything has been
 /// ignored the empty state offers to bring them back, so the action is never a
 /// one-way door (RM-06).
+/// Questions relayed to this artisan.
+///
+/// Lives here rather than in the referral feature because the inbox is where it
+/// is consumed and invalidated — the questions screen owns its own copy.
+final tradeInquiriesProvider =
+    FutureProvider.autoDispose<List<ShopInboxItem>>((ref) async =>
+        ref.watch(apiProvider).tradeInquiries());
+
 class ProviderInboxScreen extends ConsumerWidget {
   const ProviderInboxScreen({super.key});
 
@@ -56,7 +65,26 @@ class ProviderInboxScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _Header(total: visible.length, urgent: urgentCount),
+          _Header(
+            total: visible.length,
+            urgent: urgentCount,
+            // Measured, and null below the floor the backend enforces: a figure
+            // computed from two offers is noise with a unit on it.
+            responseTime: switch (ref
+                .watch(myProviderProfileProvider)
+                .value
+                ?.avgResponseTimeHours) {
+              final double h => (h * 60).round(),
+              null => null,
+            },
+          ),
+
+          // The relayed questions, at the head of the list.
+          //
+          // « Sans engagement · oui ou non » is the whole pitch: an artisan
+          // glancing at this needs to know it is not a tender before they open
+          // it, or they will treat it as one and stop opening either.
+          const _QuestionsCard(),
           const SizedBox(height: Space.gutterTight),
           Expanded(
             child: AsyncView<List<AvailableRequest>>(
@@ -100,7 +128,14 @@ class ProviderInboxScreen extends ConsumerWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.total, required this.urgent});
+  const _Header({
+    required this.total,
+    required this.urgent,
+    this.responseTime,
+  });
+
+  /// Average minutes to first reply, or null while there is too little to say.
+  final int? responseTime;
 
   final int total;
   final int urgent;
@@ -120,13 +155,25 @@ class _Header extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Demandes reçues',
+          Text('Espace prestataire',
+              style: context.type.micro.copyWith(
+                  color: Colors.white.withValues(alpha: 0.75))),
+          const SizedBox(height: 2),
+          Text('Demandes',
               style: context.type.h3.copyWith(color: Colors.white)),
           const SizedBox(height: Space.gutterTight),
           Row(
             children: [
-              _StatTile(value: '$total', label: 'à traiter'),
-              _StatTile(value: '$urgent', label: 'urgentes'),
+              _StatTile(value: '$total', label: 'nouvelles'),
+              // Singular, as the design writes it: the count sits above the
+              // word, so « urgentes » beside a 1 reads worse than « urgente »
+              // beside a 3.
+              _StatTile(value: '$urgent', label: 'urgente'),
+              // Null until there is enough history to mean anything. A response
+              // time computed from two offers is noise with a unit on it.
+              _StatTile(
+                  value: responseTime == null ? '—' : '~$responseTime' 'min',
+                  label: 'réponse moy.'),
             ],
           ),
         ],
@@ -318,6 +365,111 @@ class _InboxSkeleton extends StatelessWidget {
             ),
             SizedBox(height: Space.s12),
             SkeletonBox(width: double.infinity, height: 12, light: true),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Questions waiting for this artisan, above the tenders.
+///
+/// Design `p_inbox`: a card at the top carrying the first question verbatim and
+/// a count, with the reassurance on the footer line. Absent entirely when there
+/// is nothing to answer — an empty card here would train people to skip the
+/// whole region.
+class _QuestionsCard extends ConsumerWidget {
+  const _QuestionsCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(tradeInquiriesProvider);
+    final items = async.value ?? const <ShopInboxItem>[];
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    final open = items.where((i) => !i.answered).toList();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          Space.gutterTight, Space.s12, Space.gutterTight, 0),
+      child: PanergoCard(
+        padding: const EdgeInsets.all(Space.s14),
+        radius: Radii.cardLarge,
+        onTap: () async {
+          await Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) =>
+                const QuestionsScreen(source: QuestionSource.trade()),
+          ));
+          ref.invalidate(tradeInquiriesProvider);
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: context.brand.soft,
+                    borderRadius: Radii.brTile,
+                  ),
+                  alignment: Alignment.center,
+                  child: MaterialSymbol('forum',
+                      size: 18, color: context.brand.link),
+                ),
+                const SizedBox(width: Space.s12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Questions de clients',
+                          style: context.type.cardTitle),
+                      Text(
+                        open.isEmpty
+                            ? 'Toutes répondues'
+                            : '${open.length} sans réponse',
+                        style: context.type.metaSmall,
+                      ),
+                    ],
+                  ),
+                ),
+                if (open.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Space.s8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: context.brand.fill,
+                      borderRadius: BorderRadius.circular(Radii.badge),
+                    ),
+                    child: Text('${open.length}',
+                        style: context.type.microTight
+                            .copyWith(color: Colors.white)),
+                  )
+                else
+                  const MaterialSymbol('check_circle',
+                      size: 18, color: PanergoColors.statusDoneInk),
+              ],
+            ),
+            if (open.isNotEmpty) ...[
+              const SizedBox(height: Space.s10),
+              Text('« ${open.first.text} »',
+                  style: context.type.bodySmall.copyWith(height: 1.45),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis),
+              const SizedBox(height: Space.s10),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Sans engagement · oui ou non',
+                        style: context.type.metaSmall),
+                  ),
+                  Text('Répondre →',
+                      style: context.type.labelSmall
+                          .copyWith(color: context.brand.link)),
+                ],
+              ),
+            ],
           ],
         ),
       ),

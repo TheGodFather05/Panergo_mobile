@@ -12,6 +12,7 @@ import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../booking/booking_tracking_screen.dart';
+import '../referral/inquiry_detail_screen.dart';
 import 'new_request_screen.dart';
 import 'request_status_screen.dart';
 
@@ -19,6 +20,41 @@ final myRequestsProvider =
     FutureProvider.autoDispose<List<ServiceRequest>>((ref) async {
   return ref.watch(apiProvider).myRequests();
 });
+
+final myInquiriesProvider =
+    FutureProvider.autoDispose<List<InquirySummary>>((ref) async {
+  return ref.watch(apiProvider).myInquiries();
+});
+
+/// One row in « mes demandes », whichever market it went to.
+///
+/// The person did one thing — they asked — so design 5A puts both kinds in a
+/// single list and lets a label say what is expected back: an *offre* from an
+/// artisan, or a *réponse* from a shop. The word « offre » never appears on the
+/// shop side.
+sealed class AskedRow {
+  const AskedRow();
+
+  DateTime get when;
+}
+
+class TenderRow extends AskedRow {
+  const TenderRow(this.request);
+
+  final ServiceRequest request;
+
+  @override
+  DateTime get when => request.createdAt;
+}
+
+class InquiryRow extends AskedRow {
+  const InquiryRow(this.inquiry);
+
+  final InquirySummary inquiry;
+
+  @override
+  DateTime get when => inquiry.createdAt;
+}
 
 /// Mes demandes — everything the client has asked for.
 ///
@@ -30,14 +66,24 @@ class RequestsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(myRequestsProvider);
+    final inquiriesAsync = ref.watch(myInquiriesProvider);
     final requests = async.value ?? const <ServiceRequest>[];
+    final inquiries = inquiriesAsync.value ?? const <InquirySummary>[];
+
+    // Newest first, whichever kind it is: the two are one list to the person
+    // who sent them.
+    final rows = <AskedRow>[
+      ...requests.map(TenderRow.new),
+      ...inquiries.map(InquiryRow.new),
+    ]..sort((a, b) => b.when.compareTo(a.when));
 
     // Counts are derived from the list, never written as literals (§4.5).
     final active = requests
-        .where((r) =>
-            r.status == RequestStatus.open ||
-            r.status == RequestStatus.offerSelected)
-        .length;
+            .where((r) =>
+                r.status == RequestStatus.open ||
+                r.status == RequestStatus.offerSelected)
+            .length +
+        inquiries.where((i) => i.live).length;
 
     return Scaffold(
       backgroundColor: PanergoColors.page,
@@ -63,7 +109,7 @@ class RequestsScreen extends ConsumerWidget {
                       const SizedBox(height: Space.xs),
                       Text(
                         async.hasValue
-                            ? '$active en cours · ${requests.length} au total'
+                            ? '$active en cours · ${rows.length} au total'
                             : '',
                         style: context.type.meta,
                       ),
@@ -81,14 +127,20 @@ class RequestsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: Space.gutterTight),
           Expanded(
-            child: AsyncView<List<ServiceRequest>>(
+            child: AsyncView<List<AskedRow>>(
               state: AsyncView.stateFor(
-                isLoading: async.isLoading,
+                // Loading while either half is still in flight; an error only
+                // when the tenders fail, since a missing inquiry list should
+                // not hide the requests that did load.
+                isLoading: async.isLoading || inquiriesAsync.isLoading,
                 error: async.error,
-                isEmpty: requests.isEmpty,
+                isEmpty: rows.isEmpty,
               ),
-              data: async.value,
-              onRetry: () => ref.invalidate(myRequestsProvider),
+              data: rows,
+              onRetry: () {
+                ref.invalidate(myRequestsProvider);
+                ref.invalidate(myInquiriesProvider);
+              },
               errorTitle: 'Impossible de charger vos demandes',
               skeleton: (context) => const _RequestsSkeleton(),
               empty: (context) => _EmptyRequests(
@@ -97,14 +149,19 @@ class RequestsScreen extends ConsumerWidget {
                 ),
               ),
               builder: (context, items) => RefreshIndicator(
-                onRefresh: () async => ref.invalidate(myRequestsProvider),
+                onRefresh: () async {
+                  ref.invalidate(myRequestsProvider);
+                  ref.invalidate(myInquiriesProvider);
+                },
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(
                       Space.gutterTight, 0, Space.gutterTight, Space.gutter),
                   itemCount: items.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 13),
-                  itemBuilder: (context, index) =>
-                      _RequestCard(request: items[index]),
+                  itemBuilder: (context, index) => switch (items[index]) {
+                    TenderRow(:final request) => _RequestCard(request: request),
+                    InquiryRow(:final inquiry) => _InquiryCard(inquiry: inquiry),
+                  },
                 ),
               ),
             ),
@@ -336,5 +393,93 @@ class _RequestsSkeleton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// A relayed question in « mes demandes ».
+///
+/// Labelled « Commerces » against the tender's « Artisans », because the label
+/// is what tells the two apart at a glance — and because what comes back
+/// differs: a price to do work, or word that something is in stock. Design 5A
+/// is firm that « offre » never appears on this side.
+class _InquiryCard extends StatelessWidget {
+  const _InquiryCard({required this.inquiry});
+
+  final InquirySummary inquiry;
+
+  @override
+  Widget build(BuildContext context) {
+    return PanergoCard(
+      padding: const EdgeInsets.all(Space.s14),
+      radius: Radii.card,
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => InquiryDetailScreen(inquiryId: inquiry.inquiryId),
+      )),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              StatusPill(
+                label: 'Commerces',
+                background: PanergoColors.fill,
+                foreground: PanergoColors.ink2,
+              ),
+              const SizedBox(width: Space.s8),
+              if (inquiry.categoryLabel != null)
+                Expanded(
+                  child: Text(inquiry.categoryLabel!,
+                      style: context.type.metaSmall,
+                      overflow: TextOverflow.ellipsis),
+                )
+              else
+                const Spacer(),
+              Text(Formats.relativeTime(inquiry.createdAt),
+                  style: context.type.metaSmall),
+            ],
+          ),
+          const SizedBox(height: Space.s10),
+          Text(inquiry.text,
+              style: context.type.cardTitleSmall.copyWith(height: 1.35),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+          const SizedBox(height: Space.s8),
+          Row(
+            children: [
+              MaterialSymbol(
+                  inquiry.haveIt > 0 ? 'check_circle' : 'schedule',
+                  size: 15,
+                  color: inquiry.haveIt > 0
+                      ? PanergoColors.statusDoneInk
+                      : PanergoColors.subtle),
+              const SizedBox(width: Space.s6),
+              Expanded(
+                child: Text(
+                  _status(inquiry),
+                  style: context.type.metaSmall.copyWith(height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// What came back, in the order somebody cares about it: who has the thing
+  /// first, the response rate second, and never a bare « 0 réponse » on a
+  /// question that is still open.
+  static String _status(InquirySummary inquiry) {
+    if (inquiry.haveIt > 0) {
+      return inquiry.haveIt == 1
+          ? 'Une boutique en a'
+          : '${inquiry.haveIt} boutiques en ont';
+    }
+    if (inquiry.answered > 0) {
+      return 'Personne n’en a pour l’instant';
+    }
+    return inquiry.live
+        ? 'Envoyée à ${inquiry.recipientCount} boutiques · en attente'
+        : 'Aucune réponse avant la clôture';
   }
 }

@@ -749,13 +749,18 @@ class PanergoApi {
     return ProviderProfile.fromJson(data);
   }
 
+  /// Publishes a réalisation or a conseil.
+  ///
+  /// [photoUrl] is required for a réalisation and optional for a conseil, and
+  /// it decides the destination: with a photo the post reaches the public feed,
+  /// without one a conseil stays on the artisan's own profile.
   Future<void> createFeedPost({
-    required String photoUrl,
     required PostType postType,
+    String? photoUrl,
     String? caption,
   }) async {
     await _client.post<dynamic>('/api/feed/posts', body: {
-      'photo_url': photoUrl,
+      if (photoUrl != null) 'photo_url': photoUrl,
       'post_type': postType.wire,
       if (caption != null) 'caption': caption,
     });
@@ -779,6 +784,260 @@ class PanergoApi {
       if (neighborhood != null) 'neighborhood': neighborhood,
     });
     return AssistantAnswer.fromJson(data);
+  }
+
+  /// Artisans for the client's home strip, own quartier first.
+  ///
+  /// Public on the backend, so it works before sign-in rather than leaving the
+  /// first screen somebody sees half-empty.
+  Future<List<ProviderProfile>> featuredProviders({
+    String? neighborhood,
+    int limit = 3,
+  }) async {
+    final data = await _client.get<List<dynamic>>(
+      '/api/provider/featured',
+      query: {
+        if (neighborhood != null && neighborhood.isNotEmpty)
+          'neighborhood': neighborhood,
+        'limit': limit,
+      },
+    );
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(ProviderProfile.fromJson)
+        .toList();
+  }
+
+  // ------------------------------------------------------ relayed search ---
+
+  /// Sends one question and lets the server decide which market answers it.
+  ///
+  /// The person describes what they need; whether that becomes a tender to
+  /// artisans or a stock question to shops is not theirs to classify. A
+  /// [ReferralKind.ambiguous] answer creates nothing and hands back two options
+  /// to choose between — send again with [target] set to settle it.
+  ///
+  /// [idempotencyKey] makes a retry safe: replaying a key returns what it first
+  /// created rather than asking the same shopkeepers twice.
+  Future<ReferralOutcome> sendReferral({
+    required String text,
+    required String neighborhood,
+    ReferralTarget? target,
+    bool urgent = false,
+    String? photoUrl,
+    String? idempotencyKey,
+  }) async {
+    final data = await _client.post<Map<String, dynamic>>(
+      '/api/referrals',
+      headers:
+          idempotencyKey == null ? null : {'Idempotency-Key': idempotencyKey},
+      body: {
+        'text': text,
+        'neighborhood': neighborhood,
+        if (target != null) 'target': target.wire,
+        'urgent': urgent,
+        if (photoUrl != null) 'photo_url': photoUrl,
+      },
+    );
+    return ReferralOutcome.fromJson(data);
+  }
+
+  /// The stock questions this person asked. Tenders come from [myRequests].
+  Future<List<InquirySummary>> myInquiries() async {
+    final data = await _client.get<List<dynamic>>('/api/referrals/mine');
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(InquirySummary.fromJson)
+        .toList();
+  }
+
+  Future<InquiryDetail> inquiry(String id) async {
+    final data =
+        await _client.get<Map<String, dynamic>>('/api/referrals/$id');
+    return InquiryDetail.fromJson(data);
+  }
+
+  /// The draft for asking the same thing again.
+  ///
+  /// A draft and not a send: a stock question comes back precisely because
+  /// stock changed, so the wording gets reread before it reaches the same
+  /// shopkeepers a second time.
+  Future<AskAgainDraft> askAgainDraft(String inquiryId) async {
+    final data = await _client
+        .get<Map<String, dynamic>>('/api/referrals/$inquiryId/ask-again');
+    return AskAgainDraft.fromJson(data);
+  }
+
+  /// Stops listening. The answers already in stay readable.
+  Future<void> closeInquiry(String id) =>
+      _client.post<dynamic>('/api/referrals/$id/close');
+
+  /// Replays a queued tender exactly as it was first attempted.
+  ///
+  /// Takes the raw body rather than typed arguments: the queue stored what was
+  /// sent, and rebuilding it from parsed fields risks a subtle difference between
+  /// the first attempt and the retry. The idempotency key makes the replay safe.
+  Future<void> createRequestFromQueue({
+    required Map<String, dynamic> body,
+    required String idempotencyKey,
+  }) =>
+      _client.post<dynamic>(
+        '/api/requests',
+        headers: {'Idempotency-Key': idempotencyKey},
+        body: body,
+      );
+
+  /// Replays a queued relayed question. Same reasoning as above.
+  Future<void> sendReferralFromQueue({
+    required Map<String, dynamic> body,
+    required String idempotencyKey,
+  }) =>
+      _client.post<dynamic>(
+        '/api/referrals',
+        headers: {'Idempotency-Key': idempotencyKey},
+        body: body,
+      );
+
+  /// The client withdraws a request nobody has been chosen for.
+  ///
+  /// Returns how many artisans were notified, so the screen can say so rather
+  /// than leaving them to wonder whether anybody was told.
+  Future<int> cancelRequest(String requestId) async {
+    final data = await _client
+        .post<Map<String, dynamic>>('/api/requests/$requestId/cancel');
+    return Json.intOf(data['providers_notified']);
+  }
+
+  /// The artisan takes their own offer back.
+  ///
+  /// Distinct from the client rejecting it: a new one may be sent while the
+  /// request is still open, and this never counts against their response rate.
+  Future<void> withdrawOffer(String offerId) =>
+      _client.post<dynamic>('/api/offers/$offerId/withdraw');
+
+  // ------------------------------------------ relayed search, trade side ---
+
+  /// The questions sent to this artisan, answered or not.
+  ///
+  /// Addressed by the token rather than a provider id: an artisan has exactly
+  /// one provider record, so asking them to supply its id would be asking them
+  /// to prove what the token already says.
+  Future<List<ShopInboxItem>> tradeInquiries() async {
+    final data = await _client.get<List<dynamic>>('/api/provider/me/inquiries');
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(ShopInboxItem.fromJson)
+        .toList();
+  }
+
+  /// « Je peux le faire » or « ce n'est pas pour moi ».
+  ///
+  /// Not an offer, and the parameters keep saying so: [price] is indicative and
+  /// [availability] is a rough window. The real offer is made later, against a
+  /// real request, through the tender flow.
+  Future<void> answerTradeInquiry(
+    String inquiryId, {
+    required bool canDo,
+    int? price,
+    String? availability,
+    String? note,
+  }) =>
+      _client.post<dynamic>(
+        '/api/provider/me/inquiries/$inquiryId/reply',
+        body: {
+          'can_do': canDo,
+          if (canDo && price != null) 'price': price,
+          if (canDo && availability != null) 'availability': availability,
+          if (note != null && note.isNotEmpty) 'note': note,
+        },
+      );
+
+  Future<InquirySettings> tradeInquirySettings() async {
+    final data = await _client
+        .get<Map<String, dynamic>>('/api/provider/me/inquiry-settings');
+    return InquirySettings.fromJson(data);
+  }
+
+  Future<InquirySettings> saveTradeInquirySettings({
+    required bool acceptsInquiries,
+    required bool ownQuartierOnly,
+    int? dailyCap,
+    int? pauseDays,
+  }) async {
+    final data = await _client.patch<Map<String, dynamic>>(
+      '/api/provider/me/inquiry-settings',
+      body: {
+        'accepts_inquiries': acceptsInquiries,
+        'own_quartier_only': ownQuartierOnly,
+        if (dailyCap != null) 'daily_cap': dailyCap,
+        if (pauseDays != null) 'pause_days': pauseDays,
+      },
+    );
+    return InquirySettings.fromJson(data);
+  }
+
+  // ------------------------------------------- relayed search, shop side ---
+
+  /// The questions this shop has been sent, answered or not.
+  Future<List<ShopInboxItem>> shopInquiries(String businessId) async {
+    final data = await _client
+        .get<List<dynamic>>('/api/businesses/me/$businessId/inquiries');
+    return data
+        .cast<Map<String, dynamic>>()
+        .map(ShopInboxItem.fromJson)
+        .toList();
+  }
+
+  /// « J'en ai » or « je n'en ai pas », and optionally a price.
+  ///
+  /// Sending it twice corrects the answer rather than adding a second one.
+  /// A price alongside [hasItem] false is refused by the server: the comparison
+  /// screen sorts on price and would file a refusal among the offers.
+  Future<void> answerShopInquiry(
+    String businessId,
+    String inquiryId, {
+    required bool hasItem,
+    int? price,
+    String? unit,
+    String? note,
+  }) =>
+      _client.post<dynamic>(
+        '/api/businesses/me/$businessId/inquiries/$inquiryId/reply',
+        body: {
+          'has_item': hasItem,
+          if (hasItem && price != null) 'price': price,
+          if (hasItem && unit != null) 'unit': unit,
+          if (note != null && note.isNotEmpty) 'note': note,
+        },
+      );
+
+  Future<InquirySettings> shopInquirySettings(String businessId) async {
+    final data = await _client.get<Map<String, dynamic>>(
+        '/api/businesses/me/$businessId/inquiry-settings');
+    return InquirySettings.fromJson(data);
+  }
+
+  /// Take the shop out of relayed questions, narrow them, cap them, or pause.
+  ///
+  /// [pauseDays] null lifts an existing pause: being busy is temporary, and
+  /// undoing it should not mean finding this screen again in a calmer week.
+  Future<InquirySettings> saveShopInquirySettings(
+    String businessId, {
+    required bool acceptsInquiries,
+    required bool ownQuartierOnly,
+    int? dailyCap,
+    int? pauseDays,
+  }) async {
+    final data = await _client.patch<Map<String, dynamic>>(
+      '/api/businesses/me/$businessId/inquiry-settings',
+      body: {
+        'accepts_inquiries': acceptsInquiries,
+        'own_quartier_only': ownQuartierOnly,
+        if (dailyCap != null) 'daily_cap': dailyCap,
+        if (pauseDays != null) 'pause_days': pauseDays,
+      },
+    );
+    return InquirySettings.fromJson(data);
   }
 
   // -------------------------------------------------------------- device ---

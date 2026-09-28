@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -64,6 +65,13 @@ typedef OnUnauthenticated = void Function();
 typedef TokenReader = Future<String?> Function();
 
 class ApiClient {
+  /// The longest any single request may take, whatever the cause.
+  ///
+  /// Above receiveTimeout so a slow-but-working response is not cut short, and
+  /// far below a person's patience: a spinner past this point is a bug, not a
+  /// slow network.
+  static const _deadline = Duration(seconds: 25);
+
   ApiClient({
     required TokenReader readToken,
     OnUnauthenticated? onUnauthenticated,
@@ -81,7 +89,21 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await readToken();
+          // Bounded, because this runs *before* Dio starts its own timers: a
+          // Keychain read that never returns — which happens on iOS when the
+          // keychain is not yet unlocked after a cold launch — would otherwise
+          // hang the request with no connectTimeout and no receiveTimeout ever
+          // firing. That is what « Recherche en cours… » forever looked like.
+          //
+          // Failing open rather than closed: a request without the header comes
+          // back 401 and the app signs in again, which is recoverable. A
+          // request that never leaves is not.
+          String? token;
+          try {
+            token = await readToken().timeout(const Duration(seconds: 5));
+          } on TimeoutException {
+            token = null;
+          }
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -137,6 +159,9 @@ class ApiClient {
   Future<T> put<T>(String path, {Object? body}) =>
       _send(() => _dio.put<T>(path, data: body));
 
+  Future<T> patch<T>(String path, {Object? body}) =>
+      _send(() => _dio.patch<T>(path, data: body));
+
   /// The backend's logout endpoint expects a body on DELETE, which is unusual
   /// but legal — Dio supports it.
   Future<T> delete<T>(String path, {Object? body}) =>
@@ -144,8 +169,15 @@ class ApiClient {
 
   Future<T> _send<T>(Future<Response<T>> Function() send) async {
     try {
-      final response = await send();
+      // A ceiling over the whole call, interceptors included. Dio's
+      // connectTimeout and receiveTimeout only cover the socket, so anything
+      // that stalls on either side of it — a blocked keychain read, a local
+      // network permission never granted — would hang without either firing.
+      // Nothing in this app is worth waiting longer than this for.
+      final response = await send().timeout(_deadline);
       return response.data as T;
+    } on TimeoutException {
+      throw const ApiException.offline();
     } on DioException catch (e) {
       throw _fromDio(e);
     }

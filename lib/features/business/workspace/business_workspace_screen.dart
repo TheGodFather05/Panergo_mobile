@@ -14,6 +14,7 @@ import '../business_providers.dart';
 import '../share_sheet.dart';
 import '../../profile/settings_screen.dart';
 import '../../profile/support_screen.dart';
+import '../../referral/questions_screen.dart';
 import 'catalogue_screen.dart';
 import 'edit_info_screen.dart';
 import 'edit_media_screen.dart';
@@ -85,6 +86,31 @@ class _BusinessBlock extends ConsumerWidget {
         children: [
           _StatusCard(business: business),
           const SizedBox(height: Space.s10),
+
+          // At the head of the list, and only once the listing is live: the
+          // design puts relayed questions here rather than in the artisan
+          // inbox, because a stock question has neither the urgency nor the
+          // shape of a tender, and a shopkeeper sorting one from the other
+          // every time will eventually sort neither.
+          if (business.status == BusinessStatus.published) ...[
+            _ToolRow(
+              icon: 'forum',
+              label: 'Questions des clients',
+              detail: 'Répondre en deux taps',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => QuestionsScreen(
+                    source: QuestionSource.shop(
+                      businessId: business.id,
+                      businessName: business.name,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: Space.s8),
+          ],
+
           _ToolRow(
             icon: 'inventory_2',
             label: 'Mon catalogue',
@@ -337,8 +363,13 @@ class _StatusCard extends StatelessWidget {
           PanergoColors.warningInk,
           'hourglass_top',
           'En attente de vérification',
-          'Personne ne voit encore votre commerce. Vous pouvez préparer votre '
-              'catalogue en attendant.',
+          // Names what can be done and promises the payoff. « Vous pouvez
+          // préparer votre catalogue » invites one task; listing the three and
+          // saying they publish together makes the wait productive instead of
+          // dead.
+          'Votre fiche n’est pas encore visible dans l’annuaire. Vous pouvez la '
+              'préparer entièrement — horaires, services, catalogue — tout '
+              'partira d’un coup à la publication.',
         ),
       BusinessStatus.rejected => (
           PanergoColors.statusWarmTint,

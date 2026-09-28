@@ -11,6 +11,10 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/dashed_border.dart';
+import '../referral/inquiry_detail_screen.dart';
+import '../referral/referral_draft_screen.dart';
+import '../referral/referral_proposal.dart';
 import '../business/business_detail_screen.dart';
 import '../client/new_request_screen.dart';
 import '../client/reviews_screen.dart';
@@ -160,6 +164,23 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           ..add(AssistantFailed(e));
         _busy = false;
       });
+    } catch (e, stack) {
+      // Anything else at all — a response shaped differently from what the
+      // models expect, a bug in this screen — must still clear the spinner.
+      //
+      // Without this the only catch was ApiException, so a TypeError thrown
+      // while parsing left AssistantThinking on screen and `_busy` true
+      // forever: « Recherche en cours… » with no timeout, no error, and no way
+      // to ask again short of killing the app. A spinner that cannot end is a
+      // worse failure than an error message, because it never stops promising.
+      debugPrint('Assistant search failed: $e\n$stack');
+      if (!mounted) return;
+      setState(() {
+        _turns
+          ..removeLast()
+          ..add(AssistantFailed(const ApiException.unexpected()));
+        _busy = false;
+      });
     }
     _scrollToEnd();
   }
@@ -189,6 +210,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     ));
   }
 
+  /// Opens a relayed question that has just gone out.
+  void _openInquiry(String inquiryId) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => InquiryDetailScreen(inquiryId: inquiryId),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -212,6 +240,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                       itemBuilder: (context, index) => _TurnView(
                         turn: _turns[index],
                         onOpenRequest: _openRequest,
+                        onOpenInquiry: _openInquiry,
                       ),
                     ),
             ),
@@ -375,10 +404,17 @@ class _Intro extends StatelessWidget {
 }
 
 class _TurnView extends StatelessWidget {
-  const _TurnView({required this.turn, required this.onOpenRequest});
+  const _TurnView({
+    required this.turn,
+    required this.onOpenRequest,
+    required this.onOpenInquiry,
+  });
 
   final AssistantTurn turn;
   final VoidCallback onOpenRequest;
+
+  /// Opens a relayed question that has just been sent.
+  final ValueChanged<String> onOpenInquiry;
 
   @override
   Widget build(BuildContext context) {
@@ -411,13 +447,27 @@ class _TurnView extends StatelessWidget {
                 ),
                 const SizedBox(height: Space.s12),
               ],
-              if (answer.providers.isEmpty && answer.businesses.isEmpty)
+              if (answer.providers.isEmpty && answer.businesses.isEmpty) ...[
                 _NoResults(
                   category: category,
                   neighborhood: neighborhood,
                   onOpenRequest: onOpenRequest,
-                )
-              else ...[
+                ),
+
+                // Nothing here, but the shops may know. The proposal takes the
+                // place of the empty state rather than sitting under it: if the
+                // question can still go somewhere, the screen is not empty.
+                //
+                // It sends nothing. Three gestures stand between this card and
+                // a notification on somebody's phone.
+                if (answer.referralDraft != null) ...[
+                  const SizedBox(height: Space.s12),
+                  ReferralProposal(
+                    draft: answer.referralDraft!,
+                    onSent: (id) => onOpenInquiry(id),
+                  ),
+                ],
+              ] else ...[
                 for (final result in answer.providers)
                   Padding(
                     padding: const EdgeInsets.only(bottom: Space.s10),
@@ -439,11 +489,30 @@ class _TurnView extends StatelessWidget {
                     ),
                 ],
 
+                // The assistant declined to comment, but the list stands on
+                // its own. A grey note with an info glyph, because this is
+                // restraint rather than a fault and there is nothing to retry.
+                if (answer.quietWithResults) ...[
+                  const SizedBox(height: Space.s10),
+                  const _QuietNote(),
+                ],
+
                 const SizedBox(height: Space.xs),
                 // Only when there is somebody to hire. A question answered
                 // entirely by shops has no tender to open.
                 if (answer.providers.isNotEmpty)
                   _PostRequestNote(onOpenRequest: onOpenRequest),
+
+                // Found something, but perhaps not the right thing. The
+                // proposal stays available and steps back: a dotted line at the
+                // end of the list rather than a card competing with results.
+                if (answer.referralDraft != null) ...[
+                  const SizedBox(height: Space.s12),
+                  _QuietProposalLine(
+                    draft: answer.referralDraft!,
+                    onSent: onOpenInquiry,
+                  ),
+                ],
               ],
             ],
           ),
@@ -1239,6 +1308,78 @@ class _Row extends StatelessWidget {
             ),
             if (active)
               MaterialSymbol('check', size: 19, color: brand.link),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The assistant had too little record to comment, but the results are good.
+///
+/// Design 2D: grey, small, with an `info` glyph rather than the error dressing.
+/// The distinction matters — [AssistantSilence.unavailable] is a breakage and
+/// earns a retry, while this is a choice and offers nothing to press.
+class _QuietNote extends StatelessWidget {
+  const _QuietNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        MaterialSymbol('info', size: 15, color: PanergoColors.faint),
+        const SizedBox(width: Space.s6),
+        Expanded(
+          child: Text(
+            'Je ne commente pas ces résultats : il y a encore trop peu '
+            'd’historique ici pour que ce soit utile.',
+            style: context.type.metaSmall.copyWith(
+                height: 1.45, color: PanergoColors.faint),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The proposal, in retreat.
+///
+/// Something was found, so relaying is no longer the main move — but two
+/// pharmacies coming back does not mean either has the exact medicine. A dotted
+/// line at the foot of the list keeps the option without competing with the
+/// results, and leads to the same draft.
+class _QuietProposalLine extends StatelessWidget {
+  const _QuietProposalLine({required this.draft, required this.onSent});
+
+  final ReferralDraft draft;
+  final ValueChanged<String> onSent;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: Radii.brCard,
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => ReferralDraftScreen(draft: draft, onSent: onSent),
+      )),
+      child: DashedBorder(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Space.s14, vertical: Space.s12),
+        child: Row(
+          children: [
+            MaterialSymbol('forum', size: 17, color: PanergoColors.subtle),
+            const SizedBox(width: Space.s10),
+            Expanded(
+              child: Text(
+                draft.wouldReach == 1
+                    ? 'Pas tout à fait ça ? Demander à une autre boutique'
+                    : 'Pas tout à fait ça ? Demander à '
+                        '${draft.wouldReach} boutiques',
+                style: context.type.metaSmall.copyWith(height: 1.4),
+              ),
+            ),
+            MaterialSymbol('chevron_right',
+                size: 17, color: PanergoColors.subtle),
           ],
         ),
       ),

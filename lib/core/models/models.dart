@@ -813,12 +813,20 @@ class AssistantArticle {
 class AssistantAnswer {
   const AssistantAnswer({
     required this.observation,
+    required this.quietBecause,
     required this.providers,
     required this.businesses,
+    required this.referralDraft,
   });
 
   /// Null when the assistant is disabled server-side or the model call failed.
   final String? observation;
+
+  /// Why nothing was said. Read at last: the app used to drop it, which left it
+  /// unable to tell deliberate restraint from a broken model call — and unable
+  /// to tell either from an empty search.
+  final AssistantSilence? quietBecause;
+
   final List<AssistantResult> providers;
 
   /// Places from the annuaire. The server has always returned these; the app
@@ -826,13 +834,80 @@ class AssistantAnswer {
   /// then thrown away.
   final List<AssistantBusiness> businesses;
 
+  /// A question that could be relayed to the shops, present only when nothing
+  /// was found and there is somebody to ask.
+  final ReferralDraft? referralDraft;
+
+  /// Nothing matched in either market.
+  ///
+  /// Asked of the server's own verdict rather than inferred from two empty
+  /// lists: the backend decides what counts as empty, and the two agreeing is
+  /// what keeps the proposal and the results telling the same story.
+  bool get foundNothing => quietBecause == AssistantSilence.nothingFound;
+
+  /// The assistant is quiet but the search still answered. The results stand on
+  /// their own and there is nothing to retry.
+  bool get quietWithResults =>
+      quietBecause != null &&
+      !quietBecause!.isFault &&
+      !foundNothing &&
+      (providers.isNotEmpty || businesses.isNotEmpty);
+
   factory AssistantAnswer.fromJson(Map<String, dynamic> json) => AssistantAnswer(
         observation: Json.strOrNull(json['observation']),
+        quietBecause:
+            AssistantSilence.fromWire(Json.strOrNull(json['quiet_because'])),
         providers:
             Json.list(json['providers']).map(AssistantResult.fromJson).toList(),
         businesses: Json.list(json['businesses'])
             .map(AssistantBusiness.fromJson)
             .toList(),
+        referralDraft: json['referral_draft'] == null
+            ? null
+            : ReferralDraft.fromJson(
+                json['referral_draft'] as Map<String, dynamic>),
+      );
+}
+
+/// A question the person could relay to the shops, prepared but not sent.
+///
+/// Never anything more than a draft. At the end of the gesture several
+/// shopkeepers get a notification, so it goes through a confirmation sheet
+/// (RM-09) — a search that quietly messaged nine traders would be the worst
+/// possible reading of a typed question.
+class ReferralDraft {
+  const ReferralDraft({
+    required this.text,
+    required this.neighborhood,
+    required this.wouldReach,
+    required this.wouldWiden,
+    this.suggestedCategoryCode,
+    this.suggestedCategoryLabel,
+  });
+
+  /// The question, verbatim, as the first draft of the relayed one.
+  final String text;
+  final String neighborhood;
+
+  /// How many shops would receive it. A count and never the rows, so an
+  /// unanswerable search cannot be used to enumerate the directory.
+  final int wouldReach;
+
+  /// The quartier holds too few shops to compare, so it would go city-wide.
+  final bool wouldWiden;
+
+  /// Null when the question is about an article rather than a kind of shop:
+  /// « du ciment » belongs to no category.
+  final String? suggestedCategoryCode;
+  final String? suggestedCategoryLabel;
+
+  factory ReferralDraft.fromJson(Map<String, dynamic> json) => ReferralDraft(
+        text: Json.str(json['text']),
+        neighborhood: Json.str(json['neighborhood']),
+        wouldReach: Json.intOf(json['would_reach']),
+        wouldWiden: json['would_widen'] == true,
+        suggestedCategoryCode: Json.strOrNull(json['suggested_category_code']),
+        suggestedCategoryLabel: Json.strOrNull(json['suggested_category_label']),
       );
 }
 
@@ -2073,5 +2148,443 @@ class GroupPerson {
         userNeighborhood: Json.strOrNull(json['user_neighborhood']),
         message: Json.strOrNull(json['message']),
         createdAt: Json.dateTime(json['created_at']),
+      );
+}
+
+// ------------------------------------------------------------ relayed search ---
+
+/// What became of a question the server routed.
+///
+/// A tagged union rather than one record of nullables: a tender and a stock
+/// question are answered on different screens, and [kind] says which to open
+/// without inspecting six fields for nulls.
+class ReferralOutcome {
+  const ReferralOutcome({
+    required this.kind,
+    required this.reached,
+    this.requestId,
+    this.inquiryId,
+    this.scope,
+    this.options = const [],
+  });
+
+  final ReferralKind kind;
+
+  /// How many artisans or shops it went to.
+  final int reached;
+
+  /// The tender, on [ReferralKind.trade].
+  final String? requestId;
+
+  /// The stock question, on [ReferralKind.shop].
+  final String? inquiryId;
+
+  /// Whether the quartier was enough, on [ReferralKind.shop].
+  final InquiryScope? scope;
+
+  /// On [ReferralKind.ambiguous], the two markets and what each would reach.
+  final List<ReferralOption> options;
+
+  factory ReferralOutcome.fromJson(Map<String, dynamic> json) => ReferralOutcome(
+        kind: ReferralKind.fromWire(Json.strOrNull(json['kind'])),
+        reached: Json.intOf(json['reached']),
+        requestId: Json.strOrNull(json['request_id']),
+        inquiryId: Json.strOrNull(json['inquiry_id']),
+        scope: json['scope'] == null
+            ? null
+            : InquiryScope.fromWire(Json.strOrNull(json['scope'])),
+        options:
+            Json.list(json['options']).map(ReferralOption.fromJson).toList(),
+      );
+}
+
+/// One market an ambiguous question could go to.
+class ReferralOption {
+  const ReferralOption({
+    required this.target,
+    required this.label,
+    required this.wouldReach,
+  });
+
+  final ReferralTarget target;
+
+  /// The server's own wording for the button.
+  final String label;
+  final int wouldReach;
+
+  factory ReferralOption.fromJson(Map<String, dynamic> json) => ReferralOption(
+        target: Json.strOrNull(json['target']) == 'TRADE'
+            ? ReferralTarget.trade
+            : ReferralTarget.shop,
+        label: Json.str(json['label']),
+        wouldReach: Json.intOf(json['would_reach']),
+      );
+}
+
+/// One line in « mes demandes » for a relayed question.
+class InquirySummary {
+  const InquirySummary({
+    required this.inquiryId,
+    required this.text,
+    required this.neighborhood,
+    required this.scope,
+    required this.status,
+    required this.recipientCount,
+    required this.answered,
+    required this.haveIt,
+    required this.expiresAt,
+    required this.expired,
+    required this.createdAt,
+    this.categoryLabel,
+  });
+
+  final String inquiryId;
+  final String text;
+  final String? categoryLabel;
+  final String neighborhood;
+  final InquiryScope scope;
+  final InquiryStatus status;
+  final int recipientCount;
+  final int answered;
+
+  /// How many said yes. What the row's status line reads from.
+  final int haveIt;
+
+  final DateTime expiresAt;
+  final bool expired;
+  final DateTime createdAt;
+
+  /// Still able to receive answers.
+  bool get live => !expired && status == InquiryStatus.open;
+
+  factory InquirySummary.fromJson(Map<String, dynamic> json) => InquirySummary(
+        inquiryId: Json.str(json['inquiry_id']),
+        text: Json.str(json['text']),
+        categoryLabel: Json.strOrNull(json['category_label']),
+        neighborhood: Json.str(json['neighborhood']),
+        scope: InquiryScope.fromWire(Json.strOrNull(json['scope'])),
+        status: InquiryStatus.fromWire(Json.strOrNull(json['status'])),
+        recipientCount: Json.intOf(json['recipient_count']),
+        answered: Json.intOf(json['answered']),
+        haveIt: Json.intOf(json['have_it']),
+        expiresAt: Json.dateTime(json['expires_at']),
+        expired: json['expired'] == true,
+        createdAt: Json.dateTime(json['created_at']),
+      );
+}
+
+/// A relayed question and what came back.
+class InquiryDetail {
+  const InquiryDetail({
+    required this.inquiryId,
+    required this.text,
+    required this.neighborhood,
+    required this.scope,
+    required this.status,
+    required this.recipientCount,
+    required this.answered,
+    required this.haveIt,
+    required this.doNotHaveIt,
+    required this.silent,
+    required this.expiresAt,
+    required this.expired,
+    required this.createdAt,
+    required this.replies,
+    this.categoryCode,
+    this.categoryLabel,
+    this.photoUrl,
+  });
+
+  final String inquiryId;
+  final String text;
+  final String? categoryCode;
+  final String? categoryLabel;
+  final String neighborhood;
+  final String? photoUrl;
+  final InquiryScope scope;
+  final InquiryStatus status;
+
+  /// How many shops were asked.
+  final int recipientCount;
+  final int answered;
+
+  /// How many said yes. The headline is built from this — design 5D gives the
+  /// result, not the response rate.
+  final int haveIt;
+
+  /// How many said no. Folded into a counted line rather than given a card each.
+  final int doNotHaveIt;
+
+  /// Asked but never answered. Reported apart from a refusal on purpose: five
+  /// silent shops « ne veut pas dire qu'elles n'en ont pas », and one combined
+  /// number would have the platform assert a no nobody said.
+  final int silent;
+
+  final DateTime expiresAt;
+  final bool expired;
+  final DateTime createdAt;
+  final List<InquiryReply> replies;
+
+  bool get live => !expired && status == InquiryStatus.open;
+
+  /// Answers worth acting on, which is what the list shows unfolded.
+  List<InquiryReply> get haveItReplies =>
+      replies.where((r) => r.hasItem).toList();
+
+  /// « En ont · avec un prix » — sorted cheapest first.
+  ///
+  /// Split from the priceless ones because the design gives them separate
+  /// headings, and the reason is comparability: a list that runs « 4 500 », then
+  /// « prix à demander », then « 5 200 » reads as though the middle one were
+  /// free or cheapest.
+  List<InquiryReply> get pricedReplies {
+    final priced = replies.where((r) => r.hasItem && r.price != null).toList()
+      ..sort((a, b) => a.price!.compareTo(b.price!));
+    return priced;
+  }
+
+  /// « En ont · prix non donné » — a real answer, and not a cheap one.
+  List<InquiryReply> get unpricedReplies =>
+      replies.where((r) => r.hasItem && r.price == null).toList();
+
+  /// Refusals, behind the folded line that counts them.
+  List<InquiryReply> get refusals => replies.where((r) => !r.hasItem).toList();
+
+  /// Nothing has come back yet, which is a wait rather than a result.
+  bool get awaiting => replies.isEmpty;
+
+  factory InquiryDetail.fromJson(Map<String, dynamic> json) => InquiryDetail(
+        inquiryId: Json.str(json['inquiry_id']),
+        text: Json.str(json['text']),
+        categoryCode: Json.strOrNull(json['category_code']),
+        categoryLabel: Json.strOrNull(json['category_label']),
+        neighborhood: Json.str(json['neighborhood']),
+        photoUrl: Json.strOrNull(json['photo_url']),
+        scope: InquiryScope.fromWire(Json.strOrNull(json['scope'])),
+        status: InquiryStatus.fromWire(Json.strOrNull(json['status'])),
+        recipientCount: Json.intOf(json['recipient_count']),
+        answered: Json.intOf(json['answered']),
+        haveIt: Json.intOf(json['have_it']),
+        doNotHaveIt: Json.intOf(json['do_not_have_it']),
+        silent: Json.intOf(json['silent']),
+        expiresAt: Json.dateTime(json['expires_at']),
+        expired: json['expired'] == true,
+        createdAt: Json.dateTime(json['created_at']),
+        replies:
+            Json.list(json['replies']).map(InquiryReply.fromJson).toList(),
+      );
+}
+
+/// One shop's answer.
+class InquiryReply {
+  const InquiryReply({
+    required this.replyId,
+    required this.businessId,
+    required this.businessName,
+    required this.neighborhood,
+    required this.hasItem,
+    required this.openNow,
+    required this.stale,
+    required this.repliedAt,
+    this.businessSlug,
+    this.photoUrl,
+    this.phoneNumber,
+    this.whatsappNumber,
+    this.price,
+    this.unit,
+    this.note,
+    this.previous,
+  });
+
+  final String replyId;
+  final String businessId;
+  final String businessName;
+  final String? businessSlug;
+  final String? photoUrl;
+  final String neighborhood;
+  final String? phoneNumber;
+  final String? whatsappNumber;
+  final bool hasItem;
+  final int? price;
+  final String? unit;
+  final String? note;
+  final bool openNow;
+
+  /// Given before today. Design 5D writes « En avait hier » rather than « En
+  /// a », because a stock answer keeps its wording long after it stopped being
+  /// true, and somebody setting out on yesterday's word should be told so.
+  final bool stale;
+
+  final DateTime repliedAt;
+
+  /// The answer this one replaced. Design 6B renders it struck through with its
+  /// hour: somebody already crossing town needs to know what changed and when.
+  final PreviousAnswer? previous;
+
+  bool get corrected => previous != null;
+
+  factory InquiryReply.fromJson(Map<String, dynamic> json) => InquiryReply(
+        replyId: Json.str(json['reply_id']),
+        businessId: Json.str(json['business_id']),
+        businessName: Json.str(json['business_name']),
+        businessSlug: Json.strOrNull(json['business_slug']),
+        photoUrl: Json.strOrNull(json['photo_url']),
+        neighborhood: Json.str(json['neighborhood']),
+        phoneNumber: Json.strOrNull(json['phone_number']),
+        whatsappNumber: Json.strOrNull(json['whatsapp_number']),
+        hasItem: json['has_item'] == true,
+        price: Json.intOrNull(json['price']),
+        unit: Json.strOrNull(json['unit']),
+        note: Json.strOrNull(json['note']),
+        openNow: json['open_now'] == true,
+        stale: json['stale'] == true,
+        repliedAt: Json.dateTime(json['replied_at']),
+        previous: json['previous'] == null
+            ? null
+            : PreviousAnswer.fromJson(json['previous'] as Map<String, dynamic>),
+      );
+}
+
+/// A superseded answer, kept so the screen can say what changed.
+class PreviousAnswer {
+  const PreviousAnswer({
+    required this.hasItem,
+    required this.at,
+    this.price,
+    this.unit,
+  });
+
+  final bool hasItem;
+  final int? price;
+  final String? unit;
+  final DateTime at;
+
+  factory PreviousAnswer.fromJson(Map<String, dynamic> json) => PreviousAnswer(
+        hasItem: json['has_item'] == true,
+        price: Json.intOrNull(json['price']),
+        unit: Json.strOrNull(json['unit']),
+        at: Json.dateTime(json['at']),
+      );
+}
+
+/// A question worth asking again, prepared but not sent.
+class AskAgainDraft {
+  const AskAgainDraft({
+    required this.text,
+    required this.neighborhood,
+    required this.wouldReach,
+    required this.wouldWiden,
+    this.suggestedCategoryCode,
+    this.suggestedCategoryLabel,
+  });
+
+  final String text;
+  final String neighborhood;
+
+  /// Recomputed rather than carried over: shops open, close and opt out between
+  /// one asking and the next.
+  final int wouldReach;
+  final bool wouldWiden;
+  final String? suggestedCategoryCode;
+  final String? suggestedCategoryLabel;
+
+  factory AskAgainDraft.fromJson(Map<String, dynamic> json) => AskAgainDraft(
+        text: Json.str(json['text']),
+        neighborhood: Json.str(json['neighborhood']),
+        wouldReach: Json.intOf(json['would_reach']),
+        wouldWiden: json['would_widen'] == true,
+        suggestedCategoryCode: Json.strOrNull(json['suggested_category_code']),
+        suggestedCategoryLabel: Json.strOrNull(json['suggested_category_label']),
+      );
+}
+
+/// A question waiting in a shop's own list.
+class ShopInboxItem {
+  const ShopInboxItem({
+    required this.inquiryId,
+    required this.text,
+    required this.neighborhood,
+    required this.answered,
+    required this.expiresAt,
+    required this.askedAt,
+    this.categoryLabel,
+    this.photoUrl,
+    this.hasItem,
+    this.price,
+    this.unit,
+    this.suggestedUnit,
+  });
+
+  final String inquiryId;
+  final String text;
+  final String? categoryLabel;
+  final String neighborhood;
+  final String? photoUrl;
+
+  /// Unanswered questions take an ink border in design 7D; answered ones show
+  /// what was said and correct with one tap.
+  final bool answered;
+
+  final bool? hasItem;
+  final int? price;
+  final String? unit;
+
+  /// The unit from this shop's own catalogue when the question names something
+  /// it stocks. Design 7C pre-fills from it rather than making somebody type
+  /// « le sac » again for an article already priced by the sack.
+  final String? suggestedUnit;
+
+  final DateTime expiresAt;
+  final DateTime askedAt;
+
+  factory ShopInboxItem.fromJson(Map<String, dynamic> json) => ShopInboxItem(
+        inquiryId: Json.str(json['inquiry_id']),
+        text: Json.str(json['text']),
+        categoryLabel: Json.strOrNull(json['category_label']),
+        neighborhood: Json.str(json['neighborhood']),
+        photoUrl: Json.strOrNull(json['photo_url']),
+        answered: json['answered'] == true,
+        hasItem: json['has_item'] as bool?,
+        price: Json.intOrNull(json['price']),
+        unit: Json.strOrNull(json['unit']),
+        suggestedUnit: Json.strOrNull(json['suggested_unit']),
+        expiresAt: Json.dateTime(json['expires_at']),
+        askedAt: Json.dateTime(json['asked_at']),
+      );
+}
+
+/// Whether a shop wants to be asked, and how much.
+class InquirySettings {
+  const InquirySettings({
+    required this.acceptsInquiries,
+    required this.ownQuartierOnly,
+    required this.recentWeeklyRate,
+    this.dailyCap,
+    this.pausedUntil,
+  });
+
+  final bool acceptsInquiries;
+  final bool ownQuartierOnly;
+
+  /// Null means no ceiling.
+  final int? dailyCap;
+
+  /// Null when not paused.
+  final DateTime? pausedUntil;
+
+  /// What the questions actually cost lately. Design 7E puts it under the main
+  /// switch — « environ 4 par semaine en ce moment » — because a shopkeeper
+  /// judging whether this is too much should be told the real figure.
+  final int recentWeeklyRate;
+
+  bool get paused =>
+      pausedUntil != null && pausedUntil!.isAfter(DateTime.now());
+
+  factory InquirySettings.fromJson(Map<String, dynamic> json) => InquirySettings(
+        acceptsInquiries: json['accepts_inquiries'] == true,
+        ownQuartierOnly: json['own_quartier_only'] == true,
+        dailyCap: Json.intOrNull(json['daily_cap']),
+        pausedUntil: Json.dateTimeOrNull(json['paused_until']),
+        recentWeeklyRate: Json.intOf(json['recent_weekly_rate']),
       );
 }
