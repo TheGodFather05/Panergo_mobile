@@ -89,7 +89,7 @@ class _Body extends StatelessWidget {
           sampleNoun: 'mission',
         ),
         _MetricTile(
-          label: 'Note moyenne',
+          label: 'Note & avis',
           metric: metrics.averageRating,
           format: (value) => Formats.rating(value),
           sampleNoun: 'avis',
@@ -107,7 +107,11 @@ class _Body extends StatelessWidget {
           sampleNoun: 'mission',
         ),
         const SizedBox(height: Space.s18),
-        const _SectionLabel('Bientôt disponible'),
+        // Headed « Pas encore mesuré » rather than « Bientôt disponible »: the
+        // tiles beneath no longer all say soon, and one of them says the figure
+        // cannot be known at all. A heading that promised otherwise would
+        // contradict the tile directly under it.
+        const _SectionLabel('Pas encore mesuré'),
         _MetricTile(
           label: 'Ponctualité',
           metric: metrics.punctuality,
@@ -122,6 +126,7 @@ class _Body extends StatelessWidget {
           metric: metrics.utilisation,
           format: _percent,
           sampleNoun: 'mission',
+          notYetHeadline: _notMeasurable,
           notYetReason:
               'Nous ne savons pas encore combien de missions tiennent dans '
               'votre journée. Un chiffre inventé ne vous servirait à rien.',
@@ -148,6 +153,13 @@ class _Body extends StatelessWidget {
 /// Three shapes, and none of them is an error: a value with its sample beside
 /// it, a bar showing how far off a floor is, or a plain sentence saying the
 /// platform cannot measure this yet.
+/// « Bientôt disponible » — the figure is coming once enough has happened.
+const _comingSoon = 'Bientôt disponible';
+
+/// « Non mesurable » — nothing in the model can supply this, and saying « soon »
+/// would be a promise the product has not made.
+const _notMeasurable = 'Non mesurable';
+
 class _MetricTile extends StatelessWidget {
   const _MetricTile({
     required this.label,
@@ -155,6 +167,7 @@ class _MetricTile extends StatelessWidget {
     required this.format,
     required this.sampleNoun,
     this.notYetReason,
+    this.notYetHeadline = _comingSoon,
   });
 
   final String label;
@@ -167,6 +180,11 @@ class _MetricTile extends StatelessWidget {
   /// Why the platform cannot measure this. Shown instead of a bar, because
   /// there is no floor to work towards — the data model owes something first.
   final String? notYetReason;
+
+  /// Which of the two honest statements this metric makes when it has no value.
+  /// Defaults to « Bientôt disponible »; a metric nothing in the model can ever
+  /// supply says « Non mesurable » instead.
+  final String notYetHeadline;
 
   @override
   Widget build(BuildContext context) {
@@ -194,7 +212,7 @@ class _MetricTile extends StatelessWidget {
             _Value(text: format(metric.value!), sample: _sampleLine)
           else if (metric.unavailableBecause ==
               MetricUnavailability.notMeasurableYet)
-            _NotYet(reason: notYetReason)
+            _NotYet(headline: notYetHeadline, reason: notYetReason)
           else if (metric.unavailableBecause ==
               MetricUnavailability.noActivityInPeriod)
             const _Quiet()
@@ -296,8 +314,13 @@ class _Progress extends StatelessWidget {
 /// The platform cannot measure this yet. Muted, and explicitly not an error —
 /// no retry, nothing to fix.
 class _NotYet extends StatelessWidget {
-  const _NotYet({required this.reason});
+  const _NotYet({required this.headline, required this.reason});
 
+  /// « Bientôt disponible » or « Non mesurable ». The design separates these and
+  /// they are different promises: one says wait, the other says this cannot be
+  /// known from what we hold. Telling an artisan to wait for a figure that will
+  /// never arrive is the worse of the two errors.
+  final String headline;
   final String? reason;
 
   @override
@@ -307,11 +330,13 @@ class _NotYet extends StatelessWidget {
       children: [
         Row(
           children: [
-            const MaterialSymbol('hourglass_top',
-                size: 16, color: PanergoColors.faint),
+            MaterialSymbol(
+                headline == _notMeasurable ? 'help' : 'hourglass_top',
+                size: 16,
+                color: PanergoColors.faint),
             const SizedBox(width: Space.s6),
-            const Text('Bientôt disponible',
-                style: TextStyle(
+            Text(headline,
+                style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: PanergoColors.muted)),

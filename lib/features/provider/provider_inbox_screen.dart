@@ -95,7 +95,14 @@ class ProviderInboxScreen extends ConsumerWidget {
               ),
               data: async.hasValue ? visible : null,
               onRetry: () => ref.invalidate(availableRequestsProvider),
-              errorTitle: 'Impossible de charger les demandes',
+              errorTitle: 'Chargement impossible',
+              errorBody:
+                  'Les nouvelles demandes n’ont pas pu être récupérées.',
+              // A promise the send queue actually keeps: an offer composed off
+              // the network is held and sent on reconnect, so saying so here is
+              // reassurance rather than optimism.
+              offlineBody: 'Vos offres envoyées restent en file d’attente et '
+                  'partiront au retour du réseau.',
               skeleton: (context) => const _InboxSkeleton(),
               empty: (context) => _EmptyInbox(
                 // Distinguishes "nothing came in" from "you dismissed it all".
