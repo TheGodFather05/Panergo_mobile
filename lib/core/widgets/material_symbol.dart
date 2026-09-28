@@ -188,6 +188,46 @@ class MaterialSymbol extends StatelessWidget {
     'menu_book': Icons.menu_book_outlined,
     'local_laundry_service': Icons.local_laundry_service_outlined,
     'store': Icons.store_outlined,
+
+    // The rest of what the prototype actually names. Missing entries fell
+    // through to a blank circle, which is a silent failure: the screen looked
+    // finished and the glyph was simply absent.
+    'do_not_disturb_on': Icons.do_not_disturb_on_outlined,
+    // The prototype writes error_outline; both spellings resolve, because a
+    // screen transcribed from memory reaches for the short one.
+    'error': Icons.error_outline,
+    // Found by auditing every name the app passes: both were falling through
+    // to the blank-circle fallback on screens already shipped.
+    'place': Icons.place_outlined,
+    'badge': Icons.badge_outlined,
+    'home_repair_service': Icons.home_repair_service_outlined,
+    'qr_code_2': Icons.qr_code_2_outlined,
+    'edit_note': Icons.edit_note_outlined,
+    'edit_square': Icons.edit_square,
+    'expand_less': Icons.expand_less,
+    'keyboard_arrow_down': Icons.keyboard_arrow_down,
+    'keyboard_arrow_up': Icons.keyboard_arrow_up,
+    'travel_explore': Icons.travel_explore_outlined,
+    'directions_walk': Icons.directions_walk_outlined,
+    'schedule_send': Icons.schedule_send_outlined,
+    'rule': Icons.rule_outlined,
+    'inbox': Icons.inbox_outlined,
+    'event': Icons.event_outlined,
+    'description': Icons.description_outlined,
+    'devices': Icons.devices_outlined,
+    'print': Icons.print_outlined,
+    'trending_up': Icons.trending_up,
+    'verified_user': Icons.verified_user_outlined,
+    'location_off': Icons.location_off_outlined,
+    'chat_bubble_outline': Icons.chat_bubble_outline,
+    'play_arrow': Icons.play_arrow_outlined,
+    'music_note': Icons.music_note_outlined,
+    'pets': Icons.pets_outlined,
+
+    // Status-bar furniture. Drawn in the prototype's phone chrome, so a screen
+    // transcribed literally asks for them.
+    'battery_full': Icons.battery_full,
+    'signal_cellular_alt': Icons.signal_cellular_alt,
   };
 
   static const _filled = <String, IconData>{
