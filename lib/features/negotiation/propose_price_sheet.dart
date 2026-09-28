@@ -62,7 +62,12 @@ class _ProposePriceSheetState extends State<_ProposePriceSheet> {
   }
 
   String? get _hint {
-    if (_priceController.text.trim().isEmpty) return null;
+    // Empty and malformed are different states and the design words them
+    // differently: one says what is needed, the other says what is wrong.
+    // Returning null for empty left the disabled button unexplained.
+    if (_priceController.text.trim().isEmpty) {
+      return 'Un prix est nécessaire pour proposer.';
+    }
     if (_price == null || _price! <= 0) {
       return 'Entrez un montant en FCFA.';
     }
@@ -145,10 +150,27 @@ class _ProposePriceSheetState extends State<_ProposePriceSheet> {
                 color: PanergoColors.fill,
                 borderRadius: Radii.brTile,
               ),
-              child: const Text(
-                'Le prix est définitif dès que le prestataire confirme son arrivée.',
-                style: TextStyle(
-                    fontSize: 12.5, height: 1.45, color: PanergoColors.muted),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // What actually happens to the number, which was nowhere on
+                  // this sheet: somebody typing a price could not tell whether
+                  // it replaces the agreed one, sits beside it, or is a message.
+                  Text(
+                    'Proposez un nouveau montant ici : il s’affiche dans la '
+                    'discussion et remplace le prix convenu si le client '
+                    'l’accepte.',
+                    style: TextStyle(
+                        fontSize: 12.5, height: 1.45, color: PanergoColors.body),
+                  ),
+                  SizedBox(height: Space.s8),
+                  Text(
+                    'Le prix est définitif dès que le prestataire confirme son '
+                    'arrivée. Le règlement reste direct entre vous.',
+                    style: TextStyle(
+                        fontSize: 12.5, height: 1.45, color: PanergoColors.muted),
+                  ),
+                ],
               ),
             ),
             if (_hint != null) ...[

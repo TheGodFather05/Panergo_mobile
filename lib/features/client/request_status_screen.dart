@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/format/formats.dart';
+import '../../core/models/enums.dart';
 import '../../core/models/models.dart';
+import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
@@ -119,7 +121,91 @@ class _Loaded extends StatelessWidget {
             if (i != request.offers.length - 1)
               const SizedBox(height: 13),
           ],
+
+        // Withdrawing is only offered while nobody has been chosen: after that
+        // the job is somebody's plan and the cancellation belongs to the
+        // mission, with its own reason.
+        if (request.status == RequestStatus.open) ...[
+          const SizedBox(height: Space.s20),
+          _CancelRequest(
+            requestId: request.id,
+            offerCount: request.offers.length,
+          ),
+        ],
       ],
+    );
+  }
+}
+
+/// « Annuler la demande », behind a sheet that says what it costs.
+///
+/// The sheet names both prices: the offers already received are lost, and the
+/// artisans who made them are told. And it names the way back — the same request
+/// can be published again — because otherwise cancelling feels final in a way it
+/// is not.
+class _CancelRequest extends ConsumerStatefulWidget {
+  const _CancelRequest({required this.requestId, required this.offerCount});
+
+  final String requestId;
+  final int offerCount;
+
+  @override
+  ConsumerState<_CancelRequest> createState() => _CancelRequestState();
+}
+
+class _CancelRequestState extends ConsumerState<_CancelRequest> {
+  bool _busy = false;
+
+  Future<void> _cancel() async {
+    final n = widget.offerCount;
+
+    final confirmed = await ConfirmSheet.show(
+      context,
+      title: 'Annuler cette demande ?',
+      body: n == 0
+          ? 'Les prestataires notifiés n’y auront plus accès. Vous pourrez '
+              'republier la même demande plus tard.'
+          : 'Les $n offre${n > 1 ? 's' : ''} reçue${n > 1 ? 's' : ''} '
+              '${n > 1 ? 'seront perdues' : 'sera perdue'} et les prestataires '
+              'notifiés. Vous pourrez republier la même demande plus tard.',
+      confirmLabel: 'Annuler la demande',
+      // Not a bare « Annuler » — that word is already doing the other job here.
+      cancelLabel: 'Garder ma demande',
+      destructive: true,
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final notified = await ref.read(apiProvider).cancelRequest(widget.requestId);
+      if (!mounted) return;
+      ref.invalidate(requestProvider(widget.requestId));
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(notified == 0
+            ? 'Demande annulée.'
+            : 'Demande annulée. $notified prestataire'
+                '${notified > 1 ? 's' : ''} prévenu'
+                '${notified > 1 ? 's' : ''}.'),
+      ));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: TextButton.icon(
+        onPressed: _busy ? null : _cancel,
+        icon: const MaterialSymbol('cancel',
+            size: 16, color: PanergoColors.subtle),
+        label: Text('Annuler la demande',
+            style: context.type.label.copyWith(color: PanergoColors.subtle)),
+      ),
     );
   }
 }

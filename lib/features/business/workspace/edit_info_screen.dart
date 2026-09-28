@@ -195,7 +195,17 @@ class _EditInfoScreenState extends ConsumerState<EditInfoScreen> {
                   const SizedBox(height: Space.s18),
 
                   Text('Liens', style: type.label),
-                  const SizedBox(height: Space.s8),
+                  const SizedBox(height: 2),
+                  // What a link turns into on the public page. Somebody pasting
+                  // a URL has no way to know it renders as a name, and the
+                  // difference matters to anyone careful about what they share.
+                  const Text(
+                    'Site, réseaux sociaux, catalogue en ligne. Ils s’affichent '
+                    'sur votre fiche sous forme de noms, pas d’adresses.',
+                    style: TextStyle(
+                        fontSize: 12, height: 1.45, color: PanergoColors.subtle),
+                  ),
+                  const SizedBox(height: Space.s10),
                   if (_links.isEmpty && !_addingLink)
                     const Padding(
                       padding: EdgeInsets.only(bottom: Space.s10),

@@ -9,6 +9,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/material_symbol.dart';
+import 'day_hours_sheet.dart';
 import '../../core/widgets/panergo_button.dart';
 
 final availabilityProvider = FutureProvider.autoDispose<Availability>(
@@ -103,11 +104,25 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
         backgroundColor: PanergoColors.page,
         elevation: 0,
         leading: const BackButton(color: PanergoColors.ink),
-        title: const Text('Mes disponibilités',
-            style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: PanergoColors.ink)),
+        title: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Mes disponibilités',
+                style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: PanergoColors.ink)),
+            // In the title, because it is the first thing that has to land:
+            // leaving this screen empty costs an artisan nothing, and somebody
+            // who believes otherwise fills it in badly and then honours it.
+            Text('Facultatif · vous recevez des demandes sans',
+                style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: PanergoColors.faint)),
+          ],
+        ),
       ),
       body: AsyncView<Availability>(
         state: async.isLoading && !async.hasValue
@@ -136,18 +151,35 @@ class _AvailabilityScreenState extends ConsumerState<AvailabilityScreen> {
               }
               _dirty = true;
             }),
-            onPickTime: (weekday, isStart) async {
+            // One sheet for the whole day rather than two trips through the OS
+            // picker. Two round trips could set an end before a start, and left
+            // nowhere for the two actions the design asks for — applying the
+            // week, and closing the day.
+            onPickTime: (weekday, _) async {
               final current = _week[weekday];
               if (current == null) return;
-              final picked = await showTimePicker(
-                context: context,
-                initialTime: isStart ? current.start : current.end,
+
+              final result = await DayHoursSheet.show(
+                context,
+                dayName: _dayNames[weekday - 1],
+                start: current.start,
+                end: current.end,
               );
-              if (picked == null) return;
+              if (result == null || !mounted) return;
+
               setState(() {
-                _week[weekday] = isStart
-                    ? (start: picked, end: current.end)
-                    : (start: current.start, end: picked);
+                switch (result) {
+                  case DayHoursSet(:final start, :final end):
+                    _week[weekday] = (start: start, end: end);
+                  case DayHoursWholeWeek(:final start, :final end):
+                    // Most artisans work one rhythm; setting it seven times is
+                    // how this screen goes unfilled.
+                    for (var d = 1; d <= 7; d++) {
+                      _week[d] = (start: start, end: end);
+                    }
+                  case DayHoursOff():
+                    _week.remove(weekday);
+                }
                 _dirty = true;
               });
             },
@@ -242,7 +274,21 @@ class _Body extends StatelessWidget {
                 Space.gutterTight, 0, Space.gutterTight, Space.s26),
             children: [
               const _ReassuranceCard(),
-              const _SectionLabel('Vos horaires'),
+              const _SectionLabel('Horaires habituels'),
+              // What the switch does, and what this screen cannot yet express.
+              // Naming the limit is the point: somebody who works mornings and
+              // evenings needs to know the split shift is coming rather than
+              // hunting for it.
+              const Padding(
+                padding: EdgeInsets.only(bottom: Space.s10),
+                child: Text(
+                  'Touchez un horaire pour le modifier, l’interrupteur pour '
+                  'passer le jour en repos. Une plage par jour : coupure '
+                  'déjeuner et double service arriveront plus tard.',
+                  style: TextStyle(
+                      fontSize: 12.5, height: 1.45, color: PanergoColors.subtle),
+                ),
+              ),
               for (var weekday = 1; weekday <= 7; weekday++)
                 _DayRow(
                   label: dayNames[weekday - 1],
@@ -279,8 +325,13 @@ class _Body extends StatelessWidget {
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: Space.s8),
                   child: Text(
-                    'Aucune absence déclarée.',
-                    style: TextStyle(fontSize: 13, color: PanergoColors.muted),
+                    // Says what an absence is FOR, not just that there are
+                    // none: the word « congé » is what makes the feature
+                    // recognisable to somebody who has never tapped it.
+                    'Aucune absence déclarée. Ajoutez un congé ou un voyage '
+                    'pour ne pas être sollicité ces jours-là.',
+                    style: TextStyle(
+                        fontSize: 13, height: 1.45, color: PanergoColors.muted),
                   ),
                 ),
               for (final timeOff in availability.timeOff)
@@ -305,10 +356,20 @@ class _Body extends StatelessWidget {
               color: PanergoColors.page,
               border: Border(top: BorderSide(color: PanergoColors.border)),
             ),
-            child: PanergoButton(
-              label: 'Enregistrer mes horaires',
-              loading: saving,
-              onPressed: onSave,
+            child: Column(
+              children: [
+                PanergoButton(
+                  label: 'Enregistrer la semaine',
+                  loading: saving,
+                  onPressed: onSave,
+                ),
+                const SizedBox(height: Space.s6),
+                // Seven rows and one button: worth saying, or somebody taps
+                // save after every day.
+                const Text('La semaine entière est enregistrée d’un coup',
+                    style: TextStyle(
+                        fontSize: 11.5, color: PanergoColors.subtle)),
+              ],
             ),
           ),
       ],

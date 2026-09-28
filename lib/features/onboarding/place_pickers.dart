@@ -40,6 +40,12 @@ abstract final class PlacePickers {
             title: 'Pays',
             hint: 'Rechercher un pays',
             emptyCount: (n) => '$n pays desservi${n > 1 ? 's' : ''}',
+            emptyTitle: 'Aucun pays desservi',
+            emptyBody: 'Panergo n’ouvre que là où il y a déjà des artisans '
+                'inscrits. Le vôtre arrivera peut-être bientôt.',
+            loadingLabel: 'Chargement des pays…',
+            errorBody: 'La liste des pays demande une connexion. Elle '
+                's’affichera dès le retour du réseau.',
             watch: (ref) => ref.watch(countriesProvider),
             labelOf: (c) => c.name,
             detailOf: (c) => c.dialCode,
@@ -59,6 +65,14 @@ abstract final class PlacePickers {
             title: 'Quartiers',
             hint: 'Rechercher un quartier',
             emptyCount: (n) => '$n quartier${n > 1 ? 's' : ''} desservi${n > 1 ? 's' : ''}',
+            emptyTitle: 'Aucun quartier desservi',
+            // The consequence, not just the absence: without this list nothing
+            // can be routed, which is why it is worth spelling out.
+            emptyBody: 'Les quartiers desservis n’ont pas pu être chargés. '
+                'Sans cette liste, vos demandes ne peuvent pas être routées.',
+            loadingLabel: 'Chargement des quartiers…',
+            errorBody: 'La liste des quartiers demande une connexion. Elle '
+                's’affichera dès le retour du réseau.',
             watch: (ref) => ref.watch(quartiersProvider(cityId)),
             labelOf: (q) => q.name,
             detailOf: (q) => q.city,
@@ -76,6 +90,12 @@ abstract final class PlacePickers {
             title: 'Villes',
             hint: 'Rechercher une ville',
             emptyCount: (n) => '$n ville${n > 1 ? 's' : ''} desservie${n > 1 ? 's' : ''}',
+            emptyTitle: 'Aucune ville ouverte ici',
+            emptyBody: 'Panergo n’a pas encore d’artisans inscrits dans ce '
+                'pays. Choisissez-en un autre en attendant.',
+            loadingLabel: 'Chargement des villes…',
+            errorBody: 'La liste des villes demande une connexion. Elle '
+                's’affichera dès le retour du réseau.',
             watch: (ref) => ref.watch(citiesProvider(countryCode)),
             labelOf: (c) => c.name,
             detailOf: (_) => null,
@@ -91,6 +111,10 @@ class _PlaceList<T> extends ConsumerStatefulWidget {
   const _PlaceList({
     required this.title,
     required this.hint,
+    required this.emptyTitle,
+    required this.emptyBody,
+    required this.loadingLabel,
+    required this.errorBody,
     required this.emptyCount,
     required this.watch,
     required this.labelOf,
@@ -101,6 +125,20 @@ class _PlaceList<T> extends ConsumerStatefulWidget {
 
   final String title;
   final String hint;
+
+  /// Said when the list comes back empty for this level.
+  ///
+  /// Per level rather than shared, because the reason differs and the reason is
+  /// the useful part: no city in this country means Panergo has not opened
+  /// there, no quartier in this city means routing cannot work at all. One
+  /// generic « aucun résultat » tells somebody neither.
+  final String emptyTitle;
+  final String emptyBody;
+
+  /// Said while the list is being fetched, and when it fails.
+  final String loadingLabel;
+  final String errorBody;
+
   final String Function(int) emptyCount;
   /// Watched by the caller and handed in, so this widget stays generic
   /// without needing a provider type it cannot name.
@@ -196,8 +234,9 @@ class _PlaceListState<T> extends ConsumerState<_PlaceList<T>> {
                           ? LoadState.error
                           : LoadState.normal,
                   data: async.value,
-                  errorTitle: 'Impossible de charger la liste',
-                  skeleton: (_) => const _Skeleton(),
+                  errorTitle: 'Chargement impossible',
+                  errorBody: widget.errorBody,
+                  skeleton: (_) => _Skeleton(label: widget.loadingLabel),
                   empty: (_) => const SizedBox.shrink(),
                   builder: (_, items) {
                     final matches = items
@@ -207,7 +246,12 @@ class _PlaceListState<T> extends ConsumerState<_PlaceList<T>> {
                                 .contains(normalizePlace(_query)))
                         .toList();
 
-                    if (matches.isEmpty) return const _NoMatch();
+                    if (matches.isEmpty) {
+                      return _NoMatch(
+                        title: widget.emptyTitle,
+                        body: widget.emptyBody,
+                      );
+                    }
 
                     return ListView.builder(
                       padding: const EdgeInsets.fromLTRB(
@@ -313,17 +357,31 @@ class PlaceRow extends StatelessWidget {
 }
 
 class _NoMatch extends StatelessWidget {
-  const _NoMatch();
+  const _NoMatch({required this.title, required this.body});
+
+  final String title;
+  final String body;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(Space.s30),
-        child: Text(
-          'Aucun résultat. Panergo s’étend petit à petit.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, height: 1.5, color: PanergoColors.muted),
+        padding: const EdgeInsets.all(Space.s30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const MaterialSymbol('location_off',
+                size: 30, color: PanergoColors.faint),
+            const SizedBox(height: Space.s12),
+            Text(title,
+                textAlign: TextAlign.center,
+                style: context.type.cardTitleSmall),
+            const SizedBox(height: Space.s6),
+            Text(body,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontSize: 13, height: 1.5, color: PanergoColors.muted)),
+          ],
         ),
       ),
     );
@@ -331,13 +389,22 @@ class _NoMatch extends StatelessWidget {
 }
 
 class _Skeleton extends StatelessWidget {
-  const _Skeleton();
+  const _Skeleton({required this.label});
+
+  /// « Chargement des quartiers… » — named, because a column of grey bars says
+  /// something is happening without saying what, and this list is a hard
+  /// dependency of every route the app can take.
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: Space.gutter),
       children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: Space.s10),
+          child: Text(label, style: context.type.metaSmall),
+        ),
         for (var i = 0; i < 6; i++)
           Container(
             margin: const EdgeInsets.only(bottom: Space.s8),

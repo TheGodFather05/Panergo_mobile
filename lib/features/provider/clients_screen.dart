@@ -85,6 +85,16 @@ class _Body extends StatelessWidget {
           ),
         ),
         for (final client in clients) _ClientRow(client: client),
+        const SizedBox(height: Space.s14),
+        // What this list is for, and what it is not. Without the framing a
+        // column of names reads as a CRM, which invites expectations — export,
+        // notes, segments — that this screen will never meet.
+        const Text(
+          'Un aide-mémoire, pas un fichier client : touchez un nom pour '
+          'reprendre la discussion existante.',
+          style: TextStyle(
+              fontSize: 12, height: 1.45, color: PanergoColors.subtle),
+        ),
       ],
     );
   }
@@ -229,15 +239,15 @@ class _NoClientsYet extends StatelessWidget {
             const MaterialSymbol('group',
                 size: 44, color: PanergoColors.disabled),
             const SizedBox(height: Space.gutterTight),
-            const Text('Pas encore de clients',
+            const Text('Vos clients apparaîtront ici',
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: PanergoColors.ink)),
             const SizedBox(height: Space.s6),
             const Text(
-              'Les personnes pour qui vous terminez une mission apparaîtront '
-              'ici.',
+              'Après votre première mission, vous retrouverez chaque client '
+              'et pourrez reprendre la discussion.',
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 13, height: 1.5, color: PanergoColors.muted),

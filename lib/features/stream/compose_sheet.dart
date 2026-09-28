@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/photo_source_sheet.dart';
 import '../../core/widgets/panergo_button.dart';
 
 /// Publishing into the merged feed.
@@ -39,7 +40,13 @@ class ComposeSheet extends ConsumerStatefulWidget {
   ConsumerState<ComposeSheet> createState() => _ComposeSheetState();
 }
 
-enum _Mode { choosing, question, work }
+/// What is being written.
+///
+/// [work] and [advice] are the design's « Réalisation » and « Conseil », and the
+/// photo is what separates them: a réalisation with a photo reaches the public
+/// feed, a conseil without one stays on the artisan's own profile. The rule is
+/// stated on the screen rather than left to be discovered.
+enum _Mode { choosing, question, work, advice }
 
 class _ComposeSheetState extends ConsumerState<ComposeSheet> {
   late _Mode _mode =
@@ -59,13 +66,22 @@ class _ComposeSheetState extends ConsumerState<ComposeSheet> {
 
   bool get _valid => switch (_mode) {
         _Mode.question => _body.text.trim().isNotEmpty,
+        // A réalisation must show the work: a claim to have finished something
+        // with nothing to show is the one post this product refuses.
         _Mode.work => _photo != null,
+        // A conseil is words. The photo is optional and changes where it lands.
+        _Mode.advice => _body.text.trim().isNotEmpty,
         _Mode.choosing => false,
       };
 
   Future<void> _pickPhoto() async {
-    final picked = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, imageQuality: 80);
+    // The camera first. A réalisation is usually photographed on the spot, and
+    // going straight to the gallery meant leaving the app to take the picture.
+    final source = await PhotoSourceSheet.show(context);
+    if (source == null || !mounted) return;
+
+    final picked =
+        await ImagePicker().pickImage(source: source, imageQuality: 80);
     if (picked != null && mounted) {
       setState(() => _photo = File(picked.path));
     }
@@ -82,6 +98,15 @@ class _ComposeSheetState extends ConsumerState<ComposeSheet> {
       final api = ref.read(apiProvider);
       if (_mode == _Mode.question) {
         await api.createQuartierPost(kind: _kind, body: _body.text.trim());
+      } else if (_mode == _Mode.advice) {
+        // The photo is optional here, and its absence is the point: without one
+        // this stays on the profile rather than reaching the public feed.
+        final url = _photo == null ? null : await api.uploadImage(_photo!);
+        await api.createFeedPost(
+          postType: PostType.conseil,
+          photoUrl: url,
+          caption: _body.text.trim(),
+        );
       } else {
         // The photo has to exist on the server before the post can name it.
         final url = await api.uploadImage(_photo!);
@@ -161,6 +186,13 @@ class _ComposeSheetState extends ConsumerState<ComposeSheet> {
           detail: 'Une photo de votre réalisation',
           onTap: () => setState(() => _mode = _Mode.work),
         ),
+        const SizedBox(height: Space.s8),
+        _Choice(
+          icon: 'lightbulb',
+          title: 'Un conseil',
+          detail: 'Ce que vous savez et que les clients ignorent',
+          onTap: () => setState(() => _mode = _Mode.advice),
+        ),
       ];
 
   List<Widget> _form() {
@@ -178,7 +210,12 @@ class _ComposeSheetState extends ConsumerState<ComposeSheet> {
                     size: 20, color: PanergoColors.subtle),
               ),
             ),
-          Text(isWork ? 'Un travail terminé' : 'Une question à mes voisins',
+          Text(
+              switch (_mode) {
+                _Mode.work => 'Un travail terminé',
+                _Mode.advice => 'Un conseil',
+                _ => 'Une question à mes voisins',
+              },
               style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w800,
@@ -186,6 +223,38 @@ class _ComposeSheetState extends ConsumerState<ComposeSheet> {
         ],
       ),
       const SizedBox(height: Space.s14),
+      // The rule, on the screen where it applies. Somebody choosing between the
+      // two needs to know what each one does before they write, not after.
+      if (_mode == _Mode.work || _mode == _Mode.advice) ...[
+        Container(
+          padding: const EdgeInsets.all(Space.s12),
+          decoration: BoxDecoration(
+            color: PanergoColors.fill,
+            borderRadius: Radii.brCard,
+          ),
+          child: const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MaterialSymbol('info', size: 15, color: PanergoColors.subtle),
+              SizedBox(width: Space.s8),
+              Expanded(
+                child: Text(
+                  'Une réalisation avec photo apparaît dans le Feed public. '
+                  'Un conseil sans photo reste sur votre profil.',
+                  style: TextStyle(
+                      fontSize: 12, height: 1.45, color: PanergoColors.subtle),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Space.s12),
+      ],
+      if (_mode == _Mode.advice) ...[
+        // Optional here, so it reads as an addition rather than a blocker.
+        _OptionalPhoto(photo: _photo, onPick: _pickPhoto),
+        const SizedBox(height: Space.s12),
+      ],
       if (isWork) ...[
         GestureDetector(
           onTap: _pickPhoto,
@@ -330,6 +399,59 @@ class _Choice extends StatelessWidget {
             ),
             const MaterialSymbol('chevron_right',
                 size: 20, color: PanergoColors.subtle),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A photo slot that is plainly optional.
+///
+/// Deliberately smaller and quieter than the réalisation's full-width well: on a
+/// conseil the photo changes the destination rather than being the content, and
+/// a 168-high empty box would read as something still to do.
+class _OptionalPhoto extends StatelessWidget {
+  const _OptionalPhoto({required this.photo, required this.onPick});
+
+  final File? photo;
+  final VoidCallback onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPick,
+      borderRadius: Radii.brCard,
+      child: Container(
+        padding: const EdgeInsets.all(Space.s12),
+        decoration: BoxDecoration(
+          borderRadius: Radii.brCard,
+          border: Border.all(color: PanergoColors.borderInput),
+        ),
+        child: Row(
+          children: [
+            if (photo == null)
+              const MaterialSymbol('add_a_photo',
+                  size: 20, color: PanergoColors.subtle)
+            else
+              ClipRRect(
+                borderRadius: BorderRadius.circular(Radii.badge),
+                child: Image.file(photo!,
+                    width: 38, height: 38, fit: BoxFit.cover),
+              ),
+            const SizedBox(width: Space.s12),
+            Expanded(
+              child: Text(
+                photo == null
+                    ? 'Photos (facultatif)'
+                    : 'Photo jointe · ce conseil ira aussi dans le Feed',
+                style: context.type.metaSmall.copyWith(height: 1.4),
+              ),
+            ),
+            if (photo == null)
+              Text('Ajouter',
+                  style: context.type.labelSmall
+                      .copyWith(color: context.brand.link)),
           ],
         ),
       ),

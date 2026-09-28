@@ -60,6 +60,28 @@ class _OfferDetailScreenState extends ConsumerState<OfferDetailScreen> {
                 label: 'Prix convenu', value: Formats.money(offer.price)),
             const SizedBox(height: Space.s10),
             _RecapRow(label: 'Intervention', value: offer.timeline.label),
+            const SizedBox(height: Space.s12),
+            const Divider(height: 1, color: PanergoColors.borderFaint),
+            const SizedBox(height: Space.s12),
+            // Said at the moment of committing, because this is where somebody
+            // needs it: the number above is not final, and refusing a revised
+            // one costs nothing. Without this a client reads « prix convenu »
+            // as a guarantee and feels tricked when it moves.
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const MaterialSymbol('info',
+                    size: 15, color: PanergoColors.subtle),
+                const SizedBox(width: Space.s8),
+                Expanded(
+                  child: Text(
+                    'Le prix définitif est confirmé par le prestataire après '
+                    'constat sur place. Vous pouvez refuser sans frais.',
+                    style: context.type.metaSmall.copyWith(height: 1.45),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

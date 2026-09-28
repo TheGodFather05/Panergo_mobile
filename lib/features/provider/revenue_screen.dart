@@ -221,6 +221,36 @@ class _Headline extends StatelessWidget {
                     '${revenue.completedCount > 1 ? 's' : ''}',
             style: const TextStyle(fontSize: 13, color: PanergoColors.muted),
           ),
+          const SizedBox(height: Space.s12),
+          // What this number is, and — more importantly — what Panergo is not.
+          // ADR-01 leaves the transaction question open, so the figure has to
+          // say plainly that nobody is holding the money, or an artisan reads a
+          // revenue screen as a balance and waits for a payout.
+          Container(
+            padding: const EdgeInsets.all(Space.s12),
+            decoration: BoxDecoration(
+              color: PanergoColors.fill,
+              borderRadius: Radii.brCard,
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                MaterialSymbol('info', size: 15, color: PanergoColors.subtle),
+                SizedBox(width: Space.s8),
+                Expanded(
+                  child: Text(
+                    'Ce montant est la valeur des missions au prix convenu. '
+                    'Le client vous règle directement : Panergo n’encaisse ni '
+                    'ne conserve d’argent.',
+                    style: TextStyle(
+                        fontSize: 12,
+                        height: 1.45,
+                        color: PanergoColors.subtle),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

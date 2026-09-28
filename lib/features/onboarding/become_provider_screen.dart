@@ -15,6 +15,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
+import '../../core/widgets/photo_source_sheet.dart';
 import '../client/categories_screen.dart';
 import 'place_pickers.dart';
 
@@ -298,7 +299,10 @@ class _MetierStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StepBody(
       title: 'Quel est votre métier ?',
-      subtitle: 'Vous recevrez les demandes de ce métier. Un seul pour l’instant.',
+      // The design leads with the limit rather than burying it: somebody who
+      // does two trades needs to know now, not after choosing.
+      subtitle: 'Un seul métier pour l’instant. Il décide des demandes que '
+          'vous recevrez.',
       child: _PickerRow(
         icon: category?.iconName ?? 'handyman',
         label: category?.label ?? 'Choisir votre métier',
@@ -319,9 +323,11 @@ class _QuartierStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StepBody(
       title: 'Où travaillez-vous ?',
-      subtitle:
-          'Souvent le même que votre quartier, mais pas toujours. Vous recevrez '
-          'les demandes de ce quartier.',
+      // Says what it costs, and that it will not fix itself. The design's
+      // wording is a warning rather than a description, because this is the
+      // field people get wrong and then wonder why the inbox is empty.
+      subtitle: 'Vous ne verrez que les demandes de ce quartier. Ce choix ne '
+          'se modifie pas seul ensuite — vérifiez-le avant de terminer.',
       child: _PickerRow(
         icon: 'location_on',
         label: quartier?.name ?? 'Choisir le quartier',
@@ -421,34 +427,8 @@ class _PresentationStep extends StatelessWidget {
   }
 
   Future<void> _choosePhotoSource(BuildContext context) async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: PanergoColors.page,
-          borderRadius: Radii.brSheet,
-        ),
-        padding: const EdgeInsets.fromLTRB(
-            Space.gutter, Space.s20, Space.gutter, Space.s26),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PanergoButton(
-              label: 'Prendre une photo',
-              icon: 'photo_camera',
-              onPressed: () => Navigator.of(context).pop(ImageSource.camera),
-            ),
-            const SizedBox(height: Space.s8),
-            PanergoOutlinedButton(
-              label: 'Choisir dans la galerie',
-              icon: 'photo_library',
-              onPressed: () => Navigator.of(context).pop(ImageSource.gallery),
-            ),
-          ],
-        ),
-      ),
-    );
+    // The shared sheet, so the compose flow and this one stay in step.
+    final source = await PhotoSourceSheet.show(context);
     if (source != null) onPickPhoto(source);
   }
 }
@@ -573,9 +553,11 @@ class _RecapStep extends StatelessWidget {
   Widget build(BuildContext context) {
     return _StepBody(
       title: 'Tout est correct ?',
-      subtitle:
-          'Votre métier et votre quartier ne se modifient pas seuls ensuite — '
-          'vérifiez-les maintenant.',
+      // The design's version names the affordance: the rows below are tappable
+      // and nothing says so otherwise, so the instruction is the only thing
+      // that makes the correction discoverable.
+      subtitle: 'Le métier et le quartier décident des demandes que vous '
+          'recevrez. Touchez une ligne pour la corriger.',
       child: Column(
         children: [
           _RecapRow(

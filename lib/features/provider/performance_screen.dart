@@ -126,6 +126,11 @@ class _Body extends StatelessWidget {
               'Nous ne savons pas encore combien de missions tiennent dans '
               'votre journée. Un chiffre inventé ne vous servirait à rien.',
         ),
+        const SizedBox(height: Space.s20),
+        // The policy behind every refusal on this screen, said once at the foot.
+        // Without it each withheld figure reads as a bug rather than as a
+        // deliberate choice not to mislead.
+        const _MethodNote(),
       ],
     );
   }
@@ -375,6 +380,42 @@ class _Skeleton extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Why some figures are absent.
+///
+/// Stated once, at the bottom, rather than repeated on every withheld tile: the
+/// screen is full of deliberate blanks, and somebody who does not know the rule
+/// reads them as a broken screen.
+class _MethodNote extends StatelessWidget {
+  const _MethodNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(Space.s14),
+      decoration: BoxDecoration(
+        color: PanergoColors.fill,
+        borderRadius: Radii.brCard,
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          MaterialSymbol('insights', size: 17, color: PanergoColors.subtle),
+          SizedBox(width: Space.s10),
+          Expanded(
+            child: Text(
+              'Chaque chiffre est affiché avec le nombre de missions ou '
+              'd’offres sur lequel il repose. Un chiffre calculé sur trop peu '
+              'de données n’est pas montré — il serait faux.',
+              style: TextStyle(
+                  fontSize: 12, height: 1.45, color: PanergoColors.subtle),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

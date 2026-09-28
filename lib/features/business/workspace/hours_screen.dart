@@ -185,8 +185,12 @@ class _WhyItMatters extends StatelessWidget {
           const SizedBox(width: Space.s10),
           const Expanded(
             child: Text(
-              '« Ouvert » se calcule à partir d’ici. Un jour laissé fermé '
-              's’affiche fermé sur votre fiche.',
+              // The design's own wording, which says why rather than only
+              // what: over-declaring costs a wasted trip, under-declaring costs
+              // nothing, so the advice has to name that asymmetry.
+              'La pastille verte de votre fiche vient de ces horaires. Mieux '
+              'vaut fermer un jour que d’annoncer une ouverture que vous ne '
+              'tiendrez pas.',
               style: TextStyle(
                   fontSize: 12.5, height: 1.45, color: PanergoColors.body),
             ),

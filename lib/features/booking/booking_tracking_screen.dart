@@ -354,6 +354,14 @@ class _ProviderCard extends StatelessWidget {
                     '${Formats.money(offer.price)} · ${offer.timeline.label}',
                     style: type.cardTitle,
                   ),
+                  // Once the artisan is on site the figure is settled, and
+                  // saying so is the other half of the promise made when the
+                  // offer was accepted — that it could still move until then.
+                  if (booking.arrivedAt != null) ...[
+                    const SizedBox(height: 3),
+                    Text('Le prix ne change plus après l’arrivée',
+                        style: type.metaSmall),
+                  ],
                 ],
               ),
             ),

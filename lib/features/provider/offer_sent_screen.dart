@@ -62,8 +62,11 @@ class OfferSentScreen extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 290),
                 child: Text(
-                  'Le client compare les offres reçues. Vous serez prévenu '
-                  's’il choisit la vôtre.',
+                  // The second sentence is newly true: withdrawal exists now,
+                  // and an artisan who does not know that assumes the number is
+                  // committed the moment they press send.
+                  'Vous serez notifié si le client vous choisit. Tant qu’il n’a '
+                  'pas choisi, vous pouvez corriger ou retirer votre offre.',
                   textAlign: TextAlign.center,
                   style: type.bodyLarge,
                 ),

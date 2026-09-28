@@ -31,6 +31,9 @@ class QuartierScreen extends ConsumerWidget {
     final async = ref.watch(quartierProvider);
     final user = ref.watch(currentUserProvider);
     final posts = async.value ?? const <QuartierPost>[];
+    final quartier = user?.neighborhood.isNotEmpty == true
+        ? user!.neighborhood
+        : 'votre quartier';
 
     return FadeUp(
       child: Column(
@@ -74,7 +77,14 @@ class QuartierScreen extends ConsumerWidget {
               onRetry: () => ref.invalidate(quartierProvider),
               errorTitle: 'Impossible de charger le quartier',
               skeleton: (context) => const _QuartierSkeleton(),
-              empty: (context) => const _EmptyQuartier(),
+              // The neighbour count is 0 because nothing serves one yet: the
+              // design's « six voisins sont déjà là » needs a figure the API
+              // does not expose, and inventing it would be the one thing this
+              // screen must not do. The fallback wording is honest without it.
+              empty: (context) => _EmptyQuartier(
+                quartier: quartier,
+                neighbours: 0,
+              ),
               builder: (context, items) => RefreshIndicator(
                 onRefresh: () async => ref.invalidate(quartierProvider),
                 child: ListView.separated(
@@ -341,7 +351,14 @@ class _PostCard extends StatelessWidget {
 }
 
 class _EmptyQuartier extends StatelessWidget {
-  const _EmptyQuartier();
+  const _EmptyQuartier({required this.quartier, required this.neighbours});
+
+  /// Named, because « le quartier » in the abstract is nobody's quartier.
+  final String quartier;
+
+  /// How many neighbours are already here. The design's own argument for going
+  /// first: an empty feed is off-putting, six people waiting is an invitation.
+  final int neighbours;
 
   @override
   Widget build(BuildContext context) {
@@ -354,14 +371,17 @@ class _EmptyQuartier extends StatelessWidget {
             const MaterialSymbol('groups',
                 size: 44, color: PanergoColors.disabled),
             const SizedBox(height: Space.s12),
-            Text('Le quartier est calme',
+            Text('Le fil de $quartier commence',
                 style: context.type.cardTitle.copyWith(fontSize: 15.5)),
             const SizedBox(height: Space.s6),
             ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 250),
+              constraints: const BoxConstraints(maxWidth: 260),
               child: Text(
-                'Personne n’a encore publié ici. Posez la première question à '
-                'vos voisins.',
+                neighbours > 0
+                    ? '$neighbours voisins sont déjà là. La première question '
+                        'posée est souvent celle qui fait venir les autres.'
+                    : 'Personne n’a encore publié ici. Posez la première '
+                        'question à vos voisins.',
                 textAlign: TextAlign.center,
                 style: context.type.bodySmall
                     .copyWith(color: PanergoColors.subtle, height: 1.5),

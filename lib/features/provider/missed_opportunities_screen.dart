@@ -306,8 +306,8 @@ class _NothingMissed extends StatelessWidget {
                     color: PanergoColors.ink)),
             const SizedBox(height: Space.s6),
             const Text(
-              'Vous avez répondu aux demandes de votre quartier et aucune '
-              'offre récente n’a été perdue.',
+              'Vous n’avez encore laissé passer aucune demande. Cet écran se '
+              'remplira au fil de votre activité.',
               textAlign: TextAlign.center,
               style: TextStyle(
                   fontSize: 13, height: 1.5, color: PanergoColors.muted),
