@@ -12,6 +12,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/panergo_button.dart';
 import '../../core/widgets/useful_button.dart';
 import 'compose_sheet.dart';
 import '../client/new_request_screen.dart';
@@ -47,6 +48,27 @@ final streamProvider = FutureProvider.autoDispose<StreamPage>((ref) {
 /// the narrower view, and its default can flip once the volume justifies it.
 class StreamScreen extends ConsumerWidget {
   const StreamScreen({super.key});
+
+  /// Opens the composer. Shared by the header button and the empty state, which
+  /// must behave identically — two compose entry points that diverge is how one
+  /// of them quietly stops offering the tender cross-link.
+  Future<void> _compose(BuildContext context, WidgetRef ref) async {
+    final posted = await ComposeSheet.show(
+      context,
+      // Only a provider account may publish a réalisation, so only a provider
+      // is offered the choice.
+      canPublishWork: ref.read(currentUserProvider)?.isProvider ?? false,
+      // The sheet closes first: leaving it stacked over the request form would
+      // put two composers on screen.
+      onAskForWork: () {
+        Navigator.of(context).pop();
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => const NewRequestScreen(),
+        ));
+      },
+    );
+    if (posted == true) ref.invalidate(streamProvider);
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -84,24 +106,7 @@ class StreamScreen extends ConsumerWidget {
                       ),
                     ),
                     _ComposeButton(
-                      onTap: () async {
-                        final posted = await ComposeSheet.show(
-                          context,
-                          // Only a provider account may publish a réalisation,
-                          // so only a provider is offered the choice.
-                          canPublishWork:
-                              ref.read(currentUserProvider)?.isProvider ?? false,
-                          // The sheet closes first: leaving it stacked over the
-                          // request form would put two composers on screen.
-                          onAskForWork: () {
-                            Navigator.of(context).pop();
-                            Navigator.of(context).push(MaterialPageRoute(
-                              builder: (_) => const NewRequestScreen(),
-                            ));
-                          },
-                        );
-                        if (posted == true) ref.invalidate(streamProvider);
-                      },
+                      onTap: () => _compose(context, ref),
                     ),
                   ],
                 ),
@@ -126,7 +131,10 @@ class StreamScreen extends ConsumerWidget {
               onRetry: () => ref.invalidate(streamProvider),
               errorTitle: 'Impossible de charger le feed',
               skeleton: (context) => const _StreamSkeleton(),
-              empty: (context) => _EmptyStream(onlyMine: onlyMine),
+              empty: (context) => _EmptyStream(
+                onlyMine: onlyMine,
+                onCompose: () => _compose(context, ref),
+              ),
               builder: (context, items) => RefreshIndicator(
                 onRefresh: () async => ref.invalidate(streamProvider),
                 child: ListView.separated(
@@ -533,9 +541,14 @@ class _Footer extends StatelessWidget {
 }
 
 class _EmptyStream extends StatelessWidget {
-  const _EmptyStream({required this.onlyMine});
+  const _EmptyStream({required this.onlyMine, required this.onCompose});
 
   final bool onlyMine;
+
+  /// Opens the composer from here. The header has one too, but an empty screen
+  /// that says « posez une question » and offers no way to do it sends somebody
+  /// hunting for the button that was the whole point of the sentence.
+  final VoidCallback onCompose;
 
   @override
   Widget build(BuildContext context) {
@@ -567,6 +580,18 @@ class _EmptyStream extends StatelessWidget {
               style: const TextStyle(
                   fontSize: 13, height: 1.5, color: PanergoColors.muted),
             ),
+            // Paired with the line above it: the all-Douala view is the one
+            // that says « posez une question », so that is where the button
+            // belongs. The quartier view says « regardez tout Douala » instead,
+            // and its way out is the filter, not a new post.
+            if (!onlyMine) ...[
+              const SizedBox(height: Space.gutterTight),
+              PanergoOutlinedButton(
+                label: 'Poser la première question',
+                icon: 'forum',
+                onPressed: onCompose,
+              ),
+            ],
           ],
         ),
       ),

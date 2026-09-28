@@ -500,7 +500,13 @@ class _PhotoRow extends StatelessWidget {
                     ? 'L’envoi a échoué. Vous pouvez continuer sans.'
                     : uploading
                         ? 'Envoi en cours…'
-                        : 'Les clients la voient sur chacune de vos offres.',
+                        : photo == null
+                            // Says what happens without one, rather than what a
+                            // photo would do. Somebody hesitating here is
+                            // deciding whether skipping costs them anything.
+                            ? 'Sans photo, vos initiales s’affichent sur vos '
+                                'offres. Rien ne vous bloque.'
+                            : 'Les clients la voient sur chacune de vos offres.',
                 style: TextStyle(
                     fontSize: 12,
                     height: 1.4,
