@@ -42,6 +42,18 @@ final sendQueueProvider = Provider<SendQueue>((ref) {
   return queue;
 });
 
+/// How many sends are waiting for the network.
+///
+/// Seeded from storage before following the stream: the queue broadcasts, so a
+/// screen subscribing after a send was held would otherwise show nothing until
+/// the next change — which for a phone left offline is never. That is the whole
+/// case a « partira au retour du réseau » panel exists to cover.
+final pendingSendsProvider = StreamProvider<int>((ref) async* {
+  final queue = ref.watch(sendQueueProvider);
+  yield await queue.count();
+  yield* queue.pending;
+});
+
 /// Where the session stands.
 sealed class AuthState {
   const AuthState();

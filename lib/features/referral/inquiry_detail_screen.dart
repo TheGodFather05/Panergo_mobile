@@ -14,6 +14,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/dashed_border.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/pending_sends_banner.dart';
 import 'referral_draft_screen.dart';
 
 /// One relayed question and what came back.
@@ -164,6 +165,9 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
                     padding: const EdgeInsets.fromLTRB(
                         Space.gutterTight, 0, Space.gutterTight, Space.s30),
                     children: [
+                      // Renders only when something is actually held, so this
+                      // is invisible on every normal visit.
+                      const PendingSendsBanner(noun: 'question'),
                       _Headline(detail: detail),
                       const SizedBox(height: Space.s14),
                       if (detail.awaiting)

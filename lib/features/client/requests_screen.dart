@@ -11,6 +11,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/widgets/async_view.dart';
 import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/pending_sends_banner.dart';
 import '../booking/booking_tracking_screen.dart';
 import '../referral/inquiry_detail_screen.dart';
 import 'new_request_screen.dart';
@@ -153,15 +154,33 @@ class RequestsScreen extends ConsumerWidget {
                   ref.invalidate(myRequestsProvider);
                   ref.invalidate(myInquiriesProvider);
                 },
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(
-                      Space.gutterTight, 0, Space.gutterTight, Space.gutter),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 13),
-                  itemBuilder: (context, index) => switch (items[index]) {
-                    TenderRow(:final request) => _RequestCard(request: request),
-                    InquiryRow(:final inquiry) => _InquiryCard(inquiry: inquiry),
-                  },
+                // The banner sits above the list rather than as row zero: an
+                // index offset inside itemBuilder is how a switch on items[i]
+                // starts reading the wrong row.
+                child: Column(
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.symmetric(
+                          horizontal: Space.gutterTight),
+                      child: PendingSendsBanner(),
+                    ),
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(Space.gutterTight, 0,
+                            Space.gutterTight, Space.gutter),
+                        itemCount: items.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 13),
+                        itemBuilder: (context, index) =>
+                            switch (items[index]) {
+                          TenderRow(:final request) =>
+                            _RequestCard(request: request),
+                          InquiryRow(:final inquiry) =>
+                            _InquiryCard(inquiry: inquiry),
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
