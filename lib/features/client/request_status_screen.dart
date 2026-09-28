@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/format/formats.dart';
 import '../../core/models/enums.dart';
 import '../../core/models/models.dart';
+import '../../core/network/api_client.dart' show ApiConfig;
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -242,6 +243,28 @@ class _RecapCard extends StatelessWidget {
           ),
           const SizedBox(height: Space.s12),
           Text(request.description, style: type.body),
+          // Shown back to whoever attached it. The design puts the photo on the
+          // artisan's side only, which is where it does the work — but a client
+          // who chose to attach one has no other way to know it went.
+          if (request.photoUrl != null) ...[
+            const SizedBox(height: Space.s12),
+            ClipRRect(
+              borderRadius: Radii.brTile,
+              child: Image.network(
+                ApiConfig.absolute(request.photoUrl!),
+                width: double.infinity,
+                height: 140,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  height: 140,
+                  color: PanergoColors.skeleton,
+                  alignment: Alignment.center,
+                  child: const MaterialSymbol('image_not_supported',
+                      size: 22, color: PanergoColors.placeholder),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: Space.s14),
           const Divider(height: 1, color: PanergoColors.fillAlt),
           const SizedBox(height: Space.s12),
