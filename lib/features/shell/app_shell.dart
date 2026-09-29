@@ -8,7 +8,7 @@ import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../client/home_screen.dart';
-import '../client/new_request_screen.dart';
+import '../client/new_thing_sheet.dart';
 import '../deals/deals_screen.dart';
 import '../messages/messages_screen.dart';
 import '../profile/client_profile_screen.dart';
@@ -319,11 +319,12 @@ class _AppShellState extends ConsumerState<AppShell> {
               Positioned(
                 right: Space.s14,
                 bottom: Space.s10,
+                // The same three choices as the « + » of Mes demandes, from the
+                // same function: two entry points offering different things
+                // would be the worse bug, and it is the artisan branch that
+                // would quietly go missing from one of them.
                 child: _AskButton(
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                        builder: (_) => const NewRequestScreen()),
-                  ),
+                  onTap: () => startSomething(context, ref),
                 ),
               ),
           ],

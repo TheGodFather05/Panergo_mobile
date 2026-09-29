@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/models/enums.dart';
+import '../../core/models/models.dart';
+import '../../core/network/api_exception.dart';
+import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../../core/widgets/trade_picker.dart';
+import '../referral/referral_draft_screen.dart';
+import 'new_request_screen.dart';
+import 'requests_screen.dart' show myInquiriesProvider;
 
 /// « Que voulez-vous faire ? » — the three things a client can create.
 ///
@@ -140,4 +148,90 @@ class _Choice extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Opens « Que voulez-vous faire ? » and routes whatever is chosen.
+///
+/// Lives beside the sheet rather than on a screen, because two places offer it:
+/// the « + » of Mes demandes and the floating « Demander » on the client's
+/// home. Two copies would have drifted, and the first thing to go would be the
+/// artisan branch nobody thinks to update.
+///
+/// A demande goes straight to its form. A question needs a market first: the
+/// trade for artisans, and for shops the existing relay, which infers the
+/// category from the words rather than asking for it up front.
+Future<void> startSomething(BuildContext context, WidgetRef ref) async {
+  final choice = await NewThingSheet.show(context);
+  if (choice == null || !context.mounted) return;
+
+  switch (choice) {
+    case ReferralTarget.trade:
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => const NewRequestScreen()));
+
+    case ReferralTarget.askTrade:
+      await _askTheTrade(context, ref);
+
+    case ReferralTarget.shop:
+      // The shop relay reads its category from the question itself, so it
+      // starts on an empty draft in the person's own quartier.
+      await _openDraft(context, ref, trade: null);
+  }
+}
+
+/// Picks the trade, then asks how many artisans it would reach.
+///
+/// The reach is fetched before the draft opens because the draft states it
+/// (« 3 carreleurs »), and a zero means the design shows no proposal at all
+/// rather than offering to send into an empty room.
+Future<void> _askTheTrade(BuildContext context, WidgetRef ref) async {
+  final trade = await TradePicker.show(context);
+  if (trade == null || !context.mounted) return;
+  await _openDraft(context, ref, trade: trade);
+}
+
+Future<void> _openDraft(BuildContext context, WidgetRef ref,
+    {required ServiceCategory? trade}) async {
+  final quartier = ref.read(currentUserProvider)?.neighborhood ?? '';
+
+  var reach = 0;
+  var widen = false;
+  if (trade != null) {
+    try {
+      final preview = await ref
+          .read(apiProvider)
+          .tradeReach(trade: trade, neighborhood: quartier);
+      reach = preview.wouldReach;
+      widen = preview.wouldWiden;
+    } on ApiException {
+      // A reach we could not fetch is not a reason to block the question —
+      // the draft simply does not promise a number it does not have.
+    }
+  }
+
+  if (!context.mounted) return;
+
+  if (trade != null && reach == 0) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Aucun ${trade.label.toLowerCase()} ne peut répondre '
+          'à ${quartier.isEmpty ? "votre quartier" : quartier} pour l’instant.'),
+    ));
+    return;
+  }
+
+  await Navigator.of(context, rootNavigator: true).push(
+    MaterialPageRoute<void>(
+      builder: (_) => ReferralDraftScreen(
+        draft: ReferralDraft(
+          text: '',
+          neighborhood: quartier,
+          wouldReach: reach,
+          wouldWiden: widen,
+          trade: trade,
+          suggestedCategoryLabel: trade?.label,
+        ),
+        onSent: (_) => ref.invalidate(myInquiriesProvider),
+      ),
+    ),
+  );
 }

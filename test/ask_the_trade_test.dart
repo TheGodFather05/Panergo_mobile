@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -230,5 +231,22 @@ void main() {
       expect(summary(converted: 'r1').becameRequest, isTrue);
       expect(summary().becameRequest, isFalse);
     });
+  });
+
+  test('both entry points route through one function', () {
+    // The « + » of Mes demandes and the floating « Demander » on the home both
+    // call startSomething. Two copies would drift, and the artisan branch is
+    // the one that would quietly go missing from one of them.
+    final shell = File('lib/features/shell/app_shell.dart').readAsStringSync();
+    final requests =
+        File('lib/features/client/requests_screen.dart').readAsStringSync();
+
+    expect(shell, contains('startSomething(context, ref)'));
+    expect(requests, contains('startSomething(context, ref)'));
+
+    // Neither may push the request form directly any more — that is what
+    // bypassed the choice.
+    expect(shell.contains('const NewRequestScreen()'), isFalse);
+    expect(requests.contains('const NewRequestScreen()'), isFalse);
   });
 }
