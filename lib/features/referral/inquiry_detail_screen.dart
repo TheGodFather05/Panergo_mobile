@@ -15,6 +15,7 @@ import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/dashed_border.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/panergo_button.dart';
+import 'to_request_screen.dart';
 import '../client/requests_screen.dart'
     show myInquiriesProvider, myRequestsProvider;
 import '../../core/widgets/pending_sends_banner.dart';
@@ -86,47 +87,32 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
 
   /// « En faire une demande » — the bridge the whole flow exists for.
   ///
-  /// Behind a confirmation (RM-09) because it goes out to artisans: the
-  /// question asked whether the work was possible, and this asks them to price
-  /// it. The sheet says what carries over, which is also where the reader
-  /// learns what does not — the figure an artisan mentioned is nowhere in it.
-  Future<void> _makeRequest(InquiryDetail detail) async {
-    final confirmed = await ConfirmSheet.show(
-      context,
-      title: 'En faire une demande ?',
-      body: 'Votre texte, le métier et le quartier sont repris. Cette fois les '
-          'artisans vous envoient un prix ferme et un délai, et votre question '
-          'se ferme.',
-      confirmLabel: 'Créer la demande',
-      cancelLabel: 'Pas encore',
-      destructive: false,
-    );
-    if (confirmed != true || !mounted) return;
+  /// Opens the review screen rather than creating the tender outright. The
+  /// design shows what carries over before anything is sent, which is also
+  /// where the reader sees what does not: the figure an artisan mentioned is
+  /// nowhere on it. A confirmation sheet would have said the same thing in
+  /// words; the screen says it by showing the fields.
+  Future<void> _makeRequest(InquiryReply acceptedBy) async {
+    final detail = _detail;
+    if (detail == null || _busy) return;
 
     setState(() => _busy = true);
-    try {
-      final created =
-          await ref.read(apiProvider).inquiryToRequest(detail.inquiryId);
-      if (!mounted) return;
+    final requestId = await Navigator.of(context, rootNavigator: true)
+        .push<String>(MaterialPageRoute(
+      builder: (_) => ToRequestScreen(detail: detail, acceptedBy: acceptedBy),
+    ));
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (requestId == null) return;
 
-      // Both lists changed: the question closed and a tender opened.
-      ref.invalidate(myInquiriesProvider);
-      ref.invalidate(myRequestsProvider);
+    // Both lists changed: the question closed and a tender opened.
+    ref.invalidate(myInquiriesProvider);
+    ref.invalidate(myRequestsProvider);
 
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(created.providersNotified == 0
-            ? 'Votre demande est créée.'
-            : 'Votre demande est partie à '
-                '${created.providersNotified} artisan'
-                '${created.providersNotified > 1 ? 's' : ''}.'),
-      ));
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      setState(() => _busy = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
-    }
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('Votre demande est partie. Votre question est close.'),
+    ));
   }
 
   Future<void> _close() async {
@@ -240,7 +226,7 @@ class _InquiryDetailScreenState extends ConsumerState<InquiryDetailScreen> {
                               child: _ReplyCard(
                                 reply: reply,
                                 onMakeRequest:
-                                    _busy ? null : () => _makeRequest(detail),
+                                    _busy ? null : () => _makeRequest(reply),
                               ),
                             ),
                         ],

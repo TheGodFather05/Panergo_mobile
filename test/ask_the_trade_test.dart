@@ -1,13 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:panergo_mobile/core/models/enums.dart';
 import 'package:panergo_mobile/core/models/models.dart';
 import 'package:panergo_mobile/core/theme/app_theme.dart';
 import 'package:panergo_mobile/core/theme/palette.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:panergo_mobile/features/client/new_thing_sheet.dart';
+import 'package:panergo_mobile/features/referral/to_request_screen.dart';
 
 /// Asking artisans whether they can, rather than asking them to price it.
 ///
@@ -155,6 +156,79 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(chosen, ReferralTarget.askTrade);
+    });
+  });
+
+  group('ToRequestScreen', () {
+    InquiryDetail detail() =>
+        InquiryDetail.fromJson(jsonDecode(_answers) as Map<String, dynamic>);
+
+    Widget wrap(InquiryDetail d) => ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.build(BrandDirection.braise),
+            locale: const Locale('fr', 'FR'),
+            home: ToRequestScreen(
+                detail: d, acceptedBy: d.canDoReplies.first),
+          ),
+        );
+
+    testWidgets('names who said yes, and when', (tester) async {
+      await tester.pumpWidget(wrap(detail()));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Samuel N. a dit qu’il peut'), findsOneWidget);
+      expect(find.textContaining('mardi matin'), findsAtLeastNWidgets(1));
+    });
+
+    testWidgets('marks every carried field « repris »', (tester) async {
+      await tester.pumpWidget(wrap(detail()));
+      await tester.pumpAndSettle();
+
+      // Text, trade, quartier and the day: four fields nobody retypes.
+      expect(find.text('repris'), findsNWidgets(4));
+    });
+
+    testWidgets('the indicative price is carried nowhere', (tester) async {
+      await tester.pumpWidget(wrap(detail()));
+      await tester.pumpAndSettle();
+
+      // The design's argument, made by absence: « 9 000 » was never a quote,
+      // and the screen does not repeat it rather than warning about it.
+      expect(find.textContaining('9 000'), findsNothing);
+      expect(find.textContaining('9000'), findsNothing);
+    });
+
+    testWidgets('says what changes now', (tester) async {
+      await tester.pumpWidget(wrap(detail()));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('un prix ferme et un délai'), findsOneWidget);
+      expect(find.text('Relire la demande'), findsOneWidget);
+    });
+  });
+
+  group('a closed question in the list', () {
+    InquirySummary summary({String? converted}) =>
+        InquirySummary.fromJson({
+          'inquiry_id': 'i1',
+          'audience': 'PROVIDERS',
+          'converted_request_id': converted,
+          'text': 'Arête de poisson, vous savez faire ?',
+          'category_label': 'Carreleurs',
+          'neighborhood': 'Bonamoussadi',
+          'scope': 'QUARTIER',
+          'status': 'CLOSED',
+          'recipient_count': 3,
+          'answered': 2,
+          'have_it': 2,
+          'expires_at': '2026-10-01T18:00:00Z',
+          'expired': false,
+          'created_at': '2026-09-28T09:00:00Z',
+        });
+
+    test('knows it became a demande', () {
+      expect(summary(converted: 'r1').becameRequest, isTrue);
+      expect(summary().becameRequest, isFalse);
     });
   });
 }

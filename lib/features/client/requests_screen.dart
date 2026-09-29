@@ -516,20 +516,20 @@ class _InquiryCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              StatusPill(
-                label: 'Commerces',
-                background: PanergoColors.fill,
-                foreground: PanergoColors.ink2,
+              Expanded(
+                child: _KindLabel(
+                  icon: inquiry.audience.isTrade ? 'forum' : 'storefront',
+                  // Each label names the kind and who answers it, because
+                  // « Question » alone does not say whether somebody is
+                  // checking a shelf or a skill.
+                  text: 'Question · '
+                      '${inquiry.categoryLabel ?? (inquiry.audience.isTrade ? "Artisans" : "Commerces")}',
+                  ink: inquiry.audience.isTrade
+                      ? BrandPalette.braise.fill
+                      : BrandPalette.business.fill,
+                ),
               ),
               const SizedBox(width: Space.s8),
-              if (inquiry.categoryLabel != null)
-                Expanded(
-                  child: Text(inquiry.categoryLabel!,
-                      style: context.type.metaSmall,
-                      overflow: TextOverflow.ellipsis),
-                )
-              else
-                const Spacer(),
               Text(Formats.relativeTime(inquiry.createdAt),
                   style: context.type.metaSmall),
             ],
@@ -543,15 +543,19 @@ class _InquiryCard extends StatelessWidget {
           Row(
             children: [
               MaterialSymbol(
-                  inquiry.haveIt > 0 ? 'check_circle' : 'schedule',
+                  inquiry.becameRequest
+                      ? 'arrow_upward'
+                      : inquiry.haveIt > 0
+                          ? 'check_circle'
+                          : 'schedule',
                   size: 15,
-                  color: inquiry.haveIt > 0
+                  color: inquiry.becameRequest || inquiry.haveIt > 0
                       ? PanergoColors.statusDoneInk
                       : PanergoColors.subtle),
               const SizedBox(width: Space.s6),
               Expanded(
                 child: Text(
-                  _status(inquiry),
+                  _ending(inquiry),
                   style: context.type.metaSmall.copyWith(height: 1.4),
                 ),
               ),
@@ -560,6 +564,15 @@ class _InquiryCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// « Close · devenue une demande » and the rest.
+  ///
+  /// The status alone cannot say how a question ended, which is why the server
+  /// records what it became.
+  static String _ending(InquirySummary inquiry) {
+    if (inquiry.becameRequest) return 'Close · devenue une demande';
+    return _status(inquiry);
   }
 
   /// What came back, in the order somebody cares about it: who has the thing
@@ -577,5 +590,45 @@ class _InquiryCard extends StatelessWidget {
     return inquiry.live
         ? 'Envoyée à ${inquiry.recipientCount} boutiques · en attente'
         : 'Aucune réponse avant la clôture';
+  }
+}
+
+/// « Demande · Carreleurs », « Question · Quincailleries ».
+///
+/// Three kinds share one list, so each row says which it is before it says
+/// anything else. Colour carries it too — orange for a demande, braise for a
+/// question to artisans, purple for one to shops — but never alone: the glyph
+/// and the word are what a reader who cannot separate the hues still gets
+/// (RM-16).
+class _KindLabel extends StatelessWidget {
+  const _KindLabel({
+    required this.icon,
+    required this.text,
+    required this.ink,
+  });
+
+  final String icon;
+  final String text;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MaterialSymbol(icon, size: 15, color: ink),
+        const SizedBox(width: Space.s6),
+        Flexible(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: ink),
+          ),
+        ),
+      ],
+    );
   }
 }

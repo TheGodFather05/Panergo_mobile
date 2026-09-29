@@ -2340,6 +2340,7 @@ class InquirySummary {
   const InquirySummary({
     required this.inquiryId,
     required this.audience,
+    this.convertedRequestId,
     required this.text,
     required this.neighborhood,
     required this.scope,
@@ -2357,6 +2358,16 @@ class InquirySummary {
   /// Who was asked. The client reads its whole vocabulary from this — « en a »
   /// against « peut », « commerces » against the trade's own word.
   final InquiryAudienceKind audience;
+
+  /// The tender this question became, when somebody said they could.
+  ///
+  /// Null for every other closed question. « Devenue une demande » and
+  /// « 1 boutique en avait » are different endings, and the status cannot tell
+  /// them apart.
+  final String? convertedRequestId;
+
+  /// Whether this question ended by becoming a demande.
+  bool get becameRequest => convertedRequestId != null;
 
   final String text;
   final String? categoryLabel;
@@ -2379,6 +2390,7 @@ class InquirySummary {
   factory InquirySummary.fromJson(Map<String, dynamic> json) => InquirySummary(
         inquiryId: Json.str(json['inquiry_id']),
         audience: InquiryAudienceKind.fromWire(Json.strOrNull(json['audience'])),
+        convertedRequestId: Json.strOrNull(json['converted_request_id']),
         text: Json.str(json['text']),
         categoryLabel: Json.strOrNull(json['category_label']),
         neighborhood: Json.str(json['neighborhood']),
