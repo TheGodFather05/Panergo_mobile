@@ -73,6 +73,39 @@ void main() {
 
       expect(() => AssistantAnswer.fromJson(json), returnsNormally);
     });
+
+    test('a server that does not send the count hides nothing', () {
+      // The fixture above predates matched_article_count — it is exactly what
+      // an older server answers. Absent, the count reads 0, and « hidden »
+      // must come out 0 rather than negative: an app that announced
+      // « et -1 autres références » would be worse than one that said nothing.
+      final answer = AssistantAnswer.fromJson(
+          jsonDecode(_ciment) as Map<String, dynamic>);
+
+      expect(answer.businesses.last.matchedArticles, hasLength(1));
+      expect(answer.businesses.last.hiddenArticleCount, 0);
+    });
+
+    test('the count says how many were cut, not how many fitted', () {
+      final json = jsonDecode(_ciment) as Map<String, dynamic>;
+      // One article shown of fifteen that matched: a deep catalogue, cut.
+      (json['businesses'] as List).last['matched_article_count'] = 15;
+
+      final shop = AssistantAnswer.fromJson(json).businesses.last;
+
+      expect(shop.matchedArticles, hasLength(1));
+      expect(shop.matchedArticleCount, 15);
+      expect(shop.hiddenArticleCount, 14);
+    });
+
+    test('a whole list hides nothing', () {
+      final json = jsonDecode(_ciment) as Map<String, dynamic>;
+      // Everything that matched is shown — the common case.
+      (json['businesses'] as List).last['matched_article_count'] = 1;
+
+      expect(AssistantAnswer.fromJson(json).businesses.last.hiddenArticleCount,
+          0);
+    });
   });
 
   group('Json.strings', () {

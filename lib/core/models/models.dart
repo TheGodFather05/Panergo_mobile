@@ -758,6 +758,7 @@ class AssistantBusiness {
     required this.openNow,
     required this.services,
     required this.matchedArticles,
+    this.matchedArticleCount = 0,
     this.photoUrl,
   });
 
@@ -771,7 +772,22 @@ class AssistantBusiness {
   final List<String> services;
 
   /// Articles the question mentioned — why this shop is in the results.
+  ///
+  /// Capped by the server, so a deep catalogue cannot push the other shops off
+  /// the screen. [matchedArticleCount] is how many there were.
   final List<AssistantArticle> matchedArticles;
+
+  /// How many articles matched, before the cap.
+  ///
+  /// Zero from a server that predates the field, which [hiddenArticleCount]
+  /// reads as « nothing was hidden » rather than « everything was ».
+  final int matchedArticleCount;
+
+  /// How many matched and are not shown. Zero when the list is whole.
+  int get hiddenArticleCount {
+    final hidden = matchedArticleCount - matchedArticles.length;
+    return hidden > 0 ? hidden : 0;
+  }
 
   factory AssistantBusiness.fromJson(Map<String, dynamic> json) =>
       AssistantBusiness(
@@ -786,6 +802,7 @@ class AssistantBusiness {
         matchedArticles: Json.list(json['matched_articles'])
             .map(AssistantArticle.fromJson)
             .toList(),
+        matchedArticleCount: Json.intOf(json['matched_article_count']),
       );
 }
 

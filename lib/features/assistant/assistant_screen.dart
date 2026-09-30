@@ -731,7 +731,35 @@ class _BusinessCard extends StatelessWidget {
                                 ? PanergoColors.muted
                                 : PanergoColors.ink),
                       ),
+
+                      // The unit the shopkeeper set. 6 500 FCFA the sack and
+                      // 6 500 FCFA the kilo are not the same shop, and the
+                      // server has been sending this all along.
+                      if (article.price != null &&
+                          (article.unit?.isNotEmpty ?? false))
+                        Text(' / ${article.unit}',
+                            style: const TextStyle(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: PanergoColors.muted)),
                     ],
+                  ),
+                ),
+
+              // What the cap cut. Without this a shop with thirty kinds of
+              // cement reads as one with three, and the rare reference
+              // somebody came for looks like it exists nowhere.
+              if (business.hiddenArticleCount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: Space.s6, left: 20),
+                  child: Text(
+                    'et ${business.hiddenArticleCount} autre'
+                    '${business.hiddenArticleCount > 1 ? 's' : ''} référence'
+                    '${business.hiddenArticleCount > 1 ? 's' : ''} ›',
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: context.brand.link),
                   ),
                 ),
             ],
