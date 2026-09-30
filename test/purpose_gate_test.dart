@@ -55,6 +55,20 @@ void main() {
   });
 
   group('PurposeScreen', () {
+  /// Keeps the gate alive for the duration of a test.
+  ///
+  /// PurposeScreen only writes the flag — main.dart is what reads it — so
+  /// without a listener the provider is first built by the assertion itself,
+  /// returning the optimistic « asked » default before its restore has run.
+  Future<ProviderContainer> livingContainer(WidgetTester t) async {
+    final container = ProviderContainer();
+    addTearDown(container.dispose);
+    addTearDown(container.listen(purposeAskedProvider, (_, __) {}).close);
+    await t.runAsync(() => Future<void>.delayed(Duration.zero));
+    return container;
+  }
+
+
     testWidgets('offers the three reasons someone installs this', (t) async {
       await t.pumpWidget(ProviderScope(
         child: MaterialApp(
@@ -69,7 +83,7 @@ void main() {
       expect(find.text('Faire connaître ma boutique'), findsOneWidget);
     });
 
-    testWidgets('says what the two slower choices cost', (t) async {
+    testWidgets('says what each choice costs', (t) async {
       await t.pumpWidget(ProviderScope(
         child: MaterialApp(
           theme: AppTheme.build(BrandDirection.braise),
@@ -78,16 +92,18 @@ void main() {
       ));
 
       // The artisan wizard is four screens and the listing waits for a human.
-      // Both are stated on the choice rather than discovered after taking it.
-      expect(find.text('Quelques questions sur votre métier'), findsOneWidget);
-      expect(
-          find.text('Votre fiche est relue avant publication'), findsOneWidget);
+      // Both are stated on the choice rather than discovered after taking it —
+      // and « Tout de suite » is what makes a « Je verrai plus tard » option
+      // unnecessary: it is already the quick way out.
+      expect(find.text('Tout de suite'), findsOneWidget);
+      expect(find.text('4 étapes · environ 2 min'), findsOneWidget);
+      expect(find.text('1 formulaire · relu sous 2 jours ouvrés'),
+          findsOneWidget);
     });
 
-    testWidgets('choosing to look around records the answer and opens nothing',
+    testWidgets('nothing is chosen, and the button says why it waits',
         (t) async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+      final container = await livingContainer(t);
 
       await t.pumpWidget(UncontrolledProviderScope(
         container: container,
@@ -97,7 +113,54 @@ void main() {
         ),
       ));
 
+      expect(find.text('Choisissez ce qui vous amène pour continuer.'),
+          findsOneWidget);
+
+      // Visible and inert rather than absent (RM-07). Pressing it does nothing
+      // and, critically, records nothing: the question has not been answered.
+      await t.tap(find.text('Continuer'));
+      await t.pump();
+      expect(container.read(purposeAskedProvider), isFalse);
+    });
+
+    testWidgets('choosing a trade says nothing is active yet', (t) async {
+      await t.pumpWidget(ProviderScope(
+        child: MaterialApp(
+          theme: AppTheme.build(BrandDirection.braise),
+          home: const PurposeScreen(),
+        ),
+      ));
+
+      await t.tap(find.text('Faire connaître ma boutique'));
+      await t.pump();
+
+      // The server truth, before the form rather than after it.
+      expect(find.text('Rien n’est activé avant la fin du formulaire.'),
+          findsOneWidget);
+      expect(find.text('Continuer vers le formulaire'), findsOneWidget);
+    });
+
+    testWidgets('choosing to look around records the answer and opens nothing',
+        (t) async {
+      final container = await livingContainer(t);
+
+      await t.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: AppTheme.build(BrandDirection.braise),
+          home: const PurposeScreen(),
+        ),
+      ));
+
+      // Choosing selects; the button commits. Two gestures, because nothing is
+      // preselected and a tap that navigated would make the first choice
+      // irreversible.
       await t.tap(find.text('Trouver un artisan ou un commerce'));
+      await t.pump();
+      expect(container.read(purposeAskedProvider), isFalse,
+          reason: 'selecting is not yet answering');
+
+      await t.tap(find.text('Continuer'));
       await t.pumpAndSettle();
 
       expect(container.read(purposeAskedProvider), isTrue,
@@ -109,8 +172,7 @@ void main() {
 
     testWidgets('the question is not asked twice after a form is abandoned',
         (t) async {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
+      final container = await livingContainer(t);
 
       await t.pumpWidget(UncontrolledProviderScope(
         container: container,
@@ -124,6 +186,8 @@ void main() {
       // who opens the artisan wizard and backs out has been asked, and asking
       // again would read as the app not having listened.
       await t.tap(find.text('Recevoir des demandes de travail'));
+      await t.pump();
+      await t.tap(find.text('Continuer : 4 étapes'));
       await t.pump();
 
       expect(container.read(purposeAskedProvider), isTrue);
