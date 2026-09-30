@@ -17,6 +17,47 @@ void main() {
             'anything laying out around height/2 reserved the wrong box');
   });
 
+  testWidgets('a stretching parent cannot resize the artwork', (tester) async {
+    // The welcome screen put the mark straight into a ListView, which gives its
+    // children TIGHT cross-axis constraints. A bare SizedBox(56, 56) became
+    // 800 x 56, and CustomPaint scaled the square canvas into that box — so the
+    // artwork painted ~430px tall, overflowed its 56px row and covered the form
+    // below it. Nothing threw, and the square assertion above still passed,
+    // because it pumps inside a Center, which constrains loosely.
+    //
+    // The outer widget is still viewport-wide and cannot be otherwise: a widget
+    // may not be narrower than a tight constraint. What must stay 56 x 56 is the
+    // painted canvas, so that is what this measures.
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ListView(children: const [BrandMark(height: 56)]),
+      ),
+    ));
+
+    final canvas = tester.getSize(
+        find.descendant(of: find.byType(BrandMark), matching: find.byType(CustomPaint)));
+    expect(canvas, const Size(56, 56),
+        reason: 'a ListView stretched the painted canvas to the viewport width');
+
+    // And the row it occupies is its own height, not the square blown up.
+    expect(tester.getSize(find.byType(BrandMark)).height, 56);
+  });
+
+  testWidgets('the artwork keeps its size under tight constraints',
+      (tester) async {
+    // The general case behind the ListView: any parent forcing a box far larger
+    // than the mark asked for.
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(
+        body: SizedBox(width: 400, height: 400, child: BrandMark(height: 52)),
+      ),
+    ));
+
+    final canvas = tester.getSize(
+        find.descendant(of: find.byType(BrandMark), matching: find.byType(CustomPaint)));
+    expect(canvas, const Size(52, 52));
+  });
+
   testWidgets('it paints without throwing at every size that matters',
       (tester) async {
     // 20 is the documented floor, 40 the plain/separation boundary.

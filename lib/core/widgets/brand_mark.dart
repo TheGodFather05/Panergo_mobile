@@ -43,15 +43,34 @@ class BrandMark extends StatelessWidget {
   Widget build(BuildContext context) {
     assert(height >= 20, 'The mark is unreadable below 20 px — use the logotype.');
 
-    return SizedBox(
-      // Square: the canvas is 100 × 100.
-      height: height,
-      width: height,
-      child: CustomPaint(
-        painter: _MarkPainter(
-          plain: height < plainBelow,
-          monochrome: monochrome,
-          ink: onDark ? Colors.white : const Color(0xFF0F1113),
+    // A parent that imposes tight constraints — a ListView stretches every
+    // child to the viewport width — would otherwise override the SizedBox and
+    // paint the 100 × 100 canvas across the whole screen. That failure is
+    // silent: no throw, no warning, just the mark behind the content.
+    // UnconstrainedBox lets it keep the square it asks for, whatever the
+    // parent hands down.
+    return Align(
+      // Align shrink-wraps to its child under tight constraints, so the whole
+      // widget stays 56 x 56 rather than only the artwork inside it — an
+      // UnconstrainedBox would paint the mark correctly while still reserving
+      // the full viewport width as an empty row.
+      //
+      // Left, not the default centre: a parent that already positions the mark
+      // (a Column with CrossAxisAlignment.start) must keep deciding where it
+      // sits. Centring here would silently move it on every screen that does.
+      alignment: Alignment.centerLeft,
+      widthFactor: 1,
+      heightFactor: 1,
+      child: SizedBox(
+        // Square: the canvas is 100 × 100.
+        height: height,
+        width: height,
+        child: CustomPaint(
+          painter: _MarkPainter(
+            plain: height < plainBelow,
+            monochrome: monochrome,
+            ink: onDark ? Colors.white : const Color(0xFF0F1113),
+          ),
         ),
       ),
     );
