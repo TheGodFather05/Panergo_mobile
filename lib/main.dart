@@ -9,6 +9,8 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/palette.dart';
 import 'features/auth/login_screen.dart';
 import 'features/onboarding/complete_profile_screen.dart';
+import 'features/onboarding/purpose_gate.dart';
+import 'features/onboarding/purpose_screen.dart';
 import 'features/shell/app_shell.dart';
 
 Future<void> main() async {
@@ -149,6 +151,10 @@ class _Root extends ConsumerWidget {
       // useful to show behind this.
       SignedIn(:final user) when user.needsProfileCompletion =>
         const CompleteProfileScreen(),
+      // Asked once per device, after the account has a name and a quartier and
+      // before the shell. A merchant who lands straight on the client home has
+      // no reason to think the rest of the product is there.
+      SignedIn() when !ref.watch(purposeAskedProvider) => const PurposeScreen(),
       SignedIn() => const AppShell(),
       },
     );
