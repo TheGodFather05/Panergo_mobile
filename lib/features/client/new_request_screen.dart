@@ -49,6 +49,29 @@ class NewRequestScreen extends ConsumerStatefulWidget {
   /// compare it to, and the product exists to get them three.
   final StreamPost? fromPost;
 
+  /// The route this screen is opened with, wherever it is opened from.
+  ///
+  /// A demande is NOT one of the screens the design sends full-screen — the
+  /// showUserNav rules keep the bar across « Mes demandes » and everything
+  /// reached from it. Six callers each wrote `MaterialPageRoute(builder: ...)`
+  /// and so each decided that independently; five were right because they
+  /// happened to sit inside a tab, and the shell's floating « Demander » was
+  /// wrong because it does not. Naming the route here is what
+  /// fullscreen_route.dart already prescribes: the decision belongs next to
+  /// the screen, where a new caller cannot forget it.
+  static MaterialPageRoute<void> route({
+    ServiceCategory? initialCategory,
+    String? initialDescription,
+    StreamPost? fromPost,
+  }) =>
+      MaterialPageRoute<void>(
+        builder: (_) => NewRequestScreen(
+          initialCategory: initialCategory,
+          initialDescription: initialDescription,
+          fromPost: fromPost,
+        ),
+      );
+
   @override
   ConsumerState<NewRequestScreen> createState() => _NewRequestScreenState();
 }

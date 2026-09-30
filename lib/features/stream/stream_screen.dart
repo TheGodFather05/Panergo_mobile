@@ -62,9 +62,7 @@ class StreamScreen extends ConsumerWidget {
       // put two composers on screen.
       onAskForWork: () {
         Navigator.of(context).pop();
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (_) => const NewRequestScreen(),
-        ));
+        Navigator.of(context).push(NewRequestScreen.route());
       },
     );
     if (posted == true) ref.invalidate(streamProvider);
@@ -134,10 +132,8 @@ class StreamScreen extends ConsumerWidget {
               empty: (context) => _EmptyStream(
                 onlyMine: onlyMine,
                 onCompose: () => _compose(context, ref),
-                onAskForWork: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const NewRequestScreen()),
-                ),
+                onAskForWork: () =>
+                    Navigator.of(context).push(NewRequestScreen.route()),
               ),
               builder: (context, items) => RefreshIndicator(
                 onRefresh: () async => ref.invalidate(streamProvider),
@@ -459,11 +455,8 @@ class _AskTheSame extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GestureDetector(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => NewRequestScreen(fromPost: post),
-          ),
-        ),
+        onTap: () => Navigator.of(context)
+            .push(NewRequestScreen.route(fromPost: post)),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 12),

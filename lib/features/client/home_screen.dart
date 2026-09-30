@@ -198,9 +198,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void _openRequestFor(ServiceCategory? category) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => NewRequestScreen(initialCategory: category),
-    ));
+    Navigator.of(context)
+        .push(NewRequestScreen.route(initialCategory: category));
   }
 }
 

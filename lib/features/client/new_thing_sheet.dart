@@ -166,8 +166,7 @@ Future<void> startSomething(BuildContext context, WidgetRef ref) async {
 
   switch (choice) {
     case ReferralTarget.trade:
-      await Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => const NewRequestScreen()));
+      await Navigator.of(context).push(NewRequestScreen.route());
 
     case ReferralTarget.askTrade:
       await _askTheTrade(context, ref);

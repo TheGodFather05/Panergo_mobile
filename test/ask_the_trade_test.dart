@@ -241,12 +241,17 @@ void main() {
     final requests =
         File('lib/features/client/requests_screen.dart').readAsStringSync();
 
-    expect(shell, contains('startSomething(context, ref)'));
-    expect(requests, contains('startSomething(context, ref)'));
+    // The call, not its exact spelling: the shell passes the active tab's
+    // context rather than its own, because a Positioned sibling of the
+    // IndexedStack resolves Navigator.of() to the ROOT navigator and opened
+    // the demande over the bottom bar. What must hold is that both reach the
+    // same function.
+    expect(shell, contains('startSomething('));
+    expect(requests, contains('startSomething('));
 
     // Neither may push the request form directly any more — that is what
     // bypassed the choice.
-    expect(shell.contains('const NewRequestScreen()'), isFalse);
-    expect(requests.contains('const NewRequestScreen()'), isFalse);
+    expect(shell.contains('NewRequestScreen'), isFalse);
+    expect(requests.contains('NewRequestScreen'), isFalse);
   });
 }

@@ -206,11 +206,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     // asked to describe it again to a form.
     final asked = _turns.whereType<UserAsked>().lastOrNull;
 
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => NewRequestScreen(
-        initialCategory: _category,
-        initialDescription: asked?.text,
-      ),
+    Navigator.of(context).push(NewRequestScreen.route(
+      initialCategory: _category,
+      initialDescription: asked?.text,
     ));
   }
 

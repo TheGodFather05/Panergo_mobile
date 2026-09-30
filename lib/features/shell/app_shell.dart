@@ -323,8 +323,18 @@ class _AppShellState extends ConsumerState<AppShell> {
                 // same function: two entry points offering different things
                 // would be the worse bug, and it is the artisan branch that
                 // would quietly go missing from one of them.
+                //
+                // The active tab's context, not the shell's. This button is a
+                // sibling of the IndexedStack rather than a descendant, so the
+                // shell context resolves Navigator.of() to the ROOT navigator
+                // and the demande form opened over the bottom bar — while the
+                // same call from the « + » landed in the tab and kept it. The
+                // sheet was shared; the destination stack was not.
                 child: _AskButton(
-                  onTap: () => startSomething(context, ref),
+                  onTap: () {
+                    final tab = _keysFor(mode)[index].currentContext;
+                    startSomething(tab ?? context, ref);
+                  },
                 ),
               ),
           ],
