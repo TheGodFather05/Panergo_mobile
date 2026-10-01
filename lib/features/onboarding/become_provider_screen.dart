@@ -8,7 +8,6 @@ import '../../core/models/enums.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
-import '../../core/app_mode.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
@@ -18,6 +17,7 @@ import '../../core/widgets/panergo_button.dart';
 import '../../core/widgets/photo_source_sheet.dart';
 import '../client/categories_screen.dart';
 import 'place_pickers.dart';
+import 'provider_ready_screen.dart';
 
 enum _Step { metier, quartier, presentation, recap }
 
@@ -272,7 +272,15 @@ class _BecomeProviderScreenState extends ConsumerState<BecomeProviderScreen> {
                 : _bioController.text.trim(),
             photoUrl: _photoUrl,
           );
-      await ref.read(activeModeProvider.notifier).set(AppMode.provider);
+      if (!mounted) return;
+
+      // The mode is no longer set here. The profile exists either way, but the
+      // application turning blue under somebody is a change worth announcing
+      // before it happens — and worth being able to decline for now.
+      await Navigator.of(context).push(ProviderReadyScreen.route(
+        category: _category!,
+        neighborhood: _quartier!.name,
+      ));
       if (mounted) Navigator.of(context).pop();
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);

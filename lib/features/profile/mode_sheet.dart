@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/app_mode.dart';
+import '../../core/models/models.dart';
 import '../../core/theme/palette.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/widgets/material_symbol.dart';
+import '../business/business_providers.dart';
 import '../business/register_business_screen.dart';
 import '../onboarding/become_provider_screen.dart';
 
@@ -31,6 +33,10 @@ class ModeSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final available = ref.watch(availableModesProvider);
     final current = ref.watch(effectiveModeProvider);
+
+    final pendingShop = (ref.watch(myBusinessesProvider).value ?? const [])
+        .where((b) => b.status == BusinessStatus.pending)
+        .firstOrNull;
 
     return Container(
       decoration: const BoxDecoration(
@@ -73,6 +79,10 @@ class ModeSheet extends ConsumerWidget {
               mode: mode,
               active: mode == current,
               has: available.contains(mode),
+              // The shop still being read, when there is one. « Pas encore de
+              // boutique » is false for somebody who sent a form yesterday,
+              // and telling them so is how they conclude it was lost.
+              pending: mode == AppMode.business ? pendingShop : null,
               onTap: () => _pick(context, ref, mode, available.contains(mode)),
             ),
 
@@ -120,11 +130,16 @@ class _ModeRow extends StatelessWidget {
     required this.active,
     required this.has,
     required this.onTap,
+    this.pending,
   });
 
   final AppMode mode;
   final bool active;
   final bool has;
+
+  /// A shop of this person's that is waiting to be read, if any.
+  final BusinessDetail? pending;
+
   final VoidCallback onTap;
 
   /// Each mode wears its own face's ink, so the row looks like where it leads.
@@ -153,14 +168,22 @@ class _ModeRow extends StatelessWidget {
         AppMode.business => 'Commerçant',
       };
 
-  /// Says what the mode is for, or what is missing before it can be used.
-  static String _sub(AppMode mode, bool has) => switch (mode) {
-        AppMode.client => 'Demander un service, consulter l’annuaire',
+  /// Says what the mode is for, or where the one being set up has got to.
+  ///
+  /// A mode somebody does not hold shows the intention rather than the lack —
+  /// « Recevoir des demandes de travail » rather than « Pas encore de profil
+  /// artisan ». Those are the words the signup screen uses, so both doors say
+  /// the same thing, and a lack is not a useful thing to read about yourself.
+  static String _sub(AppMode mode, bool has, BusinessDetail? pending) =>
+      switch (mode) {
+        AppMode.client => 'Trouver un artisan ou un commerce',
         AppMode.provider => has
             ? 'Recevoir des demandes, faire des offres'
-            : 'Pas encore de profil artisan',
+            : 'Recevoir des demandes de travail',
+        AppMode.business when pending != null =>
+          '${pending.name} · relue sous 2 jours',
         AppMode.business =>
-          has ? 'Gérer ma fiche et mon catalogue' : 'Pas encore de boutique',
+          has ? 'Gérer ma fiche et mon catalogue' : 'Faire connaître ma boutique',
       };
 
   @override
@@ -198,9 +221,11 @@ class _ModeRow extends StatelessWidget {
                           fontSize: 14.5,
                           fontWeight: FontWeight.w800,
                           color: PanergoColors.ink)),
-                  Text(_sub(mode, has),
+                  Text(_sub(mode, has, pending),
                       style: const TextStyle(
-                          fontSize: 12, color: PanergoColors.muted)),
+                          fontSize: 12, color: PanergoColors.muted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
                 ],
               ),
             ),
@@ -218,6 +243,29 @@ class _ModeRow extends StatelessWidget {
                         fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                         color: ink)),
+              )
+            // A shop being read is neither held nor missing, so it gets
+            // neither the switch nor the plus: it gets where it has got to.
+            else if (pending != null)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: tint,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    MaterialSymbol('schedule', size: 14, color: ink),
+                    const SizedBox(width: 4),
+                    Text('En relecture',
+                        style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                            color: ink)),
+                  ],
+                ),
               )
             else if (!has)
               MaterialSymbol('add_circle', size: 21, color: ink),
