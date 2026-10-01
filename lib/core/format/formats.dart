@@ -124,6 +124,28 @@ abstract final class Formats {
     return DateFormat('d MMMM', 'fr_FR').format(when);
   }
 
+  /// When something was sent, as a person would say it.
+  ///
+  /// « aujourd'hui à 17 h », « hier à 17 h », then the date. Distinct from
+  /// [conversationTime], which drops the hour past yesterday because a message
+  /// list has a separator to carry the day — a single line announcing a wait
+  /// has nothing else to lean on.
+  static String sentAt(DateTime when, {DateTime? now}) {
+    final reference = now ?? DateTime.now();
+    final hour = DateFormat('HH', 'fr_FR').format(when);
+    final minute = DateFormat('mm', 'fr_FR').format(when);
+    // « 17 h » rather than « 17:00 », and « 17 h 30 » when it is not on the
+    // hour — how the time is said aloud in French.
+    final clock = minute == '00' ? '$hour${nbsp}h' : '$hour${nbsp}h$nbsp$minute';
+
+    final sameDay = reference.year == when.year &&
+        reference.month == when.month &&
+        reference.day == when.day;
+    if (sameDay) return 'aujourd’hui à $clock';
+    if (reference.difference(when).inDays < 2) return 'hier à $clock';
+    return 'le ${DateFormat('d MMMM', 'fr_FR').format(when)} à $clock';
+  }
+
   /// A person's name, never their phone number.
   ///
   /// An account created by OTP has no name until its owner supplies one, and the

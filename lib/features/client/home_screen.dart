@@ -14,6 +14,7 @@ import '../../core/widgets/common.dart';
 import '../../core/widgets/material_symbol.dart';
 import '../../core/widgets/trade_picker.dart';
 import '../assistant/assistant_screen.dart';
+import '../business/shop_status_card.dart';
 import '../deals/deals_screen.dart' show dealsProvider;
 import '../feed/feed_screen.dart';
 import '../profile/edit_profile_screen.dart';
@@ -81,6 +82,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onChangeQuartier: _changeQuartier,
           ),
           const SizedBox(height: Space.s22),
+
+          // Before anything else, because it is the answer to a question the
+          // person is already asking: a shop registered and then apparently
+          // forgotten. Renders nothing when there is no shop to report.
+          const ShopStatusCard(),
+
           _Headline(firstName: firstName),
           const SizedBox(height: Space.s18),
           _AssistantCard(

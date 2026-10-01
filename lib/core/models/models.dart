@@ -2022,6 +2022,7 @@ class BusinessDetail {
     this.photoUrl,
     this.bannerUrl,
     this.rejectionReason,
+    this.submittedAt,
   });
 
   final String id;
@@ -2046,6 +2047,14 @@ class BusinessDetail {
 
   final BusinessStatus status;
   final String? rejectionReason;
+
+  /// When the listing was sent for review.
+  ///
+  /// The row is created by the form, so this is the moment send was pressed.
+  /// Null from a server that predates the field, which the card reads as
+  /// « we cannot say how long » rather than as « just now ».
+  final DateTime? submittedAt;
+
   final bool openNow;
   final String statusLabel;
   final String statusMeta;
@@ -2077,6 +2086,7 @@ class BusinessDetail {
         status: Json.enumOf(json['status'], BusinessStatus.values,
             BusinessStatus.pending),
         rejectionReason: Json.strOrNull(json['rejection_reason']),
+        submittedAt: Json.dateTimeOrNull(json['submitted_at']),
         openNow: Json.boolOf(json['open_now']),
       statusLabel: Json.str(json['status_label']),
       statusMeta: Json.str(json['status_meta']),
